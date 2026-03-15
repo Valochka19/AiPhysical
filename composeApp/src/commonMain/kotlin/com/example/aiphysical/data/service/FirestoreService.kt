@@ -1,0 +1,71 @@
+package com.example.aiphysical.data.service
+
+import com.example.aiphysical.data.model.*
+import kotlinx.coroutines.flow.Flow
+
+sealed class FirestoreResult {
+    data class OrgSuccess(val org: Organization) : FirestoreResult()
+    data class UserProfileSuccess(val profile: UserProfile) : FirestoreResult()
+    data class MembersSuccess(val members: List<UserProfile>) : FirestoreResult()
+    data class TestHistorySuccess(val results: List<TestResult>) : FirestoreResult()
+    data class CourseProgressSuccess(val progressList: List<CourseProgress>) : FirestoreResult()
+    object GenericSuccess : FirestoreResult()
+    object NotFound : FirestoreResult()
+    data class Failure(val message: String) : FirestoreResult()
+}
+
+interface FirestoreService {
+    // ── Registration flow ─────────────────────────────────────────────────────
+
+    /** Шаг 1 (Директор): создаём документ организации с двумя invite-кодами. */
+    suspend fun createOrganization(org: Organization): FirestoreResult
+
+    /**
+     * Шаг 1 (Психолог): ищем organizations, где inviteCodePsych == [code].
+     * Возвращает [FirestoreResult.OrgSuccess] c orgId, если нашли,
+     * или [FirestoreResult.NotFound] если такого кода не существует.
+     */
+    suspend fun findOrgByPsychCode(code: String): FirestoreResult
+
+    /**
+     * Шаг 1 (Студент): ищем organizations, где inviteCodeStudent == [code].
+     */
+    suspend fun findOrgByStudentCode(code: String): FirestoreResult
+
+    /**
+     * Шаг 3 (все роли): создаём документ в коллекции users.
+     * Обязательно содержит organizationId, чтобы директор мог
+     * отфильтровать участников своей организации.
+     */
+    suspend fun createUserProfile(profile: UserProfile): FirestoreResult
+
+    // ── Director Dashboard — one-shot ─────────────────────────────────────────
+    suspend fun getOrganization(orgId: String): FirestoreResult
+    suspend fun getUserProfile(uid: String): FirestoreResult
+
+    /**
+     * Одноразовый запрос участников (используется для первоначальной загрузки
+     * если real-time listener ещё не подключён).
+     */
+    suspend fun getOrganizationMembers(orgId: String): FirestoreResult
+
+    suspend fun getUserTestHistory(uid: String): FirestoreResult
+    suspend fun getUserCourseProgress(uid: String): FirestoreResult
+
+    // ── Director Dashboard — real-time listener ───────────────────────────────
+
+    /**
+     * Возвращает холодный [Flow], который слушает коллекцию `users`
+     * с фильтром `orgId == [orgId]` через [addSnapshotListener].
+     * Каждый раз, когда любой участник организации изменяется (добавление,
+     * удаление, обновление поля), Flow эмитирует новый [FirestoreResult.MembersSuccess].
+     *
+     * Подписка на Firestore отменяется автоматически при отмене coroutine-scope
+     * (viewModelScope.cancel() или Job.cancel()).
+     */
+    fun observeOrganizationMembers(orgId: String): Flow<FirestoreResult>
+
+    // ── Member Management ─────────────────────────────────────────────────────
+    suspend fun updateUserRole(uid: String, newRole: String): FirestoreResult
+    suspend fun updateUserBlockStatus(uid: String, isBlocked: Boolean): FirestoreResult
+}

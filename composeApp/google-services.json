@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "800063690646",
+    "project_id": "physical-19f81",
+    "storage_bucket": "physical-19f81.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:800063690646:android:e05a4d29f5fb0dc441afb7",
+        "android_client_info": {
+          "package_name": "com.example.aiphysical"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFLpdT6NznS9GXImE1Biy3v44IgEn8gBA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
