@@ -1,5 +1,6 @@
 package com.example.aiphysical.presentation.student
 
+import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.TestResult
@@ -7,7 +8,7 @@ import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
 
 // ── Navigation tabs ───────────────────────────────────────────────────────────
-enum class StudentTab { Home, Help, Courses, Profile }
+enum class StudentTab { Home, Help, Courses, Chat, Profile }
 
 // ── 5 test types (match DB IDs) ───────────────────────────────────────────────
 enum class StudentTestType(
@@ -45,4 +46,9 @@ data class StudentUiState(
     val selectedAddedCourse: OrganizationCourse? = null,
     val showAddedCoursesViewer: Boolean = false,
     val showTextCourseViewer: Boolean = false,
+    // ── AI Chat ───────────────────────────────────────────────────────────────
+    val chatMessages: List<ChatMessage> = emptyList(),
+    val chatInput: String = "",
+    val isChatLoading: Boolean = false,
+    val chatError: String? = null,
 )

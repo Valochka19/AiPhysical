@@ -139,6 +139,7 @@ fun StudentDashboardScreen(
                     StudentTab.Home    -> StudentHomeTab(    state = state, vm = vm, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
                     StudentTab.Help    -> StudentHelpTab(    state = state,           modifier = Modifier.padding(innerPadding))
                     StudentTab.Courses -> StudentCoursesTab( state = state, vm = vm,  modifier = Modifier.padding(innerPadding))
+                    StudentTab.Chat    -> StudentAiChatTab(  state = state, vm = vm,  modifier = Modifier.padding(innerPadding))
                     StudentTab.Profile -> StudentProfileTab(
                         state = state,
                         onLogout = onLogout,
@@ -175,6 +176,7 @@ private fun StudentBottomNavBar(
         NavItem(StudentTab.Home,    "🏠", strings.tabHome),
         NavItem(StudentTab.Help,    "🆘", strings.tabHelp),
         NavItem(StudentTab.Courses, "📚", strings.tabCourses),
+        NavItem(StudentTab.Chat,    "🤖", "AI Чат"),
         NavItem(StudentTab.Profile, "👤", strings.tabProfile),
     )
 
