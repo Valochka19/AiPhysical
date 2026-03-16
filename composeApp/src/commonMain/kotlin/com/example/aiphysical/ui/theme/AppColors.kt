@@ -62,3 +62,14 @@ val MetricEmotion    = Color(0xFF00CED1)
 val MetricMotivation = Color(0xFF4FD18A)
 val MetricAnxiety    = Color(0xFFE040FB)
 
+// ─── Psychologist Module — Strict Matte Professional ─────────────────────────
+val MatteSurface         = Color(0xFF161632)  // Solid matte card background
+val MatteCardBorder      = Color(0xFF252550)  // Subtle card border
+val PsychBackground      = Color(0xFF0B0B1E)  // Deep Navy
+val PsychCritical        = Color(0xFFFF5370)  // Critical Red
+val PsychWarning         = Color(0xFFFF8C00)  // Warning Orange
+val PsychTeal            = Color(0xFF00CED1)  // Success Teal
+val PsychPriorityLow     = Color(0xFF4FD18A)
+val PsychPriorityMedium  = Color(0xFFFFB800)
+val PsychPriorityHigh    = Color(0xFFFF5370)
+

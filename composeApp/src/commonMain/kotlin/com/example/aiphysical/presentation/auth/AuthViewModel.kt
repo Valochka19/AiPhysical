@@ -62,9 +62,11 @@ class AuthViewModel(
         }
     }
 
-    private fun routeByRole(uid: String, profile: UserProfile): AuthScreen =
-        if (profile.role == "director") AuthScreen.DirectorDashboard(uid = uid, orgId = profile.orgId)
-        else AuthScreen.GenericHome(uid = uid, role = profile.role)
+    private fun routeByRole(uid: String, profile: UserProfile): AuthScreen = when (profile.role) {
+        "director"     -> AuthScreen.DirectorDashboard(uid = uid, orgId = profile.orgId)
+        "psychologist" -> AuthScreen.PsychologistDashboard(uid = uid, orgId = profile.orgId, fullName = profile.fullName)
+        else           -> AuthScreen.GenericHome(uid = uid, role = profile.role)
+    }
 
     // ─── Director registration ────────────────────────────────────────────────
 
@@ -159,11 +161,15 @@ class AuthViewModel(
                                 is FirestoreResult.Failure ->
                                     _uiState.update { it.copy(isLoading = false, errorMessage = pRes.message) }
 
-                                // [5] Успех → навигация на HomeScreen психолога
+                                // [5] Успех → навигация на Dashboard психолога
                                 else -> _uiState.update {
                                     it.copy(
                                         isLoading = false,
-                                        currentScreen = AuthScreen.GenericHome(uid = uid, role = "psychologist"),
+                                        currentScreen = AuthScreen.PsychologistDashboard(
+                                            uid = uid,
+                                            orgId = organizationId,
+                                            fullName = event.fullName
+                                        ),
                                         isLoggedIn = true
                                     )
                                 }

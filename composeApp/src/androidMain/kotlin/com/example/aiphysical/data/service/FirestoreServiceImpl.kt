@@ -160,6 +160,29 @@ class FirestoreServiceImpl : FirestoreService {
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка блокировки") }
     }
 
+    override suspend fun updateStudentRecommendation(
+        studentId: String,
+        comment: String,
+        courseId: String,
+        courseName: String,
+        priority: String,
+        psychId: String
+    ): FirestoreResult {
+        return try {
+            val data = mapOf(
+                "psychComment"       to comment,
+                "assignedCourseId"   to courseId,
+                "assignedCourseName" to courseName,
+                "psychPriority"      to priority,
+                "psychCommentDate"   to System.currentTimeMillis()
+            )
+            db.collection("users").document(studentId).update(data).await()
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка обновления рекомендации")
+        }
+    }
+
     // ── Extension functions ───────────────────────────────────────────────────
 
     private fun DocumentSnapshot.toOrganization() = Organization(
@@ -184,6 +207,11 @@ class FirestoreServiceImpl : FirestoreService {
         emotionScore = (getDouble("emotionScore") ?: 50.0).toFloat(),
         motivationScore = (getDouble("motivationScore") ?: 50.0).toFloat(),
         anxietyScore = (getDouble("anxietyScore") ?: 0.0).toFloat(),
-        isBlocked = getBoolean("isBlocked") ?: false
+        isBlocked = getBoolean("isBlocked") ?: false,
+        psychComment = getString("psychComment") ?: "",
+        assignedCourseId = getString("assignedCourseId") ?: "",
+        assignedCourseName = getString("assignedCourseName") ?: "",
+        psychPriority = getString("psychPriority") ?: "",
+        psychCommentDate = getLong("psychCommentDate") ?: 0L
     )
 }

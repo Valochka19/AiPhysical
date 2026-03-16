@@ -20,6 +20,7 @@ import com.example.aiphysical.ui.components.GlassPrimaryButton
 import com.example.aiphysical.ui.components.LanguageSwitcher
 import com.example.aiphysical.ui.screens.*
 import com.example.aiphysical.ui.screens.director.DirectorDashboardScreen
+import com.example.aiphysical.ui.screens.psychologist.PsychologistDashboardScreen
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.util.createFirebaseAuthService
 import com.example.aiphysical.util.createFirestoreService
@@ -63,7 +64,15 @@ fun App() {
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 
-                // ── Generic Home (Psychologist / Student) ─────────────────────────────
+                // ── Psychologist Dashboard ─────────────────────────────────────────────
+                is AuthScreen.PsychologistDashboard -> PsychologistDashboardScreen(
+                    uid = screen.uid,
+                    orgId = screen.orgId,
+                    fullName = screen.fullName,
+                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                )
+
+                // ── Student Home ──────────────────────────────────────────────────────
                 is AuthScreen.GenericHome -> GenericHomeScreen(
                     uid = screen.uid,
                     role = screen.role,

@@ -15,5 +15,11 @@ data class UserProfile(
     val emotionScore: Float = 50f,       // 0–100 (higher = better mood)
     val motivationScore: Float = 50f,    // 0–100 (higher = more motivated)
     val anxietyScore: Float = 0f,        // 0–100
-    val isBlocked: Boolean = false
+    val isBlocked: Boolean = false,
+    // ── Psychologist recommendation ────────────────────────────────────────────
+    val psychComment: String = "",
+    val assignedCourseId: String = "",
+    val assignedCourseName: String = "",
+    val psychPriority: String = "",      // "LOW" | "MEDIUM" | "HIGH"
+    val psychCommentDate: Long = 0L
 )

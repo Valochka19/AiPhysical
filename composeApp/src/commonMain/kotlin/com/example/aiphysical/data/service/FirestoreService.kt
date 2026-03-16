@@ -68,4 +68,18 @@ interface FirestoreService {
     // ── Member Management ─────────────────────────────────────────────────────
     suspend fun updateUserRole(uid: String, newRole: String): FirestoreResult
     suspend fun updateUserBlockStatus(uid: String, isBlocked: Boolean): FirestoreResult
+
+    // ── Psychologist: Student Recommendation ──────────────────────────────────
+    /**
+     * Updates the student's Firestore document with a psychologist recommendation.
+     * The student will see this in their "Results" section.
+     */
+    suspend fun updateStudentRecommendation(
+        studentId: String,
+        comment: String,
+        courseId: String,
+        courseName: String,
+        priority: String,
+        psychId: String
+    ): FirestoreResult
 }
