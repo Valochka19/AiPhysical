@@ -312,9 +312,9 @@ private fun GroupClimateHubCard(
             ) { Text(statusIcon, fontSize = 22.sp) }
 
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("ОБЩИЙ КЛИМАТ", color = accentColor.copy(0.70f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.0.sp)
-                Text(climateVerdict(climate), color = accentColor, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 26.sp)
-                Text(climateSubText(climate), color = accentColor.copy(0.60f), fontSize = 12.sp)
+                Text("ПСИХОЭМОЦИОНАЛЬНЫЙ ФОН", color = accentColor.copy(0.70f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.6.sp)
+                Text(climateVerdict(climate), color = accentColor, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, lineHeight = 28.sp)
+                Text(climateSubText(climate), color = accentColor.copy(0.60f), style = MaterialTheme.typography.bodyMedium)
             }
         }
 
@@ -393,9 +393,11 @@ private fun GlassRadarCard(
     val accentColor = climateAccentColor(climate)
     val values = listOf(avgBurnout, avgStress, avgAnxiety, avgEmotion, avgMotivation)
 
+    // wrapContentHeight — card strictly hugs its content, no dead space
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .wrapContentHeight()
             .clip(RoundedCornerShape(24.dp))
             .background(Brush.verticalGradient(listOf(Color.White.copy(0.10f), Color.White.copy(0.03f))))
             .border(
@@ -403,36 +405,87 @@ private fun GlassRadarCard(
                 Brush.verticalGradient(listOf(Color.White.copy(0.24f), Color.White.copy(0.05f))),
                 RoundedCornerShape(24.dp)
             )
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
-                Text("Радарная диаграмма группы", color = TextSecondary, fontSize = 13.sp)
+        // ── Header row: title pinned left, chip pinned right ──────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    "ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ",
+                    color = TextHint,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.6.sp
+                )
+                Text(
+                    "Радарная диаграмма группы",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             Box(
                 modifier = Modifier
                     .background(accentColor.copy(0.14f), RoundedCornerShape(8.dp))
                     .border(1.dp, accentColor.copy(0.40f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) { Text("Ср. по группе", color = accentColor, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+            ) {
+                Text(
+                    "Ср. по группе",
+                    color = accentColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
+        // ── Hero radar chart — fixed 270dp, centred, fills 80%+ of card width ─
         RadarSpiderChart(
             values = values,
             fillColor = accentColor,
             vertexColors = radarAxisColors,
-            modifier = Modifier.fillMaxWidth().height(264.dp)
+            modifier = Modifier
+                .size(270.dp)
+                .align(Alignment.CenterHorizontally)
         )
 
-        // Legend row with per-axis value
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        // ── Compact legend: colour dot + label + value ─────────────────────────
+        // 5 items in one balanced Row; bodySmall keeps text from wrapping
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top
+        ) {
             radarAxisLabels.forEachIndexed { i, label ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(Modifier.size(9.dp).background(radarAxisColors[i], CircleShape))
-                    Text(label, color = TextHint, fontSize = 9.sp, textAlign = TextAlign.Center)
-                    Text("${values[i].toInt()}%", color = radarAxisColors[i], fontSize = 9.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .background(radarAxisColors[i], CircleShape)
+                    )
+                    Text(
+                        label,
+                        color = TextHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
+                    Text(
+                        "${values[i].toInt()}%",
+                        color = radarAxisColors[i],
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -466,7 +519,8 @@ private fun RadarSpiderChart(
     Canvas(modifier = modifier) {
         val cx = size.width / 2f
         val cy = size.height / 2f
-        val maxR = minOf(cx, cy) * 0.73f
+        // 82% of the half-dimension → chart fills the canvas as a hero element
+        val maxR = minOf(cx, cy) * 0.82f
         val levels = 5
 
         // ── Concentric web rings ──────────────────────────────────────────────
@@ -879,14 +933,14 @@ private fun climateAccentColor(climate: String): Color = when (climate) {
 private fun climateVerdict(climate: String): String = when (climate) {
     "critical" -> "Обнаружен риск выгорания"
     "warning"  -> "Требует внимания"
-    "good"     -> "Климат стабилен"
+    "good"     -> "Состояние в норме"
     else       -> "Данных недостаточно"
 }
 
 private fun climateSubText(climate: String): String = when (climate) {
     "critical" -> "Немедленное вмешательство необходимо"
     "warning"  -> "Часть студентов испытывают стресс"
-    "good"     -> "Психологическое состояние в норме"
+    "good"     -> "Показатели группы в пределах нормы"
     else       -> "Ожидание результатов тестирования"
 }
 
