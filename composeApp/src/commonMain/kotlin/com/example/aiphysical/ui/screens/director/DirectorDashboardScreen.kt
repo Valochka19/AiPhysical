@@ -128,7 +128,7 @@ fun DirectorDashboardScreen(
                                 DirectorTab.Dashboard   -> DashboardTab(state = state, vm = vm, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
                                 DirectorTab.Analytics   -> AnalyticsTab(state = state, vm = vm, modifier = Modifier.padding(innerPadding))
                                 DirectorTab.Management  -> ManagementTab(state = state, vm = vm, modifier = Modifier.padding(innerPadding))
-                                DirectorTab.Content     -> ContentTab(state = state, modifier = Modifier.padding(innerPadding))
+                                DirectorTab.Content     -> ContentTab(state = state, vm = vm, modifier = Modifier.padding(innerPadding))
                             }
                         }
                     }

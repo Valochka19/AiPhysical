@@ -183,6 +183,62 @@ class FirestoreServiceImpl : FirestoreService {
         }
     }
 
+    // ── Organization Courses ──────────────────────────────────────────────────
+
+    override fun observeOrganizationCourses(orgId: String): Flow<FirestoreResult> = callbackFlow {
+        val ref = db.collection("organizations").document(orgId).collection("courses")
+        val listener = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(FirestoreResult.Failure(error.localizedMessage ?: "Ошибка слушателя курсов"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val courses = snapshot.documents.map { it.toOrganizationCourse() }
+                trySend(FirestoreResult.OrganizationCoursesSuccess(courses))
+            }
+        }
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun getOrganizationCourses(orgId: String): FirestoreResult {
+        return try {
+            val snap = db.collection("organizations").document(orgId).collection("courses").get().await()
+            FirestoreResult.OrganizationCoursesSuccess(snap.documents.map { it.toOrganizationCourse() })
+        } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки курсов") }
+    }
+
+    override suspend fun createOrganizationCourse(orgId: String, course: OrganizationCourse): FirestoreResult {
+        return try {
+            val ref = if (course.id.isBlank())
+                db.collection("organizations").document(orgId).collection("courses").document()
+            else
+                db.collection("organizations").document(orgId).collection("courses").document(course.id)
+            val data = mapOf(
+                "id"            to ref.id,
+                "orgId"         to orgId,
+                "title"         to course.title,
+                "description"   to course.description,
+                "type"          to course.type.name,
+                "contentText"   to course.contentText,
+                "videoUrl"      to course.videoUrl,
+                "createdBy"     to course.createdBy,
+                "createdByName" to course.createdByName,
+                "createdAt"     to course.createdAt,
+                "updatedAt"     to course.updatedAt,
+                "isPublished"   to course.isPublished
+            )
+            ref.set(data).await()
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка публикации курса") }
+    }
+
+    override suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult {
+        return try {
+            db.collection("organizations").document(orgId).collection("courses").document(courseId).delete().await()
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка удаления курса") }
+    }
+
     // ── Extension functions ───────────────────────────────────────────────────
 
     private fun DocumentSnapshot.toOrganization() = Organization(
@@ -213,5 +269,20 @@ class FirestoreServiceImpl : FirestoreService {
         assignedCourseName = getString("assignedCourseName") ?: "",
         psychPriority = getString("psychPriority") ?: "",
         psychCommentDate = getLong("psychCommentDate") ?: 0L
+    )
+
+    private fun DocumentSnapshot.toOrganizationCourse() = OrganizationCourse(
+        id            = getString("id") ?: this.id,
+        orgId         = getString("orgId") ?: "",
+        title         = getString("title") ?: "",
+        description   = getString("description") ?: "",
+        type          = try { CourseContentType.valueOf(getString("type") ?: "TEXT") } catch (_: Exception) { CourseContentType.TEXT },
+        contentText   = getString("contentText") ?: "",
+        videoUrl      = getString("videoUrl") ?: "",
+        createdBy     = getString("createdBy") ?: "",
+        createdByName = getString("createdByName") ?: "",
+        createdAt     = getLong("createdAt") ?: 0L,
+        updatedAt     = getLong("updatedAt") ?: 0L,
+        isPublished   = getBoolean("isPublished") ?: true
     )
 }

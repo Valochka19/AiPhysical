@@ -34,4 +34,18 @@ class FirestoreServiceStubImpl : FirestoreService {
         priority: String,
         psychId: String
     ): FirestoreResult = FirestoreResult.Failure(msg)
+
+    // ── Organization Courses stubs ────────────────────────────────────────────
+
+    override fun observeOrganizationCourses(orgId: String): Flow<FirestoreResult> =
+        flowOf(FirestoreResult.OrganizationCoursesSuccess(emptyList()))
+
+    override suspend fun getOrganizationCourses(orgId: String): FirestoreResult =
+        FirestoreResult.OrganizationCoursesSuccess(emptyList())
+
+    override suspend fun createOrganizationCourse(orgId: String, course: OrganizationCourse): FirestoreResult =
+        FirestoreResult.Failure(msg)
+
+    override suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult =
+        FirestoreResult.Failure(msg)
 }

@@ -1,5 +1,6 @@
 package com.example.aiphysical.presentation.student
 
+import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.auth.AppLanguage
 
 sealed class StudentEvent {
@@ -11,5 +12,11 @@ sealed class StudentEvent {
     object DismissError : StudentEvent()
     object Logout : StudentEvent()
     data class ChangeLanguage(val language: AppLanguage) : StudentEvent()
+    // ── Added courses ─────────────────────────────────────────────────────────
+    object OpenAddedCourses : StudentEvent()
+    object CloseAddedCourses : StudentEvent()
+    data class OpenAddedCourse(val course: OrganizationCourse) : StudentEvent()
+    object CloseSelectedAddedCourse : StudentEvent()
+    data class OpenTextCourse(val course: OrganizationCourse) : StudentEvent()
+    object CloseTextCourse : StudentEvent()
 }
-

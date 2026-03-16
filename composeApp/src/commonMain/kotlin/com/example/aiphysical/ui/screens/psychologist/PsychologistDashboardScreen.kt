@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ fun PsychologistDashboardScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
+    val uriHandler = LocalUriHandler.current
 
     // Collect MVI side-effects
     LaunchedEffect(Unit) {
@@ -64,6 +66,10 @@ fun PsychologistDashboardScreen(
                     snackbarHostState.showSnackbar(effect.message, duration = SnackbarDuration.Short)
                 PsychologistEffect.TriggerHaptic ->
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                is PsychologistEffect.OpenUrl -> {
+                    try { uriHandler.openUri(effect.url) }
+                    catch (_: Exception) { snackbarHostState.showSnackbar("Не удалось открыть ссылку") }
+                }
             }
         }
     }
@@ -147,6 +153,7 @@ fun PsychologistDashboardScreen(
                     tab == PsychologistTab.Library -> {
                         LibraryTab(
                             state = state,
+                            vm = vm,
                             modifier = Modifier.padding(innerPadding)
                         )
                     }

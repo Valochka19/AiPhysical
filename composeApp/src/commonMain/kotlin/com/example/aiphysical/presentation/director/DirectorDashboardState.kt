@@ -38,5 +38,10 @@ data class DirectorDashboardState(
     val analyticsFilter: String = "ALL",
     // Feedback
     val snackbarMessage: String? = null,
-    val currentLanguage: AppLanguage = AppLanguage.RU
+    val currentLanguage: AppLanguage = AppLanguage.RU,
+    // ── Added (org-level) courses ─────────────────────────────────────────────
+    val addedCourses: List<OrganizationCourse> = emptyList(),
+    val isLoadingAddedCourses: Boolean = false,
+    val selectedAddedCourse: OrganizationCourse? = null,
+    val showTextCourseViewer: Boolean = false,
 )

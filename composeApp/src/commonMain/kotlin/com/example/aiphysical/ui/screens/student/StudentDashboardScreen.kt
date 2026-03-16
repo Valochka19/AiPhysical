@@ -9,21 +9,26 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.student.*
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
@@ -49,6 +54,7 @@ fun StudentDashboardScreen(
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val uriHandler = LocalUriHandler.current
 
     // Collect side-effects
     LaunchedEffect(Unit) {
@@ -56,6 +62,10 @@ fun StudentDashboardScreen(
             when (effect) {
                 is StudentEffect.ShowSnackbar     -> snackbarHostState.showSnackbar(effect.message, duration = SnackbarDuration.Short)
                 is StudentEffect.NavigateToTest   -> { /* TODO: open test screen */ }
+                is StudentEffect.OpenUrl          -> {
+                    try { uriHandler.openUri(effect.url) }
+                    catch (_: Exception) { snackbarHostState.showSnackbar("Не удалось открыть ссылку") }
+                }
             }
         }
     }
@@ -128,7 +138,7 @@ fun StudentDashboardScreen(
                 when (tab) {
                     StudentTab.Home    -> StudentHomeTab(    state = state, vm = vm, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
                     StudentTab.Help    -> StudentHelpTab(    state = state,           modifier = Modifier.padding(innerPadding))
-                    StudentTab.Courses -> StudentCoursesTab( state = state,           modifier = Modifier.padding(innerPadding))
+                    StudentTab.Courses -> StudentCoursesTab( state = state, vm = vm,  modifier = Modifier.padding(innerPadding))
                     StudentTab.Profile -> StudentProfileTab(
                         state = state,
                         onLogout = onLogout,
@@ -136,6 +146,14 @@ fun StudentDashboardScreen(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
+            }
+
+            // ── Text Course Viewer overlay ─────────────────────────────────────
+            if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
+                TextCourseViewerDialog(
+                    course = state.selectedAddedCourse!!,
+                    onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
+                )
             }
         }
     }
@@ -278,3 +296,141 @@ private fun StudentNavItem(
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  Text Course Viewer Dialog (shared by Student, Director)
+// ══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+internal fun TextCourseViewerDialog(
+    course: OrganizationCourse,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF050010).copy(0.88f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.88f)
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Color(0xFF0D0D22))
+                    .border(
+                        1.dp,
+                        Brush.horizontalGradient(listOf(PsychTeal.copy(0.4f), Color(0xFF9D5FF5).copy(0.3f))),
+                        RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                    )
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp, bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Drag handle
+                Box(
+                    Modifier
+                        .width(48.dp)
+                        .height(4.dp)
+                        .background(Color.White.copy(0.15f), RoundedCornerShape(2.dp))
+                        .align(Alignment.CenterHorizontally)
+                )
+
+                // Badge + title
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .background(PsychTeal.copy(0.18f), RoundedCornerShape(8.dp))
+                            .border(1.dp, PsychTeal.copy(0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("📝 Текстовый курс", color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                    }
+                }
+
+                Text(
+                    course.title,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    lineHeight = 28.sp
+                )
+
+                if (course.description.isNotBlank()) {
+                    Text(
+                        course.description,
+                        color = Color.White.copy(0.55f),
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+
+                // Author row
+                if (course.createdByName.isNotBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("👤", fontSize = 14.sp)
+                        Text(
+                            "Автор: ${course.createdByName}",
+                            color = Color.White.copy(0.45f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = Color.White.copy(0.08f))
+
+                // Content text
+                if (course.contentText.isNotBlank()) {
+                    Text(
+                        course.contentText,
+                        color = Color.White.copy(0.85f),
+                        fontSize = 15.sp,
+                        lineHeight = 24.sp
+                    )
+                } else {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.White.copy(0.05f))
+                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp))
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Текст курса отсутствует", color = Color.White.copy(0.35f), fontSize = 14.sp)
+                    }
+                }
+
+                // Close button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.horizontalGradient(listOf(PsychTeal.copy(0.25f), Color(0xFF9D5FF5).copy(0.2f))))
+                        .border(1.dp, Brush.horizontalGradient(listOf(PsychTeal.copy(0.6f), Color(0xFF9D5FF5).copy(0.5f))), RoundedCornerShape(14.dp))
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Закрыть", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}

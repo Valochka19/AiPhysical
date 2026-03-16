@@ -4,16 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 class StudentViewModel(
     private val uid: String,
-    /** orgId reserved for psychologist-lookup and future org-level features */
-    @Suppress("unused") private val orgId: String,
+    private val orgId: String,
     private val firestoreService: FirestoreService
 ) : ViewModel() {
 
@@ -21,10 +22,15 @@ class StudentViewModel(
     val state: StateFlow<StudentUiState> = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<StudentEffect>()
-    @Suppress("unused")   // consumed by StudentDashboardScreen via collectLatest
+    @Suppress("unused")
     val effects: SharedFlow<StudentEffect> = _effects.asSharedFlow()
 
-    init { loadData() }
+    private var coursesObserverJob: Job? = null
+
+    init {
+        loadData()
+        observeAddedCourses()
+    }
 
     fun onEvent(event: StudentEvent) {
         when (event) {
@@ -36,6 +42,17 @@ class StudentViewModel(
             StudentEvent.DismissError     -> _state.update { it.copy(errorMessage = null) }
             StudentEvent.Logout           -> { /* handled in App.kt */ }
             is StudentEvent.ChangeLanguage -> _state.update { it.copy(currentLanguage = event.language) }
+            // ── Added courses ─────────────────────────────────────────────────
+            StudentEvent.OpenAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = true) }
+            StudentEvent.CloseAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = false) }
+            is StudentEvent.OpenAddedCourse -> handleOpenAddedCourse(event.course)
+            StudentEvent.CloseSelectedAddedCourse -> _state.update { it.copy(selectedAddedCourse = null) }
+            is StudentEvent.OpenTextCourse -> _state.update {
+                it.copy(selectedAddedCourse = event.course, showTextCourseViewer = true)
+            }
+            StudentEvent.CloseTextCourse -> _state.update {
+                it.copy(showTextCourseViewer = false, selectedAddedCourse = null)
+            }
         }
     }
 
@@ -46,7 +63,6 @@ class StudentViewModel(
         else           _state.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-            // Fetch profile, test history, and course progress concurrently
             val profileResult = firestoreService.getUserProfile(uid)
             val historyResult = firestoreService.getUserTestHistory(uid)
             val courseResult  = firestoreService.getUserCourseProgress(uid)
@@ -88,7 +104,38 @@ class StudentViewModel(
         }
     }
 
+    private fun observeAddedCourses() {
+        if (orgId.isBlank()) return
+        coursesObserverJob?.cancel()
+        coursesObserverJob = viewModelScope.launch {
+            firestoreService.observeOrganizationCourses(orgId)
+                .catch { /* silently ignore */ }
+                .collect { result ->
+                    when (result) {
+                        is FirestoreResult.OrganizationCoursesSuccess ->
+                            _state.update { it.copy(addedCourses = result.courses.filter { c -> c.isPublished }) }
+                        else -> { /* ignore */ }
+                    }
+                }
+        }
+    }
+
     // ─── Event handlers ───────────────────────────────────────────────────────
+
+    private fun handleOpenAddedCourse(course: com.example.aiphysical.data.model.OrganizationCourse) {
+        when (course.type) {
+            CourseContentType.VIDEO -> {
+                if (course.videoUrl.isNotBlank()) {
+                    emit(StudentEffect.OpenUrl(course.videoUrl))
+                } else {
+                    emit(StudentEffect.ShowSnackbar("Ссылка на видео недоступна"))
+                }
+            }
+            CourseContentType.TEXT -> {
+                _state.update { it.copy(selectedAddedCourse = course, showTextCourseViewer = true) }
+            }
+        }
+    }
 
     private fun handleStartTest(testType: StudentTestType) {
         emit(StudentEffect.ShowSnackbar("🚀 Тест «${testType.label}» — функция в разработке"))
@@ -101,16 +148,10 @@ class StudentViewModel(
 
     // ─── Analytics ────────────────────────────────────────────────────────────
 
-    /**
-     * Overall mental health score (0–100, higher = better).
-     * emotion & motivation: higher is good
-     * stress, burnout, anxiety: lower is good → invert
-     */
     private fun computeOverallScore(p: com.example.aiphysical.data.model.UserProfile): Float {
         if (p.stressScore == 0f && p.burnoutScore == 0f &&
             p.anxietyScore == 0f && p.emotionScore == 50f && p.motivationScore == 50f
-        ) return 0f   // no data yet
-
+        ) return 0f
         return ((100f - p.stressScore)   +
                 (100f - p.burnoutScore)  +
                 (100f - p.anxietyScore)  +
@@ -138,4 +179,3 @@ class StudentViewModel(
         }
     }
 }
-

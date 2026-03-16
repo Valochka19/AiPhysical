@@ -1,5 +1,7 @@
 package com.example.aiphysical.presentation.psychologist
 
+import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
@@ -75,5 +77,23 @@ data class PsychologistHomeState(
 
     // Language
     val currentLanguage: AppLanguage = AppLanguage.RU,
+
+    // ── Added (org-level) courses ─────────────────────────────────────────────
+    val addedCourses: List<OrganizationCourse> = emptyList(),
+    val isLoadingAddedCourses: Boolean = false,
+
+    // ── Add course form ───────────────────────────────────────────────────────
+    val showAddCourseSheet: Boolean = false,
+    val newCourseTitle: String = "",
+    val newCourseDescription: String = "",
+    val newCourseType: CourseContentType = CourseContentType.TEXT,
+    val newCourseTextContent: String = "",
+    val newCourseVideoUrl: String = "",
+    val isPublishingCourse: Boolean = false,
+
+    // ── Added courses viewer ──────────────────────────────────────────────────
+    val showAddedCoursesViewer: Boolean = false,
+    val selectedAddedCourse: OrganizationCourse? = null,
+    val showTextCourseViewer: Boolean = false,
 )
 

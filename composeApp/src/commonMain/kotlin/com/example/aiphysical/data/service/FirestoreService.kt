@@ -9,6 +9,7 @@ sealed class FirestoreResult {
     data class MembersSuccess(val members: List<UserProfile>) : FirestoreResult()
     data class TestHistorySuccess(val results: List<TestResult>) : FirestoreResult()
     data class CourseProgressSuccess(val progressList: List<CourseProgress>) : FirestoreResult()
+    data class OrganizationCoursesSuccess(val courses: List<OrganizationCourse>) : FirestoreResult()
     object GenericSuccess : FirestoreResult()
     object NotFound : FirestoreResult()
     data class Failure(val message: String) : FirestoreResult()
@@ -82,4 +83,18 @@ interface FirestoreService {
         priority: String,
         psychId: String
     ): FirestoreResult
+
+    // ── Organization Courses (added by psychologist) ──────────────────────────
+
+    /** Real-time observer on organizations/{orgId}/courses */
+    fun observeOrganizationCourses(orgId: String): Flow<FirestoreResult>
+
+    /** One-shot fetch of courses */
+    suspend fun getOrganizationCourses(orgId: String): FirestoreResult
+
+    /** Create / publish a new organization-level course */
+    suspend fun createOrganizationCourse(orgId: String, course: OrganizationCourse): FirestoreResult
+
+    /** Delete an organization-level course by id */
+    suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult
 }

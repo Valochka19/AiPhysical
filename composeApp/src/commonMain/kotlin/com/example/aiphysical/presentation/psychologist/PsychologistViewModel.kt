@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
@@ -32,8 +34,12 @@ class PsychologistViewModel(
     val effects: SharedFlow<PsychologistEffect> = _effects.asSharedFlow()
 
     private var studentsObserverJob: Job? = null
+    private var coursesObserverJob: Job? = null
 
-    init { loadData() }
+    init {
+        loadData()
+        observeAddedCourses()
+    }
 
     fun onEvent(event: PsychologistEvent) {
         when (event) {
@@ -108,6 +114,33 @@ class PsychologistViewModel(
                 _state.update { it.copy(currentLanguage = event.language) }
 
             PsychologistEvent.Logout -> { /* handled externally in App.kt */ }
+
+            // ── Add course form ───────────────────────────────────────────────
+            PsychologistEvent.OpenAddCourseSheet -> _state.update { it.copy(showAddCourseSheet = true) }
+            PsychologistEvent.CloseAddCourseSheet -> _state.update {
+                it.copy(
+                    showAddCourseSheet = false,
+                    newCourseTitle = "", newCourseDescription = "",
+                    newCourseType = com.example.aiphysical.data.model.CourseContentType.TEXT,
+                    newCourseTextContent = "", newCourseVideoUrl = ""
+                )
+            }
+            is PsychologistEvent.UpdateNewCourseTitle -> _state.update { it.copy(newCourseTitle = event.value) }
+            is PsychologistEvent.UpdateNewCourseDescription -> _state.update { it.copy(newCourseDescription = event.value) }
+            is PsychologistEvent.UpdateNewCourseType -> _state.update { it.copy(newCourseType = event.type) }
+            is PsychologistEvent.UpdateNewCourseTextContent -> _state.update { it.copy(newCourseTextContent = event.value) }
+            is PsychologistEvent.UpdateNewCourseVideoUrl -> _state.update { it.copy(newCourseVideoUrl = event.value) }
+            PsychologistEvent.PublishCourse -> handlePublishCourse()
+
+            // ── Added courses viewer ──────────────────────────────────────────
+            PsychologistEvent.OpenAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = true) }
+            PsychologistEvent.CloseAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = false) }
+            is PsychologistEvent.OpenAddedCourse -> handleOpenAddedCourse(event.course)
+            PsychologistEvent.CloseSelectedAddedCourse -> _state.update { it.copy(selectedAddedCourse = null) }
+            is PsychologistEvent.DeleteAddedCourse -> handleDeleteCourse(event.courseId)
+            PsychologistEvent.CloseTextCourseViewer -> _state.update {
+                it.copy(showTextCourseViewer = false, selectedAddedCourse = null)
+            }
         }
     }
 
@@ -117,8 +150,7 @@ class PsychologistViewModel(
         _state.update { it.copy(isLoading = true) }
         studentsObserverJob?.cancel()
         studentsObserverJob = viewModelScope.launch {
-            firestoreService.observeOrganizationMembers(orgId)
-                .catch { _state.update { s -> s.copy(isLoading = false) } }
+            firestoreService.observeOrganizationMembers(orgId)                .catch { _state.update { s -> s.copy(isLoading = false) } }
                 .collect { result ->
                     when (result) {
                         is FirestoreResult.MembersSuccess -> {
@@ -241,6 +273,123 @@ class PsychologistViewModel(
                     emitEffect(PsychologistEffect.ShowSnackbar("Ошибка: ${result.message}"))
                 }
                 else -> _state.update { it.copy(isSendingRecommendation = false) }
+            }
+        }
+    }
+
+    // ─── Org-level courses ────────────────────────────────────────────────────
+
+    private fun observeAddedCourses() {
+        if (orgId.isBlank()) return
+        coursesObserverJob?.cancel()
+        coursesObserverJob = viewModelScope.launch {
+            firestoreService.observeOrganizationCourses(orgId)
+                .catch { /* silently ignore */ }
+                .collect { result ->
+                    when (result) {
+                        is FirestoreResult.OrganizationCoursesSuccess ->
+                            _state.update { it.copy(addedCourses = result.courses.filter { c -> c.isPublished }) }
+                        else -> { /* ignore */ }
+                    }
+                }
+        }
+    }
+
+    private fun handlePublishCourse() {
+        val s = _state.value
+        // Validation
+        if (s.newCourseTitle.isBlank()) {
+            emitEffect(PsychologistEffect.ShowSnackbar("Введите название курса"))
+            return
+        }
+        if (s.newCourseDescription.isBlank()) {
+            emitEffect(PsychologistEffect.ShowSnackbar("Введите описание курса"))
+            return
+        }
+        when (s.newCourseType) {
+            CourseContentType.VIDEO -> {
+                if (s.newCourseVideoUrl.isBlank()) {
+                    emitEffect(PsychologistEffect.ShowSnackbar("Введите ссылку на видео"))
+                    return
+                }
+                if (!s.newCourseVideoUrl.startsWith("http")) {
+                    emitEffect(PsychologistEffect.ShowSnackbar("Введите корректную ссылку"))
+                    return
+                }
+            }
+            CourseContentType.TEXT -> {
+                if (s.newCourseTextContent.isBlank()) {
+                    emitEffect(PsychologistEffect.ShowSnackbar("Введите текст курса"))
+                    return
+                }
+            }
+        }
+
+        _state.update { it.copy(isPublishingCourse = true) }
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val course = OrganizationCourse(
+                orgId         = orgId,
+                title         = s.newCourseTitle.trim(),
+                description   = s.newCourseDescription.trim(),
+                type          = s.newCourseType,
+                contentText   = s.newCourseTextContent.trim(),
+                videoUrl      = s.newCourseVideoUrl.trim(),
+                createdBy     = uid,
+                createdByName = s.psychologistName,
+                createdAt     = now,
+                updatedAt     = now,
+                isPublished   = true
+            )
+            val result = firestoreService.createOrganizationCourse(orgId, course)
+            when (result) {
+                is FirestoreResult.GenericSuccess -> {
+                    _state.update {
+                        it.copy(
+                            isPublishingCourse = false,
+                            showAddCourseSheet = false,
+                            newCourseTitle = "", newCourseDescription = "",
+                            newCourseType = CourseContentType.TEXT,
+                            newCourseTextContent = "", newCourseVideoUrl = ""
+                        )
+                    }
+                    emitEffect(PsychologistEffect.ShowSnackbar("✅ Курс опубликован"))
+                    emitEffect(PsychologistEffect.TriggerHaptic)
+                }
+                is FirestoreResult.Failure -> {
+                    _state.update { it.copy(isPublishingCourse = false) }
+                    emitEffect(PsychologistEffect.ShowSnackbar("Ошибка: ${result.message}"))
+                }
+                else -> _state.update { it.copy(isPublishingCourse = false) }
+            }
+        }
+    }
+
+    private fun handleDeleteCourse(courseId: String) {
+        viewModelScope.launch {
+            val result = firestoreService.deleteOrganizationCourse(orgId, courseId)
+            when (result) {
+                is FirestoreResult.GenericSuccess -> {
+                    emitEffect(PsychologistEffect.ShowSnackbar("🗑 Курс удалён"))
+                    emitEffect(PsychologistEffect.TriggerHaptic)
+                }
+                is FirestoreResult.Failure -> emitEffect(PsychologistEffect.ShowSnackbar("Ошибка удаления: ${result.message}"))
+                else -> { /* ignore */ }
+            }
+        }
+    }
+
+    private fun handleOpenAddedCourse(course: OrganizationCourse) {
+        when (course.type) {
+            CourseContentType.VIDEO -> {
+                if (course.videoUrl.isNotBlank()) {
+                    emitEffect(PsychologistEffect.OpenUrl(course.videoUrl))
+                } else {
+                    emitEffect(PsychologistEffect.ShowSnackbar("Ссылка на видео недоступна"))
+                }
+            }
+            CourseContentType.TEXT -> {
+                _state.update { it.copy(selectedAddedCourse = course, showTextCourseViewer = true) }
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.example.aiphysical.presentation.psychologist
 
+import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
 
@@ -31,5 +33,22 @@ sealed class PsychologistEvent {
 
     // Language
     data class ChangeLanguage(val language: AppLanguage) : PsychologistEvent()
-}
 
+    // ── Add course form ───────────────────────────────────────────────────────
+    object OpenAddCourseSheet : PsychologistEvent()
+    object CloseAddCourseSheet : PsychologistEvent()
+    data class UpdateNewCourseTitle(val value: String) : PsychologistEvent()
+    data class UpdateNewCourseDescription(val value: String) : PsychologistEvent()
+    data class UpdateNewCourseType(val type: CourseContentType) : PsychologistEvent()
+    data class UpdateNewCourseTextContent(val value: String) : PsychologistEvent()
+    data class UpdateNewCourseVideoUrl(val value: String) : PsychologistEvent()
+    object PublishCourse : PsychologistEvent()
+
+    // ── Added courses viewer ──────────────────────────────────────────────────
+    object OpenAddedCourses : PsychologistEvent()
+    object CloseAddedCourses : PsychologistEvent()
+    data class OpenAddedCourse(val course: OrganizationCourse) : PsychologistEvent()
+    object CloseSelectedAddedCourse : PsychologistEvent()
+    data class DeleteAddedCourse(val courseId: String) : PsychologistEvent()
+    object CloseTextCourseViewer : PsychologistEvent()
+}

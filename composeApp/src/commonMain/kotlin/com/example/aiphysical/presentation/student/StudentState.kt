@@ -1,6 +1,7 @@
 package com.example.aiphysical.presentation.student
 
 import com.example.aiphysical.data.model.CourseProgress
+import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
@@ -38,5 +39,10 @@ data class StudentUiState(
     val completedTestIds: Set<String> = emptySet(),
     val errorMessage: String? = null,
     val currentLanguage: AppLanguage = AppLanguage.RU,
+    // ── Added (org-level) courses ─────────────────────────────────────────────
+    val addedCourses: List<OrganizationCourse> = emptyList(),
+    val isLoadingAddedCourses: Boolean = false,
+    val selectedAddedCourse: OrganizationCourse? = null,
+    val showAddedCoursesViewer: Boolean = false,
+    val showTextCourseViewer: Boolean = false,
 )
-

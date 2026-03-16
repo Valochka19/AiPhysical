@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.presentation.student.StudentUiState
@@ -595,12 +596,6 @@ private fun PsychologistMessageCard(
 //  ⑤ AI Course Recommendations Section
 // ══════════════════════════════════════════════════════════════════════════════
 
-private val defaultCourses = listOf(
-    Triple("🧘", "Управление стрессом",     "4 урока"),
-    Triple("💡", "Осознанность и медитация", "6 уроков"),
-    Triple("⚡", "Энергия и мотивация",      "5 уроков"),
-)
-
 @Composable
 private fun AiCourseRecommendationsSection(
     assignedCourseName: String,
@@ -627,9 +622,9 @@ private fun AiCourseRecommendationsSection(
             AiCourseChip("🎯", assignedCourseName, "Назначен психологом", PsychTeal, onClick = onViewCourses)
         }
 
-        // Always show default AI suggestions
-        defaultCourses.forEach { (emoji, name, meta) ->
-            AiCourseChip(emoji, name, meta, Color(0xFF9D5FF5), onClick = onViewCourses)
+        // Always show first 3 canonical base courses as suggestions
+        AppCourseCatalog.baseCourses.take(3).forEach { item ->
+            AiCourseChip(item.emoji, item.title, item.durationLabel, Color(item.accentColorHex), onClick = onViewCourses)
         }
     }
 }

@@ -22,20 +22,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
 import com.example.aiphysical.ui.theme.*
 
-// Pre-loaded courses available for assignment
-val PREDEFINED_COURSES = listOf(
-    "course_anxiety"     to "Управление тревогой",
-    "course_stress"      to "Техники снижения стресса",
-    "course_burnout"     to "Профилактика выгорания",
-    "course_mindfulness" to "Осознанность и медитация",
-    "course_resilience"  to "Построение устойчивости"
-)
+// Pre-loaded courses available for assignment — using shared catalog
+val PREDEFINED_COURSES: List<Pair<String, String>> = AppCourseCatalog.baseCourses.map { it.id to it.title }
 
 @Composable
 fun InterventionsTab(

@@ -30,10 +30,12 @@ class DirectorDashboardViewModel(
 
     /** Job реального времени: отменяется и перезапускается при RefreshData. */
     private var membersObserverJob: Job? = null
+    private var coursesObserverJob: Job? = null
 
     init {
         loadDashboard()
         loadAiInsight()
+        observeAddedCourses()
     }
 
     fun onEvent(event: DirectorEvent) {
@@ -112,6 +114,12 @@ class DirectorDashboardViewModel(
 
             // ── Analytics filter ──────────────────────────────────────────────
             is DirectorEvent.SetAnalyticsFilter -> _state.update { it.copy(analyticsFilter = event.filter) }
+
+            // ── Added courses ─────────────────────────────────────────────────
+            is DirectorEvent.OpenAddedCourse -> handleOpenAddedCourse(event.course)
+            DirectorEvent.CloseTextCourseViewer -> _state.update {
+                it.copy(showTextCourseViewer = false, selectedAddedCourse = null)
+            }
         }
     }
 
@@ -295,6 +303,39 @@ class DirectorDashboardViewModel(
             else if (avgBurnout > 40f) append("Умеренный риск выгорания (${avgBurnout.toInt()}%). ")
             if (avgMotivation < 40f) append("Низкая мотивация — рекомендуются командные активности. ")
             append("Средний стресс: ${avgStress.toInt()}%. Норма: $normalCount/${members.size}.")
+        }
+    }
+
+    // ─── Org-level courses ─────────────────────────────────────────────────────
+
+    private fun observeAddedCourses() {
+        if (orgId.isBlank()) return
+        coursesObserverJob?.cancel()
+        coursesObserverJob = viewModelScope.launch {
+            firestoreService.observeOrganizationCourses(orgId)
+                .catch { /* silently ignore */ }
+                .collect { result ->
+                    when (result) {
+                        is FirestoreResult.OrganizationCoursesSuccess ->
+                            _state.update { it.copy(addedCourses = result.courses.filter { c -> c.isPublished }) }
+                        else -> { /* ignore */ }
+                    }
+                }
+        }
+    }
+
+    private fun handleOpenAddedCourse(course: OrganizationCourse) {
+        when (course.type) {
+            CourseContentType.VIDEO -> {
+                if (course.videoUrl.isNotBlank()) {
+                    emitEffect(DirectorEffect.OpenUrl(course.videoUrl))
+                } else {
+                    emitEffect(DirectorEffect.ShowSnackbar("Ссылка на видео недоступна"))
+                }
+            }
+            CourseContentType.TEXT -> {
+                _state.update { it.copy(selectedAddedCourse = course, showTextCourseViewer = true) }
+            }
         }
     }
 
