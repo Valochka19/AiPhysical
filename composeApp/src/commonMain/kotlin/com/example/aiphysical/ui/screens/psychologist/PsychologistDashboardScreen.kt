@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.aiphysical.presentation.psychologist.*
 import com.example.aiphysical.ui.theme.*
+import com.example.aiphysical.ui.theme.getStrings
 import com.example.aiphysical.util.BackPressHandler
 import com.example.aiphysical.util.createFirestoreService
 import kotlinx.coroutines.flow.collectLatest
@@ -95,6 +96,7 @@ fun PsychologistDashboardScreen(
                     selectedTab = state.selectedTab,
                     criticalCount = state.criticalStudents.size,
                     pendingCount = state.pendingRecommendations.size,
+                    strings = getStrings(state.currentLanguage),
                     onTabSelected = { vm.onEvent(PsychologistEvent.NavigateToTab(it)) }
                 )
             }
@@ -185,13 +187,14 @@ private fun PsychBottomNavBar(
     selectedTab: PsychologistTab,
     criticalCount: Int,
     pendingCount: Int,
+    strings: Strings,
     onTabSelected: (PsychologistTab) -> Unit,
 ) {
     val navItems = listOf(
-        PsychologistTab.Overview      to Triple("👥", "Студенты",  criticalCount),
-        PsychologistTab.Database      to Triple("📊", "Аналитика", 0),
-        PsychologistTab.Interventions to Triple("💬", "Помощь",    pendingCount),
-        PsychologistTab.Library       to Triple("📚", "Профиль",   0),
+        PsychologistTab.Overview      to Triple("👥", strings.psychTabStudents, criticalCount),
+        PsychologistTab.Database      to Triple("📊", strings.tabAnalytics,     0),
+        PsychologistTab.Interventions to Triple("💬", strings.psychTabHelp,     pendingCount),
+        PsychologistTab.Library       to Triple("📚", strings.tabProfile,       0),
     )
 
     Box(

@@ -3,6 +3,7 @@ package com.example.aiphysical.presentation.student
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.AppLanguage
 
 // ── Navigation tabs ───────────────────────────────────────────────────────────
 enum class StudentTab { Home, Help, Courses, Profile }
@@ -35,6 +36,7 @@ data class StudentUiState(
     val overallScore: Float = 0f,
     /** Which tests have been completed (by testId) */
     val completedTestIds: Set<String> = emptySet(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val currentLanguage: AppLanguage = AppLanguage.RU,
 )
 

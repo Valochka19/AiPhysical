@@ -281,7 +281,7 @@ private fun ManagementMemberCard(
             }
         }
 
-        StatusBadge(status = member.latestAiStatus, label = statusLabel(member.latestAiStatus, strings))
+        StatusBadge(status = member.latestAiStatus, label = statusLabel(member.latestAiStatus, strings, member.role))
 
         Box {
             Box(

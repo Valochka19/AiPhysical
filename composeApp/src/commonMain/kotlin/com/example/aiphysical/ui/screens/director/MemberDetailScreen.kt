@@ -147,7 +147,7 @@ private fun PremiumMemberHeaderCard(member: UserProfile, strings: Strings) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(member.fullName, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(member.email, color = Color.White.copy(0.45f), fontSize = 12.sp)
-                StatusBadge(status = member.latestAiStatus, label = statusLabel(member.latestAiStatus, strings))
+                StatusBadge(status = member.latestAiStatus, label = statusLabel(member.latestAiStatus, strings, member.role))
             }
         }
 

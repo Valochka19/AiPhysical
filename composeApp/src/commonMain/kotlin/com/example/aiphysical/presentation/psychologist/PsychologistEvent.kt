@@ -1,6 +1,7 @@
 package com.example.aiphysical.presentation.psychologist
 
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.AppLanguage
 
 sealed class PsychologistEvent {
     object LoadData : PsychologistEvent()
@@ -27,5 +28,8 @@ sealed class PsychologistEvent {
 
     // Analytics tab filter
     data class SetAnalyticsFilter(val filter: String) : PsychologistEvent()
+
+    // Language
+    data class ChangeLanguage(val language: AppLanguage) : PsychologistEvent()
 }
 

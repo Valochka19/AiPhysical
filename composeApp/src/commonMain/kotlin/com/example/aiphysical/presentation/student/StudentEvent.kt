@@ -1,5 +1,7 @@
 package com.example.aiphysical.presentation.student
 
+import com.example.aiphysical.presentation.auth.AppLanguage
+
 sealed class StudentEvent {
     object LoadData : StudentEvent()
     object Refresh : StudentEvent()
@@ -8,5 +10,6 @@ sealed class StudentEvent {
     object GenerateReport : StudentEvent()
     object DismissError : StudentEvent()
     object Logout : StudentEvent()
+    data class ChangeLanguage(val language: AppLanguage) : StudentEvent()
 }
 

@@ -28,13 +28,14 @@ class StudentViewModel(
 
     fun onEvent(event: StudentEvent) {
         when (event) {
-            StudentEvent.LoadData        -> loadData()
-            StudentEvent.Refresh         -> loadData(isRefresh = true)
+            StudentEvent.LoadData         -> loadData()
+            StudentEvent.Refresh          -> loadData(isRefresh = true)
             is StudentEvent.NavigateToTab -> _state.update { it.copy(selectedTab = event.tab) }
-            is StudentEvent.StartTest    -> handleStartTest(event.testType)
-            StudentEvent.GenerateReport  -> handleGenerateReport()
-            StudentEvent.DismissError    -> _state.update { it.copy(errorMessage = null) }
-            StudentEvent.Logout          -> { /* handled in App.kt */ }
+            is StudentEvent.StartTest     -> handleStartTest(event.testType)
+            StudentEvent.GenerateReport   -> handleGenerateReport()
+            StudentEvent.DismissError     -> _state.update { it.copy(errorMessage = null) }
+            StudentEvent.Logout           -> { /* handled in App.kt */ }
+            is StudentEvent.ChangeLanguage -> _state.update { it.copy(currentLanguage = event.language) }
         }
     }
 

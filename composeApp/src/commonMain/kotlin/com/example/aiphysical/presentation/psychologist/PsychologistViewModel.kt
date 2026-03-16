@@ -104,6 +104,9 @@ class PsychologistViewModel(
             is PsychologistEvent.SetAnalyticsFilter ->
                 _state.update { it.copy(analyticsFilter = event.filter) }
 
+            is PsychologistEvent.ChangeLanguage ->
+                _state.update { it.copy(currentLanguage = event.language) }
+
             PsychologistEvent.Logout -> { /* handled externally in App.kt */ }
         }
     }

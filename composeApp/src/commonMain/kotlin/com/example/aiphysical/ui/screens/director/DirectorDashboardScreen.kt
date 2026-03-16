@@ -268,10 +268,15 @@ private fun NavItem(
 
 // ─── Shared helper functions (used across tabs) ───────────────────────────────
 
-fun statusLabel(status: String, strings: Strings): String = when (status) {
+fun statusLabel(status: String, strings: Strings, role: String = ""): String = when (status) {
     "normal"   -> strings.statusNormal
     "stress"   -> strings.statusStress
     "critical" -> strings.statusCritical
-    else       -> strings.statusUnknown
+    else       -> when (role) {
+        "user"         -> strings.roleStudentShort
+        "psychologist" -> strings.rolePsychShort
+        "director"     -> strings.roleDirectorShort
+        else           -> strings.statusUnknown
+    }
 }
 

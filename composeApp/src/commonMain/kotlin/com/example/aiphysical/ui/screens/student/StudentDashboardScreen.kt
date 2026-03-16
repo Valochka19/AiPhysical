@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.aiphysical.presentation.student.*
 import com.example.aiphysical.ui.theme.*
+import com.example.aiphysical.ui.theme.getStrings
 import com.example.aiphysical.util.createFirestoreService
 import kotlinx.coroutines.flow.collectLatest
 
@@ -74,6 +75,7 @@ fun StudentDashboardScreen(
         bottomBar = {
             StudentBottomNavBar(
                 selectedTab = state.selectedTab,
+                strings = getStrings(state.currentLanguage),
                 onTabSelected = { vm.onEvent(StudentEvent.NavigateToTab(it)) }
             )
         }
@@ -127,7 +129,12 @@ fun StudentDashboardScreen(
                     StudentTab.Home    -> StudentHomeTab(    state = state, vm = vm, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
                     StudentTab.Help    -> StudentHelpTab(    state = state,           modifier = Modifier.padding(innerPadding))
                     StudentTab.Courses -> StudentCoursesTab( state = state,           modifier = Modifier.padding(innerPadding))
-                    StudentTab.Profile -> StudentProfileTab( state = state, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
+                    StudentTab.Profile -> StudentProfileTab(
+                        state = state,
+                        onLogout = onLogout,
+                        onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
         }
@@ -140,18 +147,19 @@ fun StudentDashboardScreen(
 
 private data class NavItem(val tab: StudentTab, val emoji: String, val label: String)
 
-private val studentNavItems = listOf(
-    NavItem(StudentTab.Home,    "🏠", "Главная"),
-    NavItem(StudentTab.Help,    "🆘", "Помощь"),
-    NavItem(StudentTab.Courses, "📚", "Курсы"),
-    NavItem(StudentTab.Profile, "👤", "Профиль"),
-)
-
 @Composable
 private fun StudentBottomNavBar(
     selectedTab: StudentTab,
+    strings: Strings,
     onTabSelected: (StudentTab) -> Unit,
 ) {
+    val navItems = listOf(
+        NavItem(StudentTab.Home,    "🏠", strings.tabHome),
+        NavItem(StudentTab.Help,    "🆘", strings.tabHelp),
+        NavItem(StudentTab.Courses, "📚", strings.tabCourses),
+        NavItem(StudentTab.Profile, "👤", strings.tabProfile),
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -189,7 +197,7 @@ private fun StudentBottomNavBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            studentNavItems.forEach { item ->
+            navItems.forEach { item ->
                 StudentNavItem(
                     item = item,
                     isSelected = selectedTab == item.tab,

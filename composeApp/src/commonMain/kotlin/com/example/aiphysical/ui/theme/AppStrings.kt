@@ -70,6 +70,51 @@ data class Strings(
     val inviteToOrg: String,       // "Пригласить в организацию" — big button on Dashboard
     val aiAnalysisTitle: String,   // "AI Анализ" — clean AI card title
     val filterSchool: String,      // "Школа" — combined school filter chip
+    // ── Psychologist navigation tabs ──────────────────────────────────────────
+    val psychTabStudents: String,  // "Студенты"
+    val psychTabHelp: String,      // "Помощь"
+    // ── Student navigation tabs ───────────────────────────────────────────────
+    val tabHome: String,           // "Главная"
+    val tabHelp: String,           // "Помощь"
+    val tabCourses: String,        // "Курсы"
+    val tabProfile: String,        // "Профиль"
+    // ── StudentDatabaseTab / Psychologist analytics ───────────────────────────
+    val dbTitle: String,           // "База студентов"
+    val dbAnalytics: String,       // "Аналитика психолога"
+    val dbShown: String,           // "Показано:"
+    val dbNoStudents: String,      // "Студентов не найдено"
+    val dbChangeFilter: String,    // "Измените фильтр для просмотра студентов"
+    val dbViewProfile: String,     // "Подробный профиль →"
+    val dbStudentProfile: String,  // "Профиль студента"
+    val dbWriteRec: String,        // "Написать рекомендацию"
+    val dbUpdateRec: String,       // "Обновить рекомендацию"
+    val dbPsychSection: String,    // "ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ"
+    val dbMyRec: String,           // "МОЯ РЕКОМЕНДАЦИЯ"
+    val dbPriority: String,        // "Приоритет:"
+    val dbCourse: String,          // "Курс:"
+    val priorityHigh: String,      // "Высокий"
+    val priorityMedium: String,    // "Средний"
+    val priorityLow: String,       // "Низкий"
+    val priorityNone: String,      // "Не указан"
+    // ── PatientOverviewTab ────────────────────────────────────────────────────
+    val goodDay: String,           // "Добрый день,"
+    val requiresAttention: String, // "требуют внимания"
+    val allNormal: String,         // "Все показатели в норме ✓"
+    // ── Status full labels (student profile) ─────────────────────────────────
+    val statusCriticalFull: String,   // "Критическое состояние"
+    val statusStressFull: String,     // "Повышенный стресс"
+    val statusNormalFull: String,     // "Состояние в норме"
+    val statusNoData: String,         // "Нет данных"
+    // ── Student / Psychologist profile ───────────────────────────────────────
+    val profileInfoTitle: String,     // "ИНФОРМАЦИЯ"
+    val profileRole: String,          // "Роль"
+    val profileGroup: String,         // "Группа"
+    val profileTestsDone: String,     // "Пройдено тестов"
+    val profileCourseProgress: String,// "Прогресс курсов"
+    val profileNotSpecified: String,  // "Не указана"
+    val profileLogout: String,        // "Выйти из аккаунта"
+    val profileAbout: String,         // "О приложении"
+    val scoreLabel: String,           // "Балл:"
 )
 
 fun getStrings(lang: AppLanguage): Strings = when (lang) {
@@ -130,7 +175,26 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         roleDirectorShort = "Директор", rolePsychShort = "Психолог", roleStudentShort = "Студент",
         inviteToOrg = "Ұйымға шақыру",
         aiAnalysisTitle = "AI Талдауы",
-        filterSchool = "Мектеп"
+        filterSchool = "Мектеп",
+        psychTabStudents = "Студенттер", psychTabHelp = "Көмек",
+        tabHome = "Басты бет", tabHelp = "Көмек", tabCourses = "Курстар", tabProfile = "Профиль",
+        dbTitle = "Студент базасы", dbAnalytics = "Психолог аналитикасы",
+        dbShown = "Көрсетілген:", dbNoStudents = "Студенттер табылмады",
+        dbChangeFilter = "Студенттерді қарау үшін сүзгіні өзгертіңіз",
+        dbViewProfile = "Толық профиль →", dbStudentProfile = "Студент профилі",
+        dbWriteRec = "Ұсыным жазу", dbUpdateRec = "Ұсынымды жаңарту",
+        dbPsychSection = "ПСИХОЛОГИЯЛЫҚ ПРОФИЛЬ", dbMyRec = "МЕНІҢ ҰСЫНЫМЫМ",
+        dbPriority = "Басымдық:", dbCourse = "Курс:",
+        priorityHigh = "Жоғары", priorityMedium = "Орта",
+        priorityLow = "Төмен", priorityNone = "Белгісіз",
+        goodDay = "Қайырлы күн,", requiresAttention = "назар аударуды қажет ет.",
+        allNormal = "Барлық көрсеткіштер қалыпты ✓",
+        statusCriticalFull = "Маңызды жағдай", statusStressFull = "Жоғарылаған стресс",
+        statusNormalFull = "Жағдай қалыпты", statusNoData = "Деректер жоқ",
+        profileInfoTitle = "АҚПАРАТ", profileRole = "Рөл", profileGroup = "Топ",
+        profileTestsDone = "Өткен тесттер", profileCourseProgress = "Курс барысы",
+        profileNotSpecified = "Белгісіз", profileLogout = "Аккаунттан шығу",
+        profileAbout = "Қолданба туралы", scoreLabel = "Балл:"
     )
     AppLanguage.RU -> Strings(
         login = "Войти", register = "Зарегистрироваться", email = "Электронная почта",
@@ -190,7 +254,26 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         roleDirectorShort = "Директор", rolePsychShort = "Психолог", roleStudentShort = "Студент",
         inviteToOrg = "Пригласить в организацию",
         aiAnalysisTitle = "AI Анализ",
-        filterSchool = "Школа"
+        filterSchool = "Школа",
+        psychTabStudents = "Студенты", psychTabHelp = "Помощь",
+        tabHome = "Главная", tabHelp = "Помощь", tabCourses = "Курсы", tabProfile = "Профиль",
+        dbTitle = "База студентов", dbAnalytics = "Аналитика психолога",
+        dbShown = "Показано:", dbNoStudents = "Студентов не найдено",
+        dbChangeFilter = "Измените фильтр для просмотра студентов",
+        dbViewProfile = "Подробный профиль →", dbStudentProfile = "Профиль студента",
+        dbWriteRec = "Написать рекомендацию", dbUpdateRec = "Обновить рекомендацию",
+        dbPsychSection = "ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ", dbMyRec = "МОЯ РЕКОМЕНДАЦИЯ",
+        dbPriority = "Приоритет:", dbCourse = "Курс:",
+        priorityHigh = "Высокий", priorityMedium = "Средний",
+        priorityLow = "Низкий", priorityNone = "Не указан",
+        goodDay = "Добрый день,", requiresAttention = "требуют внимания",
+        allNormal = "Все показатели в норме ✓",
+        statusCriticalFull = "Критическое состояние", statusStressFull = "Повышенный стресс",
+        statusNormalFull = "Состояние в норме", statusNoData = "Нет данных",
+        profileInfoTitle = "ИНФОРМАЦИЯ", profileRole = "Роль", profileGroup = "Группа",
+        profileTestsDone = "Пройдено тестов", profileCourseProgress = "Прогресс курсов",
+        profileNotSpecified = "Не указана", profileLogout = "Выйти из аккаунта",
+        profileAbout = "О приложении", scoreLabel = "Балл:"
     )
     AppLanguage.EN -> Strings(
         login = "Login", register = "Register", email = "Email", password = "Password",
@@ -250,6 +333,25 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         roleDirectorShort = "Director", rolePsychShort = "Psychologist", roleStudentShort = "Student",
         inviteToOrg = "Invite to Organization",
         aiAnalysisTitle = "AI Analysis",
-        filterSchool = "School"
+        filterSchool = "School",
+        psychTabStudents = "Students", psychTabHelp = "Help",
+        tabHome = "Home", tabHelp = "Help", tabCourses = "Courses", tabProfile = "Profile",
+        dbTitle = "Student Database", dbAnalytics = "Psychologist Analytics",
+        dbShown = "Shown:", dbNoStudents = "No students found",
+        dbChangeFilter = "Change filter to view students",
+        dbViewProfile = "Full Profile →", dbStudentProfile = "Student Profile",
+        dbWriteRec = "Write Recommendation", dbUpdateRec = "Update Recommendation",
+        dbPsychSection = "PSYCHOLOGICAL PROFILE", dbMyRec = "MY RECOMMENDATION",
+        dbPriority = "Priority:", dbCourse = "Course:",
+        priorityHigh = "High", priorityMedium = "Medium",
+        priorityLow = "Low", priorityNone = "Not specified",
+        goodDay = "Good day,", requiresAttention = "require attention",
+        allNormal = "All indicators normal ✓",
+        statusCriticalFull = "Critical Condition", statusStressFull = "Elevated Stress",
+        statusNormalFull = "Normal Condition", statusNoData = "No data",
+        profileInfoTitle = "INFORMATION", profileRole = "Role", profileGroup = "Group",
+        profileTestsDone = "Tests Completed", profileCourseProgress = "Course Progress",
+        profileNotSpecified = "Not specified", profileLogout = "Log out of account",
+        profileAbout = "About App", scoreLabel = "Score:"
     )
 }

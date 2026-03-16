@@ -258,7 +258,7 @@ fun ExpandableMemberCard(
             }
 
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                StatusBadge(status = member.latestAiStatus, label = statusLabel(member.latestAiStatus, strings))
+                StatusBadge(status = member.latestAiStatus, label = statusLabel(member.latestAiStatus, strings, member.role))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("${member.burnoutScore.toInt()}%", color = MetricBurnout, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(if (expanded) "▲" else "▼", color = NeonViolet.copy(0.7f), fontSize = 9.sp)

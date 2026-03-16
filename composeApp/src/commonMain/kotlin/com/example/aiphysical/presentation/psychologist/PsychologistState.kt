@@ -2,6 +2,7 @@ package com.example.aiphysical.presentation.psychologist
 
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.AppLanguage
 
 enum class PsychologistTab { Overview, Database, Interventions, Library }
 enum class PsychologistScreen { Dashboard, StudentDetail }
@@ -70,6 +71,9 @@ data class PsychologistHomeState(
 
     // Feedback
     val snackbarMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+
+    // Language
+    val currentLanguage: AppLanguage = AppLanguage.RU,
 )
 

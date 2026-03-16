@@ -35,6 +35,7 @@ import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistScreen
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
 import com.example.aiphysical.ui.theme.*
+import com.example.aiphysical.ui.theme.getStrings
 import kotlin.math.*
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -52,6 +53,7 @@ fun StudentDatabaseTab(
             student = state.selectedStudent,
             testHistory = state.selectedStudentTestHistory,
             isLoading = state.isLoadingDetail,
+            strings = getStrings(state.currentLanguage),
             onBack = { vm.onEvent(PsychologistEvent.BackToDashboard) },
             onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(state.selectedStudent)) }
         )
@@ -70,6 +72,8 @@ private fun PsychAnalyticsListView(
     vm: PsychologistViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val strings = getStrings(state.currentLanguage)
+
     // Filter: only role=="user" students are already in state.students (filtered in ViewModel)
     val displayedStudents = remember(state.students, state.analyticsFilter) {
         when (state.analyticsFilter) {
@@ -81,10 +85,10 @@ private fun PsychAnalyticsListView(
     }
 
     val ageFilters = listOf(
-        "ALL"    to "Все",
-        "JUNIOR" to "Junior",
-        "MIDDLE" to "Middle",
-        "SENIOR" to "Senior",
+        "ALL"    to strings.filterAll,
+        "JUNIOR" to strings.filterJunior,
+        "MIDDLE" to strings.filterMiddle,
+        "SENIOR" to strings.filterSenior,
     )
 
     LazyColumn(
@@ -100,32 +104,26 @@ private fun PsychAnalyticsListView(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(
-                        Brush.horizontalGradient(
-                            listOf(PsychTeal.copy(0.12f), Color.White.copy(0.04f))
-                        )
+                        Brush.horizontalGradient(listOf(PsychTeal.copy(0.12f), Color.White.copy(0.04f)))
                     )
                     .border(
                         1.dp,
-                        Brush.horizontalGradient(
-                            listOf(PsychTeal.copy(0.45f), PsychTeal.copy(0.10f))
-                        ),
+                        Brush.horizontalGradient(listOf(PsychTeal.copy(0.45f), PsychTeal.copy(0.10f))),
                         RoundedCornerShape(20.dp)
                     )
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    "База студентов",
+                    strings.dbTitle,
                     style = TextStyle(
-                        brush = Brush.horizontalGradient(
-                            listOf(PsychTeal, Color.White.copy(0.85f))
-                        ),
+                        brush = Brush.horizontalGradient(listOf(PsychTeal, Color.White.copy(0.85f))),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 )
                 Text(
-                    "${state.students.size} студентов · Аналитика психолога",
+                    "${state.students.size} ${strings.sectionMembers.lowercase()} · ${strings.dbAnalytics}",
                     color = Color.White.copy(0.4f),
                     fontSize = 11.sp
                 )
@@ -159,13 +157,9 @@ private fun PsychAnalyticsListView(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        Modifier
-                            .size(6.dp)
-                            .background(PsychTeal, CircleShape)
-                    )
+                    Box(Modifier.size(6.dp).background(PsychTeal, CircleShape))
                     Text(
-                        "Показано: ${displayedStudents.size}",
+                        "${strings.dbShown} ${displayedStudents.size}",
                         color = PsychTeal,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -178,16 +172,10 @@ private fun PsychAnalyticsListView(
         if (state.isLoading) {
             item {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = PsychTeal,
-                        modifier = Modifier.size(32.dp),
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(color = PsychTeal, modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
                 }
             }
             return@LazyColumn
@@ -197,14 +185,15 @@ private fun PsychAnalyticsListView(
             item {
                 PsychGlassEmptyState(
                     emoji = "🔍",
-                    title = "Студентов не найдено",
-                    subtitle = "Измените фильтр для просмотра студентов"
+                    title = strings.dbNoStudents,
+                    subtitle = strings.dbChangeFilter
                 )
             }
         } else {
             items(displayedStudents, key = { it.uid }) { student ->
                 PsychExpandableMemberCard(
                     member = student,
+                    strings = strings,
                     onViewDetails = { vm.onEvent(PsychologistEvent.SelectStudent(student)) }
                 )
             }
@@ -294,6 +283,7 @@ private fun PsychGlassEmptyState(emoji: String, title: String, subtitle: String)
 @Composable
 private fun PsychExpandableMemberCard(
     member: UserProfile,
+    strings: com.example.aiphysical.ui.theme.Strings,
     onViewDetails: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -305,11 +295,17 @@ private fun PsychExpandableMemberCard(
         "critical" -> StatusCritical
         else       -> TextHint
     }
+    // Show health status when known; otherwise show the person's role
     val statusLabel = when (member.latestAiStatus) {
-        "normal"   -> "Норма"
-        "stress"   -> "Стресс"
-        "critical" -> "Критично"
-        else       -> "Неизвестно"
+        "normal"   -> strings.statusNormal
+        "stress"   -> strings.statusStress
+        "critical" -> strings.statusCritical
+        else -> when (member.role) {
+            "user"         -> strings.roleStudentShort
+            "psychologist" -> strings.rolePsychShort
+            "director"     -> strings.roleDirectorShort
+            else           -> strings.statusUnknown
+        }
     }
 
     Column(
@@ -449,36 +445,11 @@ private fun PsychExpandableMemberCard(
                 )
 
                 // 5 metric progress bars
-                PsychMetricProgressBar(
-                    label = "Выгорание",
-                    value = member.burnoutScore,
-                    isHighBad = true,
-                    color = MetricBurnout
-                )
-                PsychMetricProgressBar(
-                    label = "Стресс",
-                    value = member.stressScore,
-                    isHighBad = true,
-                    color = MetricStress
-                )
-                PsychMetricProgressBar(
-                    label = "Состояние",
-                    value = member.emotionScore,
-                    isHighBad = false,
-                    color = MetricEmotion
-                )
-                PsychMetricProgressBar(
-                    label = "Мотивация",
-                    value = member.motivationScore,
-                    isHighBad = false,
-                    color = MetricMotivation
-                )
-                PsychMetricProgressBar(
-                    label = "Тревога",
-                    value = member.anxietyScore,
-                    isHighBad = true,
-                    color = MetricAnxiety
-                )
+                PsychMetricProgressBar(label = strings.metricBurnout,   value = member.burnoutScore,    isHighBad = true,  color = MetricBurnout)
+                PsychMetricProgressBar(label = strings.metricStress,     value = member.stressScore,     isHighBad = true,  color = MetricStress)
+                PsychMetricProgressBar(label = strings.metricEmotion,   value = member.emotionScore,    isHighBad = false, color = MetricEmotion)
+                PsychMetricProgressBar(label = strings.metricMotivation, value = member.motivationScore, isHighBad = false, color = MetricMotivation)
+                PsychMetricProgressBar(label = strings.metricAnxiety,   value = member.anxietyScore,    isHighBad = true,  color = MetricAnxiety)
 
                 Spacer(Modifier.height(2.dp))
 
@@ -488,25 +459,16 @@ private fun PsychExpandableMemberCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            Brush.horizontalGradient(
-                                listOf(PsychTeal.copy(0.20f), PsychTeal.copy(0.08f))
-                            ),
+                            Brush.horizontalGradient(listOf(PsychTeal.copy(0.20f), PsychTeal.copy(0.08f))),
                             RoundedCornerShape(14.dp)
                         )
                         .border(
                             1.dp,
-                            Brush.horizontalGradient(
-                                listOf(PsychTeal.copy(0.60f), PsychTeal.copy(0.30f))
-                            ),
+                            Brush.horizontalGradient(listOf(PsychTeal.copy(0.60f), PsychTeal.copy(0.30f))),
                             RoundedCornerShape(14.dp)
                         )
                 ) {
-                    Text(
-                        "Подробный профиль →",
-                        color = PsychTeal,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text(strings.dbViewProfile, color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -590,6 +552,7 @@ private fun StudentDetailView(
     student: UserProfile,
     testHistory: List<TestResult>,
     isLoading: Boolean,
+    strings: com.example.aiphysical.ui.theme.Strings,
     onBack: () -> Unit,
     onRecommend: () -> Unit,
 ) {
@@ -601,7 +564,6 @@ private fun StudentDetailView(
             .padding(top = 20.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Back header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -612,57 +574,37 @@ private fun StudentDetailView(
                     .clip(RoundedCornerShape(10.dp))
                     .background(MatteSurface)
                     .border(1.dp, MatteCardBorder, RoundedCornerShape(10.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null, onClick = onBack
-                    ),
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
                 Text("‹", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
-            Text(
-                "Профиль студента",
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Text(strings.dbStudentProfile, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
         }
 
-        StudentIdentityCard(student = student)
-        PsychRadarCard(student = student)
-        TestHistoryCard(testHistory = testHistory, isLoading = isLoading)
+        StudentIdentityCard(student = student, strings = strings)
+        PsychRadarCard(student = student, strings = strings)
+        TestHistoryCard(testHistory = testHistory, isLoading = isLoading, strings = strings)
 
         if (student.psychComment.isNotBlank()) {
-            ExistingRecommendationCard(student = student)
+            ExistingRecommendationCard(student = student, strings = strings)
         }
 
-        // CTA — write recommendation
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.horizontalGradient(listOf(PsychTeal.copy(0.25f), PsychTeal.copy(0.10f)))
-                )
+                .background(Brush.horizontalGradient(listOf(PsychTeal.copy(0.25f), PsychTeal.copy(0.10f))))
                 .border(1.dp, PsychTeal.copy(0.5f), RoundedCornerShape(16.dp))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null, onClick = onRecommend
-                )
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRecommend)
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("💬", fontSize = 20.sp)
                 Text(
-                    if (student.psychComment.isBlank()) "Написать рекомендацию"
-                    else "Обновить рекомендацию",
-                    color = PsychTeal,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    if (student.psychComment.isBlank()) strings.dbWriteRec else strings.dbUpdateRec,
+                    color = PsychTeal, fontSize = 15.sp, fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -670,13 +612,18 @@ private fun StudentDetailView(
 }
 
 @Composable
-private fun StudentIdentityCard(student: UserProfile) {
+private fun StudentIdentityCard(student: UserProfile, strings: com.example.aiphysical.ui.theme.Strings) {
     val (statusColor, statusEmoji) = statusColorAndEmoji(student.latestAiStatus)
     val statusLabel = when (student.latestAiStatus) {
-        "critical" -> "Критично"
-        "stress"   -> "Стресс"
-        "normal"   -> "Норма"
-        else       -> "Неизвестно"
+        "critical" -> strings.statusCritical
+        "stress"   -> strings.statusStress
+        "normal"   -> strings.statusNormal
+        else -> when (student.role) {
+            "user"         -> strings.roleStudentShort
+            "psychologist" -> strings.rolePsychShort
+            "director"     -> strings.roleDirectorShort
+            else           -> strings.statusUnknown
+        }
     }
 
     Row(
@@ -733,7 +680,7 @@ private fun StudentIdentityCard(student: UserProfile) {
 // ── Radar Chart (5 metrics) ───────────────────────────────────────────────────
 
 @Composable
-private fun PsychRadarCard(student: UserProfile) {
+private fun PsychRadarCard(student: UserProfile, strings: com.example.aiphysical.ui.theme.Strings) {
     val animProgress = remember { Animatable(0f) }
     LaunchedEffect(student.uid) {
         animProgress.snapTo(0f)
@@ -742,11 +689,11 @@ private fun PsychRadarCard(student: UserProfile) {
     val progress by animProgress.asState()
 
     val axes = listOf(
-        "Выгорание" to student.burnoutScore / 100f,
-        "Стресс"    to student.stressScore  / 100f,
-        "Тревога"   to student.anxietyScore / 100f,
-        "Состояние" to student.emotionScore / 100f,
-        "Мотивация" to student.motivationScore / 100f,
+        strings.metricBurnout   to student.burnoutScore / 100f,
+        strings.metricStress    to student.stressScore  / 100f,
+        strings.metricAnxiety   to student.anxietyScore / 100f,
+        strings.metricEmotion   to student.emotionScore / 100f,
+        strings.metricMotivation to student.motivationScore / 100f,
     )
     val axisColors = listOf(MetricBurnout, MetricStress, MetricAnxiety, MetricEmotion, MetricMotivation)
 
@@ -760,11 +707,8 @@ private fun PsychRadarCard(student: UserProfile) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            "ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ",
-            color = TextHint,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.5.sp
+            strings.dbPsychSection,
+            color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp
         )
 
         Canvas(
@@ -848,7 +792,7 @@ private fun PsychRadarCard(student: UserProfile) {
 // ── Test History Timeline ─────────────────────────────────────────────────────
 
 @Composable
-private fun TestHistoryCard(testHistory: List<TestResult>, isLoading: Boolean) {
+private fun TestHistoryCard(testHistory: List<TestResult>, isLoading: Boolean, strings: com.example.aiphysical.ui.theme.Strings) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -858,49 +802,32 @@ private fun TestHistoryCard(testHistory: List<TestResult>, isLoading: Boolean) {
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(
-            "ИСТОРИЯ ТЕСТОВ",
-            color = TextHint,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.5.sp
-        )
+        Text(strings.sectionTestHistory.uppercase(), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
 
         if (isLoading) {
             repeat(3) {
                 val shimmerTransition = rememberInfiniteTransition(label = "shimmer_$it")
                 val alpha by shimmerTransition.animateFloat(
                     initialValue = 0.3f, targetValue = 0.7f,
-                    animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-                    label = "s_$it"
+                    animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "s_$it"
                 )
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MatteCardBorder.copy(alpha))
-                )
+                Box(Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp)).background(MatteCardBorder.copy(alpha)))
             }
         } else if (testHistory.isEmpty()) {
-            Column(
-                Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("📋", fontSize = 28.sp)
-                Text("Тесты ещё не проходились", color = TextSecondary, fontSize = 13.sp)
+                Text(strings.noTestHistory, color = TextSecondary, fontSize = 13.sp)
             }
         } else {
             testHistory.forEachIndexed { index, result ->
-                TestTimelineItem(result = result, isLast = index == testHistory.lastIndex)
+                TestTimelineItem(result = result, isLast = index == testHistory.lastIndex, strings = strings)
             }
         }
     }
 }
 
 @Composable
-private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
+private fun TestTimelineItem(result: TestResult, isLast: Boolean, strings: com.example.aiphysical.ui.theme.Strings) {
     val (color, emoji) = when (result.aiAssessment) {
         "critical" -> PsychCritical to "🔴"
         "stress"   -> PsychWarning  to "⚠️"
@@ -908,10 +835,10 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
         else       -> TextHint      to "❓"
     }
     val label = when (result.aiAssessment) {
-        "critical" -> "Критично"
-        "stress"   -> "Стресс"
-        "normal"   -> "Норма"
-        else       -> "Неизвестно"
+        "critical" -> strings.statusCritical
+        "stress"   -> strings.statusStress
+        "normal"   -> strings.statusNormal
+        else       -> strings.statusUnknown
     }
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -945,7 +872,7 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
                 ) {
                     Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
-                Text("Балл: ${result.score.toInt()}", color = TextSecondary, fontSize = 11.sp)
+                Text("${strings.scoreLabel} ${result.score.toInt()}", color = TextSecondary, fontSize = 11.sp)
                 if (result.dateMillis > 0L) {
                     Text(formatDate(result.dateMillis), color = TextHint, fontSize = 10.sp)
                 }
@@ -957,12 +884,12 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
 // ── Existing Recommendation Card ──────────────────────────────────────────────
 
 @Composable
-private fun ExistingRecommendationCard(student: UserProfile) {
+private fun ExistingRecommendationCard(student: UserProfile, strings: com.example.aiphysical.ui.theme.Strings) {
     val (priorityColor, priorityLabel) = when (student.psychPriority) {
-        "HIGH"   -> PsychCritical to "Высокий"
-        "MEDIUM" -> PsychWarning  to "Средний"
-        "LOW"    -> PsychTeal     to "Низкий"
-        else     -> TextHint      to "Не указан"
+        "HIGH"   -> PsychCritical to strings.priorityHigh
+        "MEDIUM" -> PsychWarning  to strings.priorityMedium
+        "LOW"    -> PsychTeal     to strings.priorityLow
+        else     -> TextHint      to strings.priorityNone
     }
 
     Column(
@@ -979,13 +906,7 @@ private fun ExistingRecommendationCard(student: UserProfile) {
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text("💬", fontSize = 18.sp)
-            Text(
-                "МОЯ РЕКОМЕНДАЦИЯ",
-                color = PsychTeal,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.5.sp
-            )
+            Text(strings.dbMyRec, color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
             Spacer(Modifier.weight(1f))
             Box(
                 Modifier
@@ -993,12 +914,7 @@ private fun ExistingRecommendationCard(student: UserProfile) {
                     .border(1.dp, priorityColor.copy(0.4f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
-                Text(
-                    "Приоритет: $priorityLabel",
-                    color = priorityColor,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("${strings.dbPriority} $priorityLabel", color = priorityColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
         Text(student.psychComment, color = TextPrimary, fontSize = 14.sp, lineHeight = 20.sp)
@@ -1008,12 +924,7 @@ private fun ExistingRecommendationCard(student: UserProfile) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text("📚", fontSize = 14.sp)
-                Text(
-                    "Курс: ${student.assignedCourseName}",
-                    color = PsychTeal,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Text("${strings.dbCourse} ${student.assignedCourseName}", color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

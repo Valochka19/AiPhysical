@@ -28,6 +28,7 @@ import com.example.aiphysical.presentation.psychologist.PsychologistTab
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
 import com.example.aiphysical.presentation.psychologist.RecentTestFeedItem
 import com.example.aiphysical.ui.theme.*
+import com.example.aiphysical.ui.theme.getStrings
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -45,6 +46,7 @@ fun PatientOverviewTab(
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
+    val strings = getStrings(state.currentLanguage)
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -58,6 +60,9 @@ fun PatientOverviewTab(
             name = state.psychologistName,
             climate = state.psychClimate,
             urgentCount = state.criticalStudents.size + state.stressStudents.size,
+            strings = strings,
+            currentLanguage = state.currentLanguage,
+            onLanguageChange = { vm.onEvent(PsychologistEvent.ChangeLanguage(it)) },
             onLogout = onLogout
         )
 
@@ -141,6 +146,9 @@ private fun GlassAiOrbHeader(
     name: String,
     climate: String,
     urgentCount: Int,
+    strings: Strings,
+    currentLanguage: com.example.aiphysical.presentation.auth.AppLanguage,
+    onLanguageChange: (com.example.aiphysical.presentation.auth.AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
     val firstName = name.split(" ").firstOrNull() ?: name
@@ -226,35 +234,46 @@ private fun GlassAiOrbHeader(
 
         // ── Greeting text ─────────────────────────────────────────────────────
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("Добрый день,", color = TextSecondary, fontSize = 13.sp)
-            Text(
-                firstName, color = TextPrimary, fontSize = 27.sp,
-                fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp
-            )
+            Text(strings.goodDay, color = TextSecondary, fontSize = 13.sp)
+            Text(firstName, color = TextPrimary, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp)
             if (urgentCount > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Box(Modifier.size(7.dp).background(PsychCritical, CircleShape))
-                    Text("$urgentCount требуют внимания", color = PsychCritical, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$urgentCount ${strings.requiresAttention}", color = PsychCritical, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             } else {
-                Text("Все показатели в норме ✓", color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(strings.allNormal, color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
         }
 
-        // ── Logout ────────────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(0.06f))
-                .border(
-                    1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(0.20f), Color.White.copy(0.04f))),
-                    RoundedCornerShape(12.dp)
-                )
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onLogout)
-                .padding(horizontal = 14.dp, vertical = 9.dp)
-        ) {
-            Text("Выйти", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        // ── Language switcher + Logout ────────────────────────────────────────
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.End) {
+            // Language cycle button: RU → EN → KZ → RU
+            val nextLang = when (currentLanguage) {
+                com.example.aiphysical.presentation.auth.AppLanguage.RU -> com.example.aiphysical.presentation.auth.AppLanguage.EN
+                com.example.aiphysical.presentation.auth.AppLanguage.EN -> com.example.aiphysical.presentation.auth.AppLanguage.KZ
+                com.example.aiphysical.presentation.auth.AppLanguage.KZ -> com.example.aiphysical.presentation.auth.AppLanguage.RU
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(PsychTeal.copy(0.12f))
+                    .border(1.dp, PsychTeal.copy(0.30f), RoundedCornerShape(10.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onLanguageChange(nextLang) }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(currentLanguage.code.uppercase(), color = PsychTeal, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(0.06f))
+                    .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(0.20f), Color.White.copy(0.04f))), RoundedCornerShape(10.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onLogout)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(strings.logoutBtn, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }
