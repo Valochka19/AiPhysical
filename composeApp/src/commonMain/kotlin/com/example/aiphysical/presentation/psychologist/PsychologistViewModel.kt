@@ -101,6 +101,9 @@ class PsychologistViewModel(
 
             PsychologistEvent.DismissSnackbar -> _state.update { it.copy(snackbarMessage = null) }
 
+            is PsychologistEvent.SetAnalyticsFilter ->
+                _state.update { it.copy(analyticsFilter = event.filter) }
+
             PsychologistEvent.Logout -> { /* handled externally in App.kt */ }
         }
     }

@@ -24,5 +24,8 @@ sealed class PsychologistEvent {
     // Test result feed sheet
     data class ViewTestResult(val item: RecentTestFeedItem) : PsychologistEvent()
     object DismissTestResultSheet : PsychologistEvent()
+
+    // Analytics tab filter
+    data class SetAnalyticsFilter(val filter: String) : PsychologistEvent()
 }
 

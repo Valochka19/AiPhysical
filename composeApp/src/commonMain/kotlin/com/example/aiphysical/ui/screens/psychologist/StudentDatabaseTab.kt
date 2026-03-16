@@ -1,11 +1,13 @@
 package com.example.aiphysical.ui.screens.psychologist
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,9 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,9 +34,12 @@ import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistScreen
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
-import com.example.aiphysical.ui.components.GlassSearchBar
 import com.example.aiphysical.ui.theme.*
 import kotlin.math.*
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  Entry Point
+// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 fun StudentDatabaseTab(
@@ -47,225 +56,534 @@ fun StudentDatabaseTab(
             onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(state.selectedStudent)) }
         )
     } else {
-        StudentListView(state = state, vm = vm, modifier = modifier)
+        PsychAnalyticsListView(state = state, vm = vm, modifier = modifier)
     }
 }
 
-// ── Student List ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+//  Analytics List View — mirrors Director's AnalyticsTab (Psychologist theme)
+// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun StudentListView(
+private fun PsychAnalyticsListView(
     state: PsychologistHomeState,
     vm: PsychologistViewModel,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.fillMaxSize(),
-    ) {
-        // Header
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(top = 24.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                "База студентов",
-                color = TextPrimary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Text(
-                "${state.students.size} студентов в организации",
-                color = TextSecondary,
-                fontSize = 13.sp
-            )
-
-            GlassSearchBar(
-                query = state.searchQuery,
-                hint = "Поиск по имени или email...",
-                onQueryChange = { vm.onEvent(PsychologistEvent.SearchStudents(it)) }
-            )
-
-            // Filter chips
-            FilterChipsRow(students = state.students)
-        }
-
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = PsychTeal, strokeWidth = 2.dp)
-            }
-        } else if (state.filteredStudents.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 40.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("🔍", fontSize = 36.sp)
-                    Text(
-                        if (state.searchQuery.isBlank()) "Студентов пока нет" else "Ничего не найдено",
-                        color = TextSecondary, fontSize = 14.sp
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(state.filteredStudents) { student ->
-                    StudentCard(
-                        student = student,
-                        onClick = { vm.onEvent(PsychologistEvent.SelectStudent(student)) }
-                    )
-                }
-                item { Spacer(Modifier.height(80.dp)) }
-            }
+    // Filter: only role=="user" students are already in state.students (filtered in ViewModel)
+    val displayedStudents = remember(state.students, state.analyticsFilter) {
+        when (state.analyticsFilter) {
+            "JUNIOR" -> state.students.filter { it.ageGroup.equals("JUNIOR", ignoreCase = true) }
+            "MIDDLE" -> state.students.filter { it.ageGroup.equals("MIDDLE", ignoreCase = true) }
+            "SENIOR" -> state.students.filter { it.ageGroup.equals("SENIOR", ignoreCase = true) }
+            else     -> state.students   // "ALL"
         }
     }
-}
 
-@Composable
-private fun FilterChipsRow(students: List<UserProfile>) {
-    val statusGroups = listOf(
-        Triple("Все", students.size, TextPrimary),
-        Triple("Критично", students.count { it.latestAiStatus == "critical" }, PsychCritical),
-        Triple("Стресс", students.count { it.latestAiStatus == "stress" }, PsychWarning),
-        Triple("Норма", students.count { it.latestAiStatus == "normal" }, PsychTeal),
+    val ageFilters = listOf(
+        "ALL"    to "Все",
+        "JUNIOR" to "Junior",
+        "MIDDLE" to "Middle",
+        "SENIOR" to "Senior",
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        statusGroups.forEach { (label, count, color) ->
-            Box(
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+
+        // ── Header ────────────────────────────────────────────────────────────
+        item {
+            Column(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(color.copy(0.12f))
-                    .border(1.dp, color.copy(0.3f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(PsychTeal.copy(0.12f), Color.White.copy(0.04f))
+                        )
+                    )
+                    .border(
+                        1.dp,
+                        Brush.horizontalGradient(
+                            listOf(PsychTeal.copy(0.45f), PsychTeal.copy(0.10f))
+                        ),
+                        RoundedCornerShape(20.dp)
+                    )
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    "$label ($count)",
-                    color = color,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
+                    "База студентов",
+                    style = TextStyle(
+                        brush = Brush.horizontalGradient(
+                            listOf(PsychTeal, Color.White.copy(0.85f))
+                        ),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+                Text(
+                    "${state.students.size} студентов · Аналитика психолога",
+                    color = Color.White.copy(0.4f),
+                    fontSize = 11.sp
                 )
             }
         }
+
+        // ── Age-group Filter Chips ────────────────────────────────────────────
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                items(ageFilters) { (key, label) ->
+                    PsychGlassFilterChip(
+                        label = label,
+                        isActive = state.analyticsFilter == key,
+                        onClick = { vm.onEvent(PsychologistEvent.SetAnalyticsFilter(key)) }
+                    )
+                }
+            }
+        }
+
+        // ── Filtered Count Badge ──────────────────────────────────────────────
+        item {
+            AnimatedVisibility(visible = state.analyticsFilter != "ALL") {
+                Row(
+                    modifier = Modifier
+                        .background(PsychTeal.copy(0.10f), RoundedCornerShape(8.dp))
+                        .border(1.dp, PsychTeal.copy(0.30f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .size(6.dp)
+                            .background(PsychTeal, CircleShape)
+                    )
+                    Text(
+                        "Показано: ${displayedStudents.size}",
+                        color = PsychTeal,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // ── Loading / Empty / Cards ───────────────────────────────────────────
+        if (state.isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = PsychTeal,
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
+            return@LazyColumn
+        }
+
+        if (displayedStudents.isEmpty()) {
+            item {
+                PsychGlassEmptyState(
+                    emoji = "🔍",
+                    title = "Студентов не найдено",
+                    subtitle = "Измените фильтр для просмотра студентов"
+                )
+            }
+        } else {
+            items(displayedStudents, key = { it.uid }) { student ->
+                PsychExpandableMemberCard(
+                    member = student,
+                    onViewDetails = { vm.onEvent(PsychologistEvent.SelectStudent(student)) }
+                )
+            }
+        }
+
+        item { Spacer(Modifier.height(100.dp)) }
     }
 }
 
-// ── Student Card ──────────────────────────────────────────────────────────────
+// ─── Psych Glass Filter Chip ──────────────────────────────────────────────────
 
 @Composable
-private fun StudentCard(student: UserProfile, onClick: () -> Unit) {
-    val healthScore = computeHealthScore(student)
-    val (statusColor, _) = statusColorAndEmoji(student.latestAiStatus)
+private fun PsychGlassFilterChip(label: String, isActive: Boolean, onClick: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pchip_$label")
+    val glowAlpha by if (isActive) infiniteTransition.animateFloat(
+        initialValue = 0.6f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pchip_glow"
+    ) else remember { mutableStateOf(0f) }
 
-    Row(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(MatteSurface)
-            .border(1.dp, MatteCardBorder, RoundedCornerShape(18.dp))
+            .then(
+                if (isActive) Modifier.drawBehind {
+                    drawRoundRect(
+                        PsychTeal.copy(alpha = 0.20f * glowAlpha),
+                        cornerRadius = CornerRadius(24.dp.toPx())
+                    )
+                } else Modifier
+            )
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                if (isActive)
+                    Brush.horizontalGradient(listOf(PsychTeal, PsychTeal.copy(0.70f)))
+                else
+                    Brush.horizontalGradient(listOf(Color.White.copy(0.06f), Color.White.copy(0.03f)))
+            )
+            .border(
+                1.dp,
+                if (isActive) PsychTeal.copy(0.80f) else Color.White.copy(0.12f),
+                RoundedCornerShape(24.dp)
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
             )
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 18.dp, vertical = 9.dp)
     ) {
-        // Avatar with status ring
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .background(
-                    Brush.radialGradient(listOf(statusColor.copy(0.30f), MatteSurface)),
-                    CircleShape
-                )
-                .border(2.dp, statusColor.copy(0.7f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                student.fullName.take(1).uppercase(),
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
-
-        // Info
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                student.fullName,
-                color = TextPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (student.ageGroup.isNotBlank()) {
-                Text(student.ageGroup, color = TextSecondary, fontSize = 11.sp)
-            }
-            Text(student.email, color = TextHint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-
-        // Health score gauge
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            HealthScoreCircle(score = healthScore, color = statusColor)
-            Text("здоровье", color = TextHint, fontSize = 9.sp, modifier = Modifier.padding(top = 2.dp))
-        }
-    }
-}
-
-@Composable
-private fun HealthScoreCircle(score: Float, color: Color) {
-    val animScore by animateFloatAsState(
-        targetValue = score,
-        animationSpec = tween(1000, easing = FastOutSlowInEasing),
-        label = "health_score"
-    )
-    Box(
-        modifier = Modifier.size(48.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(48.dp)) {
-            val stroke = 4.dp.toPx()
-            // Background arc
-            drawArc(
-                color = color.copy(0.15f),
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                style = Stroke(stroke, cap = StrokeCap.Round)
-            )
-            // Progress arc
-            drawArc(
-                color = color,
-                startAngle = -90f,
-                sweepAngle = 360f * (animScore / 100f),
-                useCenter = false,
-                style = Stroke(stroke, cap = StrokeCap.Round)
-            )
-        }
         Text(
-            "${score.toInt()}%",
-            color = color,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold,
-            textAlign = TextAlign.Center
+            label,
+            color = if (isActive) Color(0xFF050010) else Color.White.copy(0.5f),
+            fontSize = 12.sp,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
 
-// ── Student Detail View ───────────────────────────────────────────────────────
+// ─── Psych Glass Empty State ──────────────────────────────────────────────────
+
+@Composable
+private fun PsychGlassEmptyState(emoji: String, title: String, subtitle: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color.White.copy(0.04f))
+            .border(1.dp, PsychTeal.copy(0.15f), RoundedCornerShape(24.dp))
+            .padding(40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(emoji, fontSize = 40.sp)
+        Text(
+            title,
+            color = TextSecondary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Text(subtitle, color = TextHint, fontSize = 12.sp, textAlign = TextAlign.Center)
+    }
+}
+
+// ─── Psych Expandable Member Card ─────────────────────────────────────────────
+
+@Composable
+private fun PsychExpandableMemberCard(
+    member: UserProfile,
+    onViewDetails: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val statusColor = when (member.latestAiStatus) {
+        "normal"   -> StatusNormal
+        "stress"   -> StatusStress
+        "critical" -> StatusCritical
+        else       -> TextHint
+    }
+    val statusLabel = when (member.latestAiStatus) {
+        "normal"   -> "Норма"
+        "stress"   -> "Стресс"
+        "critical" -> "Критично"
+        else       -> "Неизвестно"
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (expanded)
+                    Brush.verticalGradient(listOf(PsychTeal.copy(0.08f), Color.White.copy(0.04f)))
+                else
+                    Brush.verticalGradient(listOf(Color.White.copy(0.05f), Color.White.copy(0.03f)))
+            )
+            .border(
+                1.dp,
+                if (expanded)
+                    Brush.linearGradient(listOf(PsychTeal.copy(0.50f), PsychTeal.copy(0.20f)))
+                else
+                    Brush.linearGradient(listOf(Color.White.copy(0.14f), Color.White.copy(0.04f))),
+                RoundedCornerShape(20.dp)
+            )
+            .animateContentSize(animationSpec = tween(300))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { expanded = !expanded }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // ── Collapsed Header Row ──────────────────────────────────────────────
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Avatar
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(
+                        Brush.radialGradient(listOf(PsychTeal.copy(0.45f), MatteSurface)),
+                        CircleShape
+                    )
+                    .border(1.5.dp, statusColor.copy(0.70f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    member.fullName.take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            // Name + email + age group
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    member.fullName,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    member.email,
+                    color = Color.White.copy(0.35f),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (member.ageGroup.isNotBlank()) {
+                    Text(
+                        member.ageGroup,
+                        color = PsychTeal.copy(0.75f),
+                        fontSize = 10.sp
+                    )
+                }
+            }
+
+            // Status badge + burnout + expand indicator
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(statusColor.copy(0.18f), RoundedCornerShape(8.dp))
+                        .border(1.dp, statusColor.copy(0.45f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        statusLabel,
+                        color = statusColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "${member.burnoutScore.toInt()}%",
+                        color = MetricBurnout,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        if (expanded) "▲" else "▼",
+                        color = PsychTeal.copy(0.7f),
+                        fontSize = 9.sp
+                    )
+                }
+            }
+        }
+
+        // ── Expanded Section ──────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(200)) + expandVertically(tween(300)),
+            exit  = fadeOut(tween(150)) + shrinkVertically(tween(200))
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Teal divider
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    PsychTeal.copy(0.55f),
+                                    PsychTeal.copy(0.20f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                // 5 metric progress bars
+                PsychMetricProgressBar(
+                    label = "Выгорание",
+                    value = member.burnoutScore,
+                    isHighBad = true,
+                    color = MetricBurnout
+                )
+                PsychMetricProgressBar(
+                    label = "Стресс",
+                    value = member.stressScore,
+                    isHighBad = true,
+                    color = MetricStress
+                )
+                PsychMetricProgressBar(
+                    label = "Состояние",
+                    value = member.emotionScore,
+                    isHighBad = false,
+                    color = MetricEmotion
+                )
+                PsychMetricProgressBar(
+                    label = "Мотивация",
+                    value = member.motivationScore,
+                    isHighBad = false,
+                    color = MetricMotivation
+                )
+                PsychMetricProgressBar(
+                    label = "Тревога",
+                    value = member.anxietyScore,
+                    isHighBad = true,
+                    color = MetricAnxiety
+                )
+
+                Spacer(Modifier.height(2.dp))
+
+                // "View full profile" button
+                TextButton(
+                    onClick = onViewDetails,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(PsychTeal.copy(0.20f), PsychTeal.copy(0.08f))
+                            ),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .border(
+                            1.dp,
+                            Brush.horizontalGradient(
+                                listOf(PsychTeal.copy(0.60f), PsychTeal.copy(0.30f))
+                            ),
+                            RoundedCornerShape(14.dp)
+                        )
+                ) {
+                    Text(
+                        "Подробный профиль →",
+                        color = PsychTeal,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── Psych Metric Progress Bar ────────────────────────────────────────────────
+
+@Composable
+private fun PsychMetricProgressBar(
+    label: String,
+    value: Float,
+    isHighBad: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val animValue by animateFloatAsState(
+        targetValue = value.coerceIn(0f, 100f),
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "pmetric_$label"
+    )
+    val barColor = when {
+        isHighBad -> when {
+            animValue > 70f -> ErrorColor
+            animValue > 40f -> AlertOrange
+            else            -> SuccessColor
+        }
+        else -> when {
+            animValue < 30f -> ErrorColor
+            animValue < 60f -> AlertOrange
+            else            -> SuccessColor
+        }
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            label,
+            color = color.copy(0.80f),
+            fontSize = 11.sp,
+            modifier = Modifier.width(84.dp),
+            maxLines = 1
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(7.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(0.07f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animValue / 100f)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(
+                        Brush.horizontalGradient(listOf(barColor, barColor.copy(0.55f)))
+                    )
+            )
+        }
+        Text(
+            "${animValue.toInt()}%",
+            color = barColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(34.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  Student Detail View (full profile — navigation target when card is tapped)
+// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun StudentDetailView(
@@ -310,19 +628,10 @@ private fun StudentDetailView(
             )
         }
 
-        // Identity card
         StudentIdentityCard(student = student)
-
-        // Radar chart
         PsychRadarCard(student = student)
+        TestHistoryCard(testHistory = testHistory, isLoading = isLoading)
 
-        // Test history timeline
-        TestHistoryCard(
-            testHistory = testHistory,
-            isLoading = isLoading
-        )
-
-        // Existing recommendation (if any)
         if (student.psychComment.isNotBlank()) {
             ExistingRecommendationCard(student = student)
         }
@@ -333,9 +642,7 @@ private fun StudentDetailView(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(
-                    Brush.horizontalGradient(
-                        listOf(PsychTeal.copy(0.25f), PsychTeal.copy(0.10f))
-                    )
+                    Brush.horizontalGradient(listOf(PsychTeal.copy(0.25f), PsychTeal.copy(0.10f)))
                 )
                 .border(1.dp, PsychTeal.copy(0.5f), RoundedCornerShape(16.dp))
                 .clickable(
@@ -351,7 +658,8 @@ private fun StudentDetailView(
             ) {
                 Text("💬", fontSize = 20.sp)
                 Text(
-                    if (student.psychComment.isBlank()) "Написать рекомендацию" else "Обновить рекомендацию",
+                    if (student.psychComment.isBlank()) "Написать рекомендацию"
+                    else "Обновить рекомендацию",
                     color = PsychTeal,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
@@ -381,7 +689,6 @@ private fun StudentIdentityCard(student: UserProfile) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Big avatar
         Box(
             modifier = Modifier
                 .size(68.dp)
@@ -400,12 +707,7 @@ private fun StudentIdentityCard(student: UserProfile) {
             )
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                student.fullName,
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Text(student.fullName, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             if (student.ageGroup.isNotBlank()) {
                 Text(student.ageGroup, color = TextSecondary, fontSize = 12.sp)
             }
@@ -439,11 +741,10 @@ private fun PsychRadarCard(student: UserProfile) {
     }
     val progress by animProgress.asState()
 
-    // Radar values (0–1), normalized. Higher = worse for burnout/stress/anxiety; higher = better for emotion/motivation
     val axes = listOf(
         "Выгорание" to student.burnoutScore / 100f,
-        "Стресс"   to student.stressScore / 100f,
-        "Тревога"  to student.anxietyScore / 100f,
+        "Стресс"    to student.stressScore  / 100f,
+        "Тревога"   to student.anxietyScore / 100f,
         "Состояние" to student.emotionScore / 100f,
         "Мотивация" to student.motivationScore / 100f,
     )
@@ -466,7 +767,6 @@ private fun PsychRadarCard(student: UserProfile) {
             letterSpacing = 1.5.sp
         )
 
-        // Radar canvas
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -478,7 +778,6 @@ private fun PsychRadarCard(student: UserProfile) {
             val n = axes.size
             val angleStep = 2 * PI.toFloat() / n
 
-            // Draw grid rings
             for (ring in 1..4) {
                 val r = maxR * ring / 4f
                 val ringPath = Path()
@@ -492,7 +791,6 @@ private fun PsychRadarCard(student: UserProfile) {
                 drawPath(ringPath, MatteCardBorder.copy(0.5f), style = Stroke(1f))
             }
 
-            // Draw axis lines
             for (i in 0 until n) {
                 val angle = -PI.toFloat() / 2 + i * angleStep
                 drawLine(
@@ -503,7 +801,6 @@ private fun PsychRadarCard(student: UserProfile) {
                 )
             }
 
-            // Draw data polygon (animated)
             val dataPath = Path()
             axes.forEachIndexed { i, (_, v) ->
                 val angle = -PI.toFloat() / 2 + i * angleStep
@@ -514,27 +811,34 @@ private fun PsychRadarCard(student: UserProfile) {
             }
             dataPath.close()
             drawPath(dataPath, PsychTeal.copy(0.25f))
-            drawPath(dataPath, PsychTeal.copy(0.8f), style = Stroke(2.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(
+                dataPath, PsychTeal.copy(0.80f),
+                style = Stroke(2.5f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
 
-            // Draw axis dots
             axes.forEachIndexed { i, (_, v) ->
                 val angle = -PI.toFloat() / 2 + i * angleStep
                 val r = maxR * v * progress
-                drawCircle(axisColors[i], radius = 5f, center = Offset(cx + r * cos(angle), cy + r * sin(angle)))
+                drawCircle(
+                    axisColors[i],
+                    radius = 5f,
+                    center = Offset(cx + r * cos(angle), cy + r * sin(angle))
+                )
             }
         }
 
-        // Legend
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             axes.forEachIndexed { i, (label, v) ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(8.dp).background(axisColors[i], CircleShape))
                     Spacer(Modifier.height(3.dp))
                     Text(label, color = TextSecondary, fontSize = 9.sp, textAlign = TextAlign.Center)
-                    Text("${(v * 100).toInt()}%", color = axisColors[i], fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "${(v * 100).toInt()}%",
+                        color = axisColors[i],
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -544,10 +848,7 @@ private fun PsychRadarCard(student: UserProfile) {
 // ── Test History Timeline ─────────────────────────────────────────────────────
 
 @Composable
-private fun TestHistoryCard(
-    testHistory: List<TestResult>,
-    isLoading: Boolean,
-) {
+private fun TestHistoryCard(testHistory: List<TestResult>, isLoading: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -592,10 +893,7 @@ private fun TestHistoryCard(
             }
         } else {
             testHistory.forEachIndexed { index, result ->
-                TestTimelineItem(
-                    result = result,
-                    isLast = index == testHistory.lastIndex
-                )
+                TestTimelineItem(result = result, isLast = index == testHistory.lastIndex)
             }
         }
     }
@@ -616,11 +914,7 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
         else       -> "Неизвестно"
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Timeline indicator
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier
@@ -632,12 +926,7 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
                 Text(emoji, fontSize = 13.sp)
             }
             if (!isLast) {
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .height(20.dp)
-                        .background(MatteCardBorder)
-                )
+                Box(Modifier.width(1.dp).height(20.dp).background(MatteCardBorder))
             }
         }
 
@@ -646,12 +935,7 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
                 .weight(1f)
                 .padding(bottom = if (isLast) 0.dp else 12.dp)
         ) {
-            Text(
-                result.testName,
-                color = TextPrimary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(result.testName, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     Modifier
@@ -661,17 +945,9 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean) {
                 ) {
                     Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
-                Text(
-                    "Балл: ${result.score.toInt()}",
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
+                Text("Балл: ${result.score.toInt()}", color = TextSecondary, fontSize = 11.sp)
                 if (result.dateMillis > 0L) {
-                    Text(
-                        formatDate(result.dateMillis),
-                        color = TextHint,
-                        fontSize = 10.sp
-                    )
+                    Text(formatDate(result.dateMillis), color = TextHint, fontSize = 10.sp)
                 }
             }
         }
@@ -717,7 +993,12 @@ private fun ExistingRecommendationCard(student: UserProfile) {
                     .border(1.dp, priorityColor.copy(0.4f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
-                Text("Приоритет: $priorityLabel", color = priorityColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Приоритет: $priorityLabel",
+                    color = priorityColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
         Text(student.psychComment, color = TextPrimary, fontSize = 14.sp, lineHeight = 20.sp)
@@ -740,14 +1021,6 @@ private fun ExistingRecommendationCard(student: UserProfile) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-private fun computeHealthScore(profile: UserProfile): Float =
-    (100f - (
-        profile.burnoutScore * 0.35f +
-        profile.stressScore * 0.30f +
-        profile.anxietyScore * 0.25f +
-        (100f - profile.motivationScore) * 0.10f
-    )).coerceIn(0f, 100f)
-
 private fun statusColorAndEmoji(status: String): Pair<Color, String> = when (status) {
     "critical" -> PsychCritical to "🔴"
     "stress"   -> PsychWarning  to "⚠️"
@@ -757,10 +1030,8 @@ private fun statusColorAndEmoji(status: String): Pair<Color, String> = when (sta
 
 private fun formatDate(millis: Long): String {
     if (millis == 0L) return ""
-    // Simple date formatting without platform APIs
     val days = millis / 86400000L
-    val epochDays = 25569L // 1970-01-01 in Excel days
+    val epochDays = 25569L
     val d = days - epochDays
     return "${d % 30 + 1}.${(d / 30) % 12 + 1}.${1970 + d / 365}"
 }
-

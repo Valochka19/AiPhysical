@@ -60,6 +60,9 @@ data class PsychologistHomeState(
     /** "good" | "warning" | "critical" | "unknown" */
     val psychClimate: String = "unknown",
 
+    // Analytics tab age-group filter: "ALL" | "JUNIOR" | "MIDDLE" | "SENIOR"
+    val analyticsFilter: String = "ALL",
+
     // Test results feed (derived from students, shown on home screen)
     val recentTestFeed: List<RecentTestFeedItem> = emptyList(),
     val showTestResultSheet: Boolean = false,
