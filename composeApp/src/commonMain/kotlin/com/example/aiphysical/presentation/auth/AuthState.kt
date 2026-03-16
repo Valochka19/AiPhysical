@@ -38,7 +38,9 @@ sealed class AuthScreen {
     data class DirectorDashboard(val uid: String, val orgId: String) : AuthScreen()
     /** Psychologist dedicated dashboard */
     data class PsychologistDashboard(val uid: String, val orgId: String, val fullName: String) : AuthScreen()
-    /** Placeholder home for student roles */
+    /** Student dedicated dashboard */
+    data class StudentDashboard(val uid: String, val orgId: String) : AuthScreen()
+    /** Placeholder home for unknown roles */
     data class GenericHome(val uid: String, val role: String) : AuthScreen()
 }
 

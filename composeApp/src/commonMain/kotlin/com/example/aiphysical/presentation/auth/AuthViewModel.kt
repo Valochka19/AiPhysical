@@ -65,6 +65,7 @@ class AuthViewModel(
     private fun routeByRole(uid: String, profile: UserProfile): AuthScreen = when (profile.role) {
         "director"     -> AuthScreen.DirectorDashboard(uid = uid, orgId = profile.orgId)
         "psychologist" -> AuthScreen.PsychologistDashboard(uid = uid, orgId = profile.orgId, fullName = profile.fullName)
+        "user"         -> AuthScreen.StudentDashboard(uid = uid, orgId = profile.orgId)
         else           -> AuthScreen.GenericHome(uid = uid, role = profile.role)
     }
 
@@ -201,7 +202,16 @@ class AuthViewModel(
                             val profile = UserProfile(uid = authResult.uid, fullName = event.fullName, email = event.email, role = "user", orgId = orgRes.org.id, ageGroup = event.ageGroup.name)
                             when (val pRes = firestoreService.createUserProfile(profile)) {
                                 is FirestoreResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = pRes.message) }
-                                else -> _uiState.update { it.copy(isLoading = false, currentScreen = AuthScreen.GenericHome(uid = authResult.uid, role = "user"), isLoggedIn = true) }
+                                else -> _uiState.update {
+                                        it.copy(
+                                            isLoading = false,
+                                            currentScreen = AuthScreen.StudentDashboard(
+                                                uid = authResult.uid,
+                                                orgId = orgRes.org.id
+                                            ),
+                                            isLoggedIn = true
+                                        )
+                                    }
                             }
                         }
                     }

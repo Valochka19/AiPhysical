@@ -21,6 +21,7 @@ import com.example.aiphysical.ui.components.LanguageSwitcher
 import com.example.aiphysical.ui.screens.*
 import com.example.aiphysical.ui.screens.director.DirectorDashboardScreen
 import com.example.aiphysical.ui.screens.psychologist.PsychologistDashboardScreen
+import com.example.aiphysical.ui.screens.student.StudentDashboardScreen
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.util.createFirebaseAuthService
 import com.example.aiphysical.util.createFirestoreService
@@ -72,7 +73,14 @@ fun App() {
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 
-                // ── Student Home ──────────────────────────────────────────────────────
+                // ── Student Dashboard ─────────────────────────────────────────────────
+                is AuthScreen.StudentDashboard -> StudentDashboardScreen(
+                    uid = screen.uid,
+                    orgId = screen.orgId,
+                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                )
+
+                // ── Generic Home (fallback for unknown roles) ─────────────────────────
                 is AuthScreen.GenericHome -> GenericHomeScreen(
                     uid = screen.uid,
                     role = screen.role,
