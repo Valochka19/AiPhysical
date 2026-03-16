@@ -91,6 +91,14 @@ class PsychologistViewModel(
 
             PsychologistEvent.SendRecommendation -> handleSendRecommendation()
 
+            // Test result feed sheet
+            is PsychologistEvent.ViewTestResult -> _state.update {
+                it.copy(showTestResultSheet = true, selectedTestFeedItem = event.item)
+            }
+            PsychologistEvent.DismissTestResultSheet -> _state.update {
+                it.copy(showTestResultSheet = false, selectedTestFeedItem = null)
+            }
+
             PsychologistEvent.DismissSnackbar -> _state.update { it.copy(snackbarMessage = null) }
 
             PsychologistEvent.Logout -> { /* handled externally in App.kt */ }
@@ -118,6 +126,24 @@ class PsychologistViewModel(
                                 it.latestAiStatus != "unknown" && it.psychComment.isBlank()
                             }
                             val analytics = computeAnalytics(students)
+                            val recentFeed = students
+                                .filter { it.latestAiStatus != "unknown" }
+                                .sortedByDescending {
+                                    when (it.latestAiStatus) { "critical" -> 2; "stress" -> 1; else -> 0 }
+                                }
+                                .take(20)
+                                .map { s ->
+                                    RecentTestFeedItem(
+                                        studentId      = s.uid,
+                                        studentName    = s.fullName,
+                                        studentStatus  = s.latestAiStatus,
+                                        stressScore    = s.stressScore,
+                                        burnoutScore   = s.burnoutScore,
+                                        anxietyScore   = s.anxietyScore,
+                                        emotionScore   = s.emotionScore,
+                                        motivationScore= s.motivationScore
+                                    )
+                                }
                             _state.update { s ->
                                 s.copy(
                                     isLoading = false,
@@ -135,7 +161,8 @@ class PsychologistViewModel(
                                     avgAnxiety   = analytics[2],
                                     avgEmotion   = analytics[3],
                                     avgMotivation = analytics[4],
-                                    psychClimate = computeClimate(students)
+                                    psychClimate = computeClimate(students),
+                                    recentTestFeed = recentFeed
                                 )
                             }
                         }

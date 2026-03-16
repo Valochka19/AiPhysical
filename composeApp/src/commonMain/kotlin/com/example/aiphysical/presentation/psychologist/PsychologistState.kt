@@ -6,6 +6,18 @@ import com.example.aiphysical.data.model.UserProfile
 enum class PsychologistTab { Overview, Database, Interventions, Library }
 enum class PsychologistScreen { Dashboard, StudentDetail }
 
+/** Represents a single entry in the home-screen test results feed. */
+data class RecentTestFeedItem(
+    val studentId: String = "",
+    val studentName: String = "",
+    val studentStatus: String = "unknown",  // "normal" | "stress" | "critical"
+    val stressScore: Float = 0f,
+    val burnoutScore: Float = 0f,
+    val anxietyScore: Float = 0f,
+    val emotionScore: Float = 50f,
+    val motivationScore: Float = 50f
+)
+
 data class PsychologistHomeState(
     val isLoading: Boolean = true,
     val psychologistName: String = "",
@@ -47,6 +59,11 @@ data class PsychologistHomeState(
     val avgMotivation: Float = 50f,
     /** "good" | "warning" | "critical" | "unknown" */
     val psychClimate: String = "unknown",
+
+    // Test results feed (derived from students, shown on home screen)
+    val recentTestFeed: List<RecentTestFeedItem> = emptyList(),
+    val showTestResultSheet: Boolean = false,
+    val selectedTestFeedItem: RecentTestFeedItem? = null,
 
     // Feedback
     val snackbarMessage: String? = null,

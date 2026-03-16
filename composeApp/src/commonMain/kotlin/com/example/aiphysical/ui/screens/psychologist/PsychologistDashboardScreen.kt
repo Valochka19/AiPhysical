@@ -158,6 +158,22 @@ fun PsychologistDashboardScreen(
                     }
                 }
             }
+
+            // ── GLOBAL OVERLAYS (shown regardless of active tab) ──────────────
+            // FIX: RecommendationSheet is hoisted here so it works from any tab
+            //      (StudentDatabaseTab, PatientOverviewTab, etc.)
+            if (state.showRecommendationSheet) {
+                RecommendationSheet(state = state, vm = vm)
+            }
+
+            // Test result report sheet (opened from home screen feed)
+            val feedItem = state.selectedTestFeedItem
+            if (state.showTestResultSheet && feedItem != null) {
+                TestResultReportSheet(
+                    item = feedItem,
+                    onDismiss = { vm.onEvent(PsychologistEvent.DismissTestResultSheet) }
+                )
+            }
         }
     }
 }

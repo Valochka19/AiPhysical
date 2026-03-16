@@ -141,14 +141,7 @@ fun InterventionsTab(
             }
         }
     }
-
-    // Recommendation Sheet (full-screen dialog)
-    if (state.showRecommendationSheet) {
-        RecommendationSheet(
-            state = state,
-            vm = vm
-        )
-    }
+    // NOTE: RecommendationSheet is rendered globally in PsychologistDashboardScreen
 }
 
 @Composable
@@ -281,7 +274,7 @@ private fun ActionItemCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RecommendationSheet(
+internal fun RecommendationSheet(
     state: PsychologistHomeState,
     vm: PsychologistViewModel,
 ) {

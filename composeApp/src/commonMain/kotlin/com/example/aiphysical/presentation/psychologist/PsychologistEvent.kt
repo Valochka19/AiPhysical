@@ -20,5 +20,9 @@ sealed class PsychologistEvent {
     // UI feedback
     object DismissSnackbar : PsychologistEvent()
     object Logout : PsychologistEvent()
+
+    // Test result feed sheet
+    data class ViewTestResult(val item: RecentTestFeedItem) : PsychologistEvent()
+    object DismissTestResultSheet : PsychologistEvent()
 }
 
