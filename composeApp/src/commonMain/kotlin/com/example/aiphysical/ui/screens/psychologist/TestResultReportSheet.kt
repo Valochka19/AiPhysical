@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.aiphysical.presentation.psychologist.RecentTestFeedItem
+import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 
 /**
@@ -169,7 +170,13 @@ fun TestResultReportSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("🤖", fontSize = 24.sp)
+                        UmiAvatarBadge(
+                            modifier = Modifier.size(28.dp),
+                            backgroundColor = Color(0xFF8A2BE2).copy(0.14f),
+                            borderColor = Color(0xFF8A2BE2).copy(0.45f),
+                            imagePadding = 3.dp,
+                            contentDescription = "Уми"
+                        )
                         Column(Modifier.weight(1f)) {
                             Text(
                                 "AI-анализ теста (Gemini)",

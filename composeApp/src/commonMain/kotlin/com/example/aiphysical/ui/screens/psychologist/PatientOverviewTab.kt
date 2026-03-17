@@ -27,6 +27,7 @@ import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistTab
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
 import com.example.aiphysical.presentation.psychologist.RecentTestFeedItem
+import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
 import kotlin.math.PI
@@ -228,7 +229,11 @@ private fun GlassAiOrbHeader(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🤖", fontSize = 20.sp)
+                UmiAvatarBadge(
+                    modifier = Modifier.fillMaxSize(),
+                    imagePadding = 0.dp,
+                    contentDescription = "Уми"
+                )
             }
         }
 

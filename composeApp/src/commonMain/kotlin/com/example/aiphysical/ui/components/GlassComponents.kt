@@ -70,18 +70,27 @@ fun Modifier.matteCard(cornerRadius: Dp = 20.dp): Modifier = this
 // ─── Animated Background ─────────────────────────────────────────────────────
 
 @Composable
-fun AnimatedBackground(content: @Composable BoxScope.() -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "bg_anim")
-    val pulse1 by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "pulse1"
-    )
-    val pulse2 by infiniteTransition.animateFloat(
-        initialValue = 1f, targetValue = 0f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "pulse2"
-    )
+fun AnimatedBackground(
+    animate: Boolean = true,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val infiniteTransition = if (animate) rememberInfiniteTransition(label = "bg_anim") else null
+    val pulse1 = if (animate) {
+        infiniteTransition!!.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
+            label = "pulse1"
+        ).value
+    } else 0.35f
+    val pulse2 = if (animate) {
+        infiniteTransition!!.animateFloat(
+            initialValue = 1f,
+            targetValue = 0f,
+            animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
+            label = "pulse2"
+        ).value
+    } else 0.55f
 
     Box(
         modifier = Modifier
@@ -381,7 +390,7 @@ fun Modifier.shimmerEffect(): Modifier {
     val shimmerX by transition.animateFloat(
         initialValue = -600f, targetValue = 1800f,
         animationSpec = infiniteRepeatable(
-            animation = androidx.compose.animation.core.tween(1600, easing = LinearEasing),
+            animation = tween(1600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ), label = "shimmerX"
     )

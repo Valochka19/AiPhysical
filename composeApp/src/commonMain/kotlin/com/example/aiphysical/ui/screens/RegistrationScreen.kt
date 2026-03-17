@@ -34,10 +34,11 @@ fun RegistrationScreen(
 ) {
     val strings = getStrings(uiState.currentLanguage)
 
-    AnimatedBackground {
+    AnimatedBackground(animate = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
         ) {

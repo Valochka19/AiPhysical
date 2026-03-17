@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,13 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -42,6 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.student.*
+import com.example.aiphysical.ui.components.FloatingUmiAvatarBadge
+import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
 import com.example.aiphysical.util.createFirestoreService
@@ -141,11 +141,7 @@ fun StudentDashboardScreen(
             AnimatedContent(
                 targetState = state.selectedTab,
                 transitionSpec = {
-                    val isForward = targetState.ordinal >= initialState.ordinal
-                    (slideInHorizontally(tween(260)) { if (isForward) it / 4 else -it / 4 } +
-                     fadeIn(tween(260))) togetherWith
-                    (slideOutHorizontally(tween(200)) { if (isForward) -it / 4 else it / 4 } +
-                     fadeOut(tween(200)))
+                    fadeIn(tween(160)) togetherWith fadeOut(tween(120))
                 },
                 label = "student_tab"
             ) { tab ->
@@ -196,8 +192,8 @@ fun StudentDashboardScreen(
             AnimatedVisibility(
                 visible = state.showAiChat,
                 modifier = Modifier.fillMaxSize(),
-                enter = slideInVertically(tween(340)) { it } + fadeIn(tween(300)),
-                exit  = slideOutVertically(tween(280)) { it } + fadeOut(tween(240))
+                enter = fadeIn(tween(180)),
+                exit  = fadeOut(tween(140))
             ) {
                 AiChatOverlay(
                     state = state,
@@ -525,8 +521,6 @@ private fun AiChatFab(
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -534,7 +528,12 @@ private fun AiChatFab(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text("🤖", fontSize = 24.sp)
+            UmiAvatarBadge(
+                modifier = Modifier.fillMaxSize(),
+                backgroundBrush = Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
+                imagePadding = 0.dp,
+                contentDescription = "Открыть чат с Уми"
+            )
         }
 
         // Notification dot (if has messages)
@@ -561,17 +560,7 @@ private fun AiChatOverlay(
     onDismiss: () -> Unit,
 ) {
     val listState = rememberLazyListState()
-
-    // Pulsing glow for avatar and online dot
-    val pulseTransition = rememberInfiniteTransition(label = "avatar_pulse")
-    val pulseAlpha by pulseTransition.animateFloat(
-        initialValue = 0.25f, targetValue = 0.80f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha"
-    )
+    val pulseAlpha = 0.62f
 
     LaunchedEffect(state.chatMessages.size) {
         if (state.chatMessages.isNotEmpty()) {
@@ -624,16 +613,16 @@ private fun AiChatOverlay(
                                 CircleShape
                             )
                     )
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .background(
-                                Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.4f), PsychTeal.copy(0.25f))),
-                                CircleShape
-                            )
-                            .border(1.5.dp, Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) { Text("🤖", fontSize = 20.sp) }
+                    UmiAvatarBadge(
+                        modifier = Modifier.size(42.dp),
+                        backgroundBrush = Brush.radialGradient(
+                            listOf(Color(0xFF9D5FF5).copy(0.4f), PsychTeal.copy(0.25f))
+                        ),
+                        borderBrush = Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
+                        borderWidth = 1.5.dp,
+                        imagePadding = 0.dp,
+                        contentDescription = "Аватар Уми"
+                    )
                 }
 
                 Column(Modifier.weight(1f)) {
@@ -735,9 +724,20 @@ private fun AiChatOverlay(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (state.chatMessages.isEmpty()) {
-                    item { AiChatOverlayEmptyState() }
+                    item {
+                        AiChatOverlayEmptyState(
+                            onSuggestionClick = { suggestion ->
+                                if (!state.isChatLoading) {
+                                    vm.onEvent(StudentEvent.SendChatMessage(suggestion))
+                                }
+                            }
+                        )
+                    }
                 }
-                items(state.chatMessages) { msg ->
+                itemsIndexed(
+                    items = state.chatMessages,
+                    key = { index, msg -> "${index}_${msg.role}_${msg.isError}_${msg.text.hashCode()}" }
+                ) { _, msg ->
                     ChatBubble(message = msg)
                 }
                 if (state.isChatLoading) {
@@ -796,16 +796,10 @@ private fun AiChatOverlay(
 }
 
 @Composable
-private fun AiChatOverlayEmptyState() {
-    val pulseTransition = rememberInfiniteTransition(label = "empty_pulse")
-    val pulseAlpha by pulseTransition.animateFloat(
-        initialValue = 0.2f, targetValue = 0.6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "empty_pulse_alpha"
-    )
+private fun AiChatOverlayEmptyState(
+    onSuggestionClick: (String) -> Unit,
+) {
+    val pulseAlpha = 0.42f
 
     Column(
         modifier = Modifier
@@ -815,7 +809,7 @@ private fun AiChatOverlayEmptyState() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Pulsing avatar
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(112.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -830,22 +824,18 @@ private fun AiChatOverlayEmptyState() {
                         CircleShape
                     )
             )
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.25f), Color(0xFF1A1A35))),
-                        CircleShape
-                    )
-                    .border(
-                        1.5.dp,
-                        Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("🤖", fontSize = 32.sp)
-            }
+            FloatingUmiAvatarBadge(
+                modifier = Modifier.size(88.dp),
+                levitationAmplitude = 9.dp,
+                durationMillis = 2800,
+                backgroundBrush = Brush.radialGradient(
+                    listOf(Color(0xFF0F1027), Color(0xFF070712))
+                ),
+                borderBrush = Brush.sweepGradient(listOf(Color(0xFF9D5FF5), PsychTeal, Color(0xFF9D5FF5))),
+                borderWidth = 2.5.dp,
+                imagePadding = 0.dp,
+                contentDescription = "Уми"
+            )
         }
 
         Text(
@@ -880,6 +870,11 @@ private fun AiChatOverlayEmptyState() {
                             .clip(RoundedCornerShape(20.dp))
                             .background(Color(0xFF9D5FF5).copy(0.1f))
                             .border(1.dp, Color(0xFF9D5FF5).copy(0.3f), RoundedCornerShape(20.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onSuggestionClick(hint) }
+                            )
                             .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
                         Text(hint, color = Color(0xFF9D5FF5).copy(0.9f), fontSize = 11.sp)
@@ -897,10 +892,17 @@ private fun TypingIndicatorOverlay() {
         Box(
             modifier = Modifier
                 .size(28.dp)
-                .background(Brush.radialGradient(listOf(PsychTeal.copy(0.3f), Color(0xFF9D5FF5).copy(0.15f))), CircleShape)
-                .border(1.dp, PsychTeal.copy(0.4f), CircleShape),
+                .background(Brush.radialGradient(listOf(PsychTeal.copy(0.3f), Color(0xFF9D5FF5).copy(0.15f))), CircleShape),
             contentAlignment = Alignment.Center
-        ) { Text("🤖", fontSize = 13.sp) }
+        ) {
+            UmiAvatarBadge(
+                modifier = Modifier.fillMaxSize(),
+                borderColor = PsychTeal.copy(0.4f),
+                borderWidth = 1.dp,
+                imagePadding = 0.dp,
+                contentDescription = "Уми печатает"
+            )
+        }
 
         Spacer(Modifier.width(8.dp))
 
@@ -942,13 +944,6 @@ private fun AiChatInputBar(
     onSend: () -> Unit,
 ) {
     val overLimit = (value.length / 4) > 50_000
-    val focusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
-    }
 
     Column(
         modifier = Modifier
@@ -974,9 +969,7 @@ private fun AiChatInputBar(
             OutlinedTextField(
                 value         = value,
                 onValueChange = onValueChange,
-                modifier      = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
+                modifier      = Modifier.weight(1f),
                 placeholder   = { Text("Задайте вопрос Уми...", color = Color.White.copy(0.35f), fontSize = 14.sp) },
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,

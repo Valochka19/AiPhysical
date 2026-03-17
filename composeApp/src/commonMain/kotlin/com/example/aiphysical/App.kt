@@ -2,10 +2,8 @@ package com.example.aiphysical
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,14 +38,7 @@ fun App() {
         AnimatedContent(
             targetState = uiState.currentScreen,
             transitionSpec = {
-                val isForward = targetState !is AuthScreen.Login
-                val enter = fadeIn(tween(380)) + slideInHorizontally(tween(380)) {
-                    if (isForward) (it * 0.25f).toInt() else -(it * 0.25f).toInt()
-                }
-                val exit = fadeOut(tween(280)) + slideOutHorizontally(tween(280)) {
-                    if (isForward) -(it * 0.25f).toInt() else (it * 0.25f).toInt()
-                }
-                enter togetherWith exit
+                fadeIn(tween(180)) togetherWith fadeOut(tween(140))
             },
             label = "auth_nav"
         ) { screen ->

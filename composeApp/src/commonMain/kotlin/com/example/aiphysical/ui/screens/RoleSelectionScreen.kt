@@ -1,7 +1,5 @@
 package com.example.aiphysical.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,7 +26,6 @@ import com.example.aiphysical.presentation.auth.AuthUiState
 import com.example.aiphysical.presentation.auth.UserRole
 import com.example.aiphysical.ui.components.AnimatedBackground
 import com.example.aiphysical.ui.components.LanguageSwitcher
-import com.example.aiphysical.ui.components.glassCard
 import com.example.aiphysical.ui.theme.*
 
 @Composable
@@ -38,10 +35,11 @@ fun RoleSelectionScreen(
 ) {
     val strings = getStrings(uiState.currentLanguage)
 
-    AnimatedBackground {
+    AnimatedBackground(animate = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
         ) {
@@ -137,17 +135,9 @@ private fun RoleCard(
     gradientColors: List<Color>,
     onClick: () -> Unit,
 ) {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "card_scale"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
             .clip(RoundedCornerShape(20.dp))
             .background(
                 Brush.horizontalGradient(
@@ -170,10 +160,7 @@ private fun RoleCard(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = {
-                    pressed = true
-                    onClick()
-                }
+                onClick = onClick
             )
             .padding(20.dp)
     ) {

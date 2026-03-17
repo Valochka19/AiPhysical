@@ -30,6 +30,7 @@ import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.director.*
+import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 
 private data class TestInfo(val emoji: String, val name: String, val description: String, val color: Color)
@@ -279,7 +280,14 @@ private fun BaseCourseCard(course: com.example.aiphysical.data.model.BaseCourseC
                 modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(NeonViolet.copy(0.2f), CyanAccent.copy(0.12f)))).border(1.dp, Brush.horizontalGradient(listOf(NeonViolet.copy(0.5f), CyanAccent.copy(0.4f))), RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🤖", fontSize = 10.sp)
+                UmiAvatarBadge(
+                    modifier = Modifier.size(12.dp),
+                    backgroundColor = Color.White.copy(0.06f),
+                    borderColor = NeonViolet.copy(0.35f),
+                    borderWidth = 0.8.dp,
+                    imagePadding = 1.dp,
+                    contentDescription = "Уми рекомендует"
+                )
                 Text("AI рекомендует", style = TextStyle(brush = Brush.horizontalGradient(listOf(NeonViolet, CyanAccent)), fontSize = 10.sp, fontWeight = FontWeight.Bold))
             }
         }

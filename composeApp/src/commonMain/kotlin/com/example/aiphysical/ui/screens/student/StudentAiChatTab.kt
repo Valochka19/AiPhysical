@@ -32,6 +32,8 @@ import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.ui.components.FloatingUmiAvatarBadge
+import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 
 // Token estimation constant (same as in ViewModel)
@@ -75,7 +77,15 @@ fun StudentAiChatTab(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (state.chatMessages.isEmpty()) {
-                item { ChatEmptyState() }
+                item {
+                    ChatEmptyState(
+                        onSuggestionClick = { suggestion ->
+                            if (!state.isChatLoading) {
+                                vm.onEvent(StudentEvent.SendChatMessage(suggestion))
+                            }
+                        }
+                    )
+                }
             }
 
             items(state.chatMessages) { msg ->
@@ -138,11 +148,16 @@ private fun ChatHeader(
                 .background(
                     Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.4f), PsychTeal.copy(0.2f))),
                     CircleShape
-                )
-                .border(1.dp, Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)), CircleShape),
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Text("🤖", fontSize = 20.sp)
+            UmiAvatarBadge(
+                modifier = Modifier.fillMaxSize(),
+                borderBrush = Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
+                borderWidth = 1.dp,
+                imagePadding = 0.dp,
+                contentDescription = "Аватар Уми"
+            )
         }
 
         Column(Modifier.weight(1f)) {
@@ -189,7 +204,9 @@ private fun ChatHeader(
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun ChatEmptyState() {
+private fun ChatEmptyState(
+    onSuggestionClick: (String) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -197,7 +214,18 @@ private fun ChatEmptyState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("🤖", fontSize = 56.sp)
+        FloatingUmiAvatarBadge(
+            modifier = Modifier.size(104.dp),
+            levitationAmplitude = 9.dp,
+            durationMillis = 2800,
+            backgroundBrush = Brush.radialGradient(
+                listOf(Color(0xFF0F1027), Color(0xFF070712))
+            ),
+            borderBrush = Brush.sweepGradient(listOf(Color(0xFF9D5FF5), PsychTeal, Color(0xFF9D5FF5))),
+            borderWidth = 2.5.dp,
+            imagePadding = 0.dp,
+            contentDescription = "Уми"
+        )
         Text(
             "Уми готова помочь",
             color = Color.White,
@@ -230,6 +258,11 @@ private fun ChatEmptyState() {
                             .clip(RoundedCornerShape(20.dp))
                             .background(Color(0xFF9D5FF5).copy(0.1f))
                             .border(1.dp, Color(0xFF9D5FF5).copy(0.3f), RoundedCornerShape(20.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onSuggestionClick(hint) }
+                            )
                             .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
                         Text(hint, color = Color(0xFF9D5FF5).copy(0.9f), fontSize = 11.sp)
@@ -265,7 +298,11 @@ internal fun ChatBubble(message: ChatMessage) {
                     .border(1.dp, PsychTeal.copy(0.4f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🤖", fontSize = 14.sp)
+                UmiAvatarBadge(
+                    modifier = Modifier.fillMaxSize(),
+                    imagePadding = 0.dp,
+                    contentDescription = "Уми"
+                )
             }
             Spacer(Modifier.width(8.dp))
         }
@@ -364,7 +401,13 @@ private fun TypingIndicator() {
                 )
                 .border(1.dp, PsychTeal.copy(0.4f), CircleShape),
             contentAlignment = Alignment.Center
-        ) { Text("🤖", fontSize = 14.sp) }
+        ) {
+            UmiAvatarBadge(
+                modifier = Modifier.fillMaxSize(),
+                imagePadding = 0.dp,
+                contentDescription = "Уми печатает"
+            )
+        }
 
         Spacer(Modifier.width(8.dp))
 

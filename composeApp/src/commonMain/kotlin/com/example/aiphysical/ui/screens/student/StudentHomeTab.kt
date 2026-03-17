@@ -31,6 +31,7 @@ import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 import kotlin.math.PI
 import kotlin.math.cos
@@ -109,18 +110,7 @@ fun StudentHomeTab(
 private fun StudentGreetingHeader(name: String, status: String, onLogout: () -> Unit) {
     val firstName = name.split(" ").firstOrNull() ?: name
     val orbColor = statusToColor(status)
-
-    val infiniteTransition = rememberInfiniteTransition(label = "student_orb")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "glow"
-    )
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(6000, easing = LinearEasing), RepeatMode.Restart),
-        label = "rot"
-    )
+    val glowAlpha = 0.52f
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -137,7 +127,7 @@ private fun StudentGreetingHeader(name: String, status: String, onLogout: () -> 
                     )
                 )
             }
-            Canvas(Modifier.size(56.dp).graphicsLayer { rotationZ = rotation }) {
+            Canvas(Modifier.size(56.dp)) {
                 drawArc(
                     Brush.sweepGradient(listOf(orbColor, orbColor.copy(0.3f), Color.Transparent, Color.Transparent)),
                     startAngle = 0f, sweepAngle = 210f, useCenter = false,
@@ -223,13 +213,7 @@ private fun TestStoryCard(
 ) {
     val colorStart = Color(test.colorStartHex)
     val colorEnd   = Color(test.colorEndHex)
-
-    val infiniteTransition = rememberInfiniteTransition(label = "story_${test.testId}")
-    val borderAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f, targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "border_${test.testId}"
-    )
+    val borderAlpha = if (isCompleted) 1f else 0.72f
 
     Box(
         modifier = Modifier
@@ -242,13 +226,13 @@ private fun TestStoryCard(
                     listOf(colorStart.copy(0.32f), colorEnd.copy(0.20f), Color.White.copy(0.04f))
                 )
             )
-            // Neon glow border (animated)
+            // Neon glow border
             .border(
                 width = if (isCompleted) 2.dp else 1.5.dp,
                 brush = Brush.linearGradient(
                     listOf(
-                        colorStart.copy(if (isCompleted) 1f else borderAlpha),
-                        colorEnd.copy(if (isCompleted) 0.8f else borderAlpha * 0.5f)
+                        colorStart.copy(borderAlpha),
+                        colorEnd.copy(if (isCompleted) 0.8f else 0.36f)
                     )
                 ),
                 shape = RoundedCornerShape(22.dp)
@@ -455,7 +439,13 @@ private fun OverallHealthCard(
                         .background(Color(0xFF8A2BE2).copy(0.25f), RoundedCornerShape(8.dp))
                         .border(1.dp, Color(0xFF9D5FF5).copy(0.5f), RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
-                ) { Text("🤖", fontSize = 14.sp) }
+                ) {
+                    UmiAvatarBadge(
+                        modifier = Modifier.fillMaxSize(),
+                        imagePadding = 0.dp,
+                        contentDescription = "Уми"
+                    )
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text("Сгенерировать общий отчёт", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
                     Text("AI-анализ твоего состояния", color = TextSecondary, fontSize = 11.sp)
@@ -648,13 +638,7 @@ private fun PsychologistMessageCard(
         "LOW"    -> PsychTeal     to "🟢 Низкий приоритет"
         else     -> TextHint      to "📩 Сообщение"
     }
-
-    val pulse = rememberInfiniteTransition(label = "msg_pulse")
-    val borderAlpha by pulse.animateFloat(
-        initialValue = 0.3f, targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "msg_border"
-    )
+    val borderAlpha = 0.55f
 
     Column(
         modifier = Modifier
@@ -732,7 +716,13 @@ private fun AiCourseRecommendationsSection(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("🤖", fontSize = 18.sp)
+                UmiAvatarBadge(
+                    modifier = Modifier.size(22.dp),
+                    backgroundColor = Color.White.copy(0.06f),
+                    borderColor = Color(0xFF9D5FF5).copy(0.35f),
+                    imagePadding = 3.dp,
+                    contentDescription = "Уми рекомендует"
+                )
                 Text("ИИ рекомендует вам:", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
             }
             Box(
