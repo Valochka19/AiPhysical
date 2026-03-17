@@ -7,14 +7,11 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +20,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,11 +27,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +46,6 @@ import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
 import com.example.aiphysical.util.createFirestoreService
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  StudentDashboardScreen — Entry Point
@@ -102,11 +95,13 @@ fun StudentDashboardScreen(
             }
         },
         bottomBar = {
-            StudentBottomNavBar(
-                selectedTab = state.selectedTab,
-                strings = getStrings(state.currentLanguage),
-                onTabSelected = { vm.onEvent(StudentEvent.NavigateToTab(it)) }
-            )
+            if (!state.showAiChat) {
+                StudentBottomNavBar(
+                    selectedTab = state.selectedTab,
+                    strings = getStrings(state.currentLanguage),
+                    onTabSelected = { vm.onEvent(StudentEvent.NavigateToTab(it)) }
+                )
+            }
         }
     ) { innerPadding ->
 
@@ -200,9 +195,9 @@ fun StudentDashboardScreen(
             // ── AI Chat Overlay ───────────────────────────────────────────────
             AnimatedVisibility(
                 visible = state.showAiChat,
-                modifier = Modifier.align(Alignment.BottomCenter),
-                enter = slideInVertically(tween(320)) { it } + fadeIn(tween(280)),
-                exit  = slideOutVertically(tween(260)) { it } + fadeOut(tween(220))
+                modifier = Modifier.fillMaxSize(),
+                enter = slideInVertically(tween(340)) { it } + fadeIn(tween(300)),
+                exit  = slideOutVertically(tween(280)) { it } + fadeOut(tween(240))
             ) {
                 AiChatOverlay(
                     state = state,
@@ -566,11 +561,16 @@ private fun AiChatOverlay(
     onDismiss: () -> Unit,
 ) {
     val listState = rememberLazyListState()
-    var isFullscreen by rememberSaveable { mutableStateOf(false) }
-    val sheetHeightFraction by animateFloatAsState(
-        targetValue = if (isFullscreen) 0.97f else 0.78f,
-        animationSpec = tween(260, easing = FastOutSlowInEasing),
-        label = "ai_chat_sheet_height"
+
+    // Pulsing glow for avatar and online dot
+    val pulseTransition = rememberInfiniteTransition(label = "avatar_pulse")
+    val pulseAlpha by pulseTransition.animateFloat(
+        initialValue = 0.25f, targetValue = 0.80f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
     )
 
     LaunchedEffect(state.chatMessages.size) {
@@ -579,124 +579,107 @@ private fun AiChatOverlay(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().imePadding()) {
-        // Dim background — clicking outside closes chat
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF060616), Color(0xFF0C0C20), Color(0xFF080818))
+                )
+            )
+    ) {
+        // ── Status bar space ──────────────────────────────────────────────────
+        Spacer(Modifier.statusBarsPadding())
+
+        // ── Header ────────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(0.55f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                )
-        )
-
-        // Chat panel
-        Column(
-            modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(sheetHeightFraction)
-                .align(Alignment.BottomCenter)
-                .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-                .background(Color(0xFF0B0B1E))
-                .border(
-                    1.dp,
-                    Brush.horizontalGradient(listOf(Color(0xFF9D5FF5).copy(0.5f), PsychTeal.copy(0.4f))),
-                    RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {}
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF9D5FF5).copy(0.14f), Color.Transparent)
+                    )
                 )
         ) {
-            // Drag handle
-            Box(
-                Modifier
-                    .padding(top = 10.dp)
-                    .width(44.dp)
-                    .height(4.dp)
-                    .background(Color.White.copy(0.15f), RoundedCornerShape(2.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { isFullscreen = !isFullscreen }
-                    )
-                    .align(Alignment.CenterHorizontally)
-            )
-
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.4f), PsychTeal.copy(0.2f))),
-                            CircleShape
-                        )
-                        .border(1.dp, Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) { Text("🤖", fontSize = 18.sp) }
+                // Pulsing avatar
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(50.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(
+                                        Color(0xFF9D5FF5).copy(pulseAlpha * 0.5f),
+                                        PsychTeal.copy(pulseAlpha * 0.3f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                CircleShape
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(
+                                Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.4f), PsychTeal.copy(0.25f))),
+                                CircleShape
+                            )
+                            .border(1.5.dp, Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) { Text("🤖", fontSize = 20.sp) }
+                }
 
                 Column(Modifier.weight(1f)) {
-                    Text("AI Ассистент", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        if (isFullscreen) "Полноэкранный режим • ${state.chatMessages.size} сообщ."
-                        else "Компактный режим • ${state.chatMessages.size} сообщ.",
-                        color = PsychTeal.copy(0.8f),
-                        fontSize = 11.sp
-                    )
+                    Text("Уми", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .background(Color(0xFF00E676).copy(pulseAlpha), CircleShape)
+                        )
+                        Text(
+                            "Ваш помощник • ${state.chatMessages.size} сообщ.",
+                            color = PsychTeal.copy(0.85f),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(0.07f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { isFullscreen = !isFullscreen }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        if (isFullscreen) "🗗" else "🗖",
-                        color = Color.White.copy(0.75f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
+                // Clear history button
                 if (state.chatMessages.isNotEmpty()) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(Color.White.copy(0.07f))
-                            .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(10.dp))
+                            .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(12.dp))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = { vm.onEvent(StudentEvent.ClearChatHistory) }
                             )
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("🗑", color = Color.White.copy(0.6f), fontSize = 13.sp)
+                        Text("🗑 Очистить", color = Color.White.copy(0.55f), fontSize = 12.sp)
                     }
                 }
 
+                // Close button
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(0.07f))
+                        .background(Color.White.copy(0.08f))
+                        .border(1.dp, Color.White.copy(0.15f), CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -704,17 +687,51 @@ private fun AiChatOverlay(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("✕", color = Color.White.copy(0.55f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("✕", color = Color.White.copy(0.75f), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
+        }
 
-            HorizontalDivider(color = Color(0xFF9D5FF5).copy(0.2f), thickness = 1.dp)
+        // Gradient divider
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color.Transparent, Color(0xFF9D5FF5).copy(0.6f), PsychTeal.copy(0.4f), Color.Transparent)
+                    )
+                )
+        )
 
-            // Messages
+        // ── Messages area ─────────────────────────────────────────────────────
+        Box(modifier = Modifier.weight(1f)) {
+            // Ambient orb — top-left
+            Box(
+                modifier = Modifier
+                    .size(220.dp)
+                    .offset(x = (-70).dp, y = (-50).dp)
+                    .background(
+                        Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.07f), Color.Transparent)),
+                        CircleShape
+                    )
+            )
+            // Ambient orb — bottom-right
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 50.dp, y = 40.dp)
+                    .background(
+                        Brush.radialGradient(listOf(PsychTeal.copy(0.06f), Color.Transparent)),
+                        CircleShape
+                    )
+            )
+
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (state.chatMessages.isEmpty()) {
@@ -727,75 +744,149 @@ private fun AiChatOverlay(
                     item { TypingIndicatorOverlay() }
                 }
             }
+        }
 
-            // Error banner
-            AnimatedVisibility(
-                visible = state.chatError != null,
-                enter = slideInVertically() + fadeIn(),
-                exit  = slideOutVertically() + fadeOut()
-            ) {
-                state.chatError?.let { err ->
-                    Row(
+        // ── Error banner ──────────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible = state.chatError != null,
+            enter = slideInVertically() + fadeIn(),
+            exit  = slideOutVertically() + fadeOut()
+        ) {
+            state.chatError?.let { err ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFF5370).copy(0.12f))
+                        .border(1.dp, Color(0xFFFF5370).copy(0.4f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("⚠️", fontSize = 14.sp)
+                    Text(err, color = Color(0xFFFF5370), fontSize = 12.sp, modifier = Modifier.weight(1f), lineHeight = 16.sp)
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFFF5370).copy(0.12f))
-                            .border(1.dp, Color(0xFFFF5370).copy(0.4f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text("⚠️", fontSize = 14.sp)
-                        Text(err, color = Color(0xFFFF5370), fontSize = 12.sp, modifier = Modifier.weight(1f), lineHeight = 16.sp)
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .background(Color(0xFFFF5370).copy(0.2f), CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { vm.onEvent(StudentEvent.ClearChatError) }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) { Text("✕", color = Color(0xFFFF5370), fontSize = 11.sp, fontWeight = FontWeight.Bold) }
-                    }
+                            .size(22.dp)
+                            .background(Color(0xFFFF5370).copy(0.2f), CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { vm.onEvent(StudentEvent.ClearChatError) }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) { Text("✕", color = Color(0xFFFF5370), fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                 }
             }
-
-            // Input
-            AiChatInputBar(
-                value         = state.chatInput,
-                isLoading     = state.isChatLoading,
-                onValueChange = { vm.onEvent(StudentEvent.UpdateChatInput(it)) },
-                onSend = {
-                    if (state.chatInput.isNotBlank() && !state.isChatLoading) {
-                        vm.onEvent(StudentEvent.SendChatMessage(state.chatInput))
-                    }
-                }
-            )
         }
+
+        // ── Input bar ─────────────────────────────────────────────────────────
+        AiChatInputBar(
+            value         = state.chatInput,
+            isLoading     = state.isChatLoading,
+            onValueChange = { vm.onEvent(StudentEvent.UpdateChatInput(it)) },
+            onSend = {
+                if (state.chatInput.isNotBlank() && !state.isChatLoading) {
+                    vm.onEvent(StudentEvent.SendChatMessage(state.chatInput))
+                }
+            }
+        )
     }
 }
 
 @Composable
 private fun AiChatOverlayEmptyState() {
+    val pulseTransition = rememberInfiniteTransition(label = "empty_pulse")
+    val pulseAlpha by pulseTransition.animateFloat(
+        initialValue = 0.2f, targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "empty_pulse_alpha"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp),
+            .padding(vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("🤖", fontSize = 48.sp)
+        // Pulsing avatar
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                Color(0xFF9D5FF5).copy(pulseAlpha * 0.5f),
+                                PsychTeal.copy(pulseAlpha * 0.3f),
+                                Color.Transparent
+                            )
+                        ),
+                        CircleShape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        Brush.radialGradient(listOf(Color(0xFF9D5FF5).copy(0.25f), Color(0xFF1A1A35))),
+                        CircleShape
+                    )
+                    .border(
+                        1.5.dp,
+                        Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🤖", fontSize = 32.sp)
+            }
+        }
+
         Text(
-            "AI Ассистент готов помочь",
-            color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
+            "Уми готова помочь",
+            color = Color.White,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
         Text(
             "Задайте любой вопрос о здоровье,\nучёбе или психологическом благополучии",
-            color = Color.White.copy(0.45f), fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 18.sp
+            color = Color.White.copy(0.45f),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp
         )
+
+        Spacer(Modifier.height(4.dp))
+
+        // Suggestion chips
+        val suggestions = listOf(
+            "💡 Как снизить стресс?",
+            "📚 Советы по учёбе",
+            "😴 Улучшить сон",
+            "🧘 Как расслабиться?"
+        )
+        suggestions.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { hint ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF9D5FF5).copy(0.1f))
+                            .border(1.dp, Color(0xFF9D5FF5).copy(0.3f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                    ) {
+                        Text(hint, color = Color(0xFF9D5FF5).copy(0.9f), fontSize = 11.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -852,25 +943,26 @@ private fun AiChatInputBar(
 ) {
     val overLimit = (value.length / 4) > 50_000
     val focusRequester = remember { FocusRequester() }
-    val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val scope = rememberCoroutineScope()
-    var isInputFocused by remember { mutableStateOf(false) }
-
-    fun requestInputFocusAndKeyboard() {
-        focusRequester.requestFocus()
-        keyboardController?.show()
-        scope.launch { bringIntoViewRequester.bringIntoView() }
-    }
 
     LaunchedEffect(Unit) {
-        requestInputFocusAndKeyboard()
+        focusRequester.requestFocus()
+        keyboardController?.show()
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF050010).copy(0.95f))
+            .windowInsetsPadding(
+                WindowInsets.navigationBars
+                    .union(WindowInsets.ime)
+                    .only(WindowInsetsSides.Bottom)
+            )
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF060616).copy(0.0f), Color(0xFF060616))
+                )
+            )
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -884,28 +976,8 @@ private fun AiChatInputBar(
                 onValueChange = onValueChange,
                 modifier      = Modifier
                     .weight(1f)
-                    .focusRequester(focusRequester)
-                    .bringIntoViewRequester(bringIntoViewRequester)
-                    .onFocusChanged { focusState ->
-                        isInputFocused = focusState.isFocused
-                        if (focusState.isFocused) {
-                            keyboardController?.show()
-                            scope.launch { bringIntoViewRequester.bringIntoView() }
-                        }
-                    }
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                if (!isInputFocused) {
-                                    requestInputFocusAndKeyboard()
-                                } else {
-                                    keyboardController?.show()
-                                    scope.launch { bringIntoViewRequester.bringIntoView() }
-                                }
-                            }
-                        )
-                    },
-                placeholder   = { Text("Задайте вопрос AI...", color = Color.White.copy(0.35f), fontSize = 14.sp) },
+                    .focusRequester(focusRequester),
+                placeholder   = { Text("Задайте вопрос Уми...", color = Color.White.copy(0.35f), fontSize = 14.sp) },
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     imeAction      = ImeAction.Send
@@ -956,23 +1028,6 @@ private fun AiChatInputBar(
                     )
                 }
             }
-
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(0.07f))
-                    .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(14.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { requestInputFocusAndKeyboard() }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("⌨", color = Color.White.copy(0.75f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
         }
     }
 }
-

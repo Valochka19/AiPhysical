@@ -147,7 +147,7 @@ private fun ChatHeader(
 
         Column(Modifier.weight(1f)) {
             Text(
-                "AI Ассистент",
+                "Уми",
                 color = Color.White,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -199,7 +199,7 @@ private fun ChatEmptyState() {
     ) {
         Text("🤖", fontSize = 56.sp)
         Text(
-            "AI Ассистент готов помочь",
+            "Уми готова помочь",
             color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
@@ -319,7 +319,7 @@ internal fun ChatBubble(message: ChatMessage) {
             }
 
             Text(
-                text     = if (isUser) "Вы" else if (message.isError) "⚠️ Ошибка" else "AI",
+                text     = if (isUser) "Вы" else if (message.isError) "⚠️ Ошибка" else "Уми",
                 color    = Color.White.copy(0.3f),
                 fontSize = 10.sp
             )
@@ -478,7 +478,7 @@ private fun ChatInputBar(
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
                 placeholder  = {
-                    Text("Задайте вопрос AI...", color = Color.White.copy(0.35f), fontSize = 14.sp)
+                    Text("Задайте вопрос Уми...", color = Color.White.copy(0.35f), fontSize = 14.sp)
                 },
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
