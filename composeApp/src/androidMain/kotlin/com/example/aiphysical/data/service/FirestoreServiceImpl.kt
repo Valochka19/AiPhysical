@@ -3,6 +3,7 @@ package com.example.aiphysical.data.service
 import com.example.aiphysical.data.model.*
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -48,7 +49,17 @@ class FirestoreServiceImpl : FirestoreService {
                 "role" to profile.role, "orgId" to profile.orgId, "ageGroup" to profile.ageGroup,
                 "latestAiStatus" to profile.latestAiStatus,
                 "stressScore" to profile.stressScore,
-                "courseProgressPercent" to profile.courseProgressPercent
+                "courseProgressPercent" to profile.courseProgressPercent,
+                "burnoutScore" to profile.burnoutScore,
+                "emotionScore" to profile.emotionScore,
+                "motivationScore" to profile.motivationScore,
+                "anxietyScore" to profile.anxietyScore,
+                "isBlocked" to profile.isBlocked,
+                "psychComment" to profile.psychComment,
+                "assignedCourseId" to profile.assignedCourseId,
+                "assignedCourseName" to profile.assignedCourseName,
+                "psychPriority" to profile.psychPriority,
+                "psychCommentDate" to profile.psychCommentDate
             )
             db.collection("users").document(profile.uid).set(data).await()
             FirestoreResult.GenericSuccess
@@ -242,51 +253,63 @@ class FirestoreServiceImpl : FirestoreService {
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка удаления курса") }
     }
 
-    // ── Burnout Test Result ───────────────────────────────────────────────────
+    // ── Student Test Result ───────────────────────────────────────────────────
 
-    override suspend fun saveBurnoutTestResult(
+    override suspend fun saveStudentTestResult(
         uid: String,
-        score: Int,
-        aiAssessment: String,
-        feedbackText: String,
-        answers: List<BurnoutAnswer>
+        submission: StudentTestSubmission
     ): FirestoreResult {
         return try {
             val now = System.currentTimeMillis()
-            val attemptRef = db.collection("users").document(uid)
-                .collection("testResults").document() // auto-generated id
+            val userRef = db.collection("users").document(uid)
+            val attemptRef = userRef.collection("testResults").document()
 
-            val answersData = answers.map { a ->
+            val answersData = submission.answers.map { a ->
                 mapOf(
                     "questionId"   to a.questionId,
                     "questionText" to a.questionText,
                     "catEmotion"   to a.catEmotion.name,
                     "answerType"   to a.answerType.name,
                     "answerLabel"  to a.answerType.label,
-                    "weight"       to a.answerType.weight
+                    "weight"       to a.answerType.weight,
+                    "polarity"     to a.polarity.name,
+                    "isPositive"   to (a.polarity == QuestionPolarity.POSITIVE)
                 )
             }
             val docData = mapOf(
-                "testId"        to "burnout",
-                "testName"      to "Выгорание",
+                "testId"        to submission.definition.testId,
+                "testName"      to submission.definition.testName,
                 "dateMillis"    to now,
-                "score"         to score.toDouble(),
-                "aiAssessment"  to aiAssessment,
-                "feedbackText"  to feedbackText,
-                "questionCount" to answers.size,
-                "version"       to 1,
+                "score"         to submission.score.toDouble(),
+                "aiAssessment"  to submission.aiAssessment,
+                "feedbackText"  to submission.feedbackText,
+                "questionCount" to submission.answers.size,
+                "version"       to submission.version,
                 "answers"       to answersData
             )
             attemptRef.set(docData).await()
 
-            // Update top-level user document
-            db.collection("users").document(uid).update(
-                mapOf(
-                    "burnoutScore"       to score.toDouble(),
-                    "latestAiStatus"     to aiAssessment,
-                    "lastBurnoutTestAt"  to now
-                )
-            ).await()
+            val currentProfile = userRef.get().await().let { doc ->
+                if (doc.exists()) doc.toUserProfile() else UserProfile(uid = uid)
+            }
+            val updatedProfile = currentProfile.withUpdatedMetric(
+                submission.definition.testId,
+                submission.score.toFloat()
+            )
+            val completedTestIds = userRef.collection("testResults").get().await()
+                .documents
+                .mapNotNull { it.getString("testId") }
+                .toSet() + submission.definition.testId
+            val aggregatedStatus = computeAggregatedAiStatus(updatedProfile, completedTestIds)
+
+            val userUpdate = mutableMapOf<String, Any>(
+                submission.definition.profileField to submission.score.toDouble(),
+                "latestAiStatus" to aggregatedStatus
+            )
+            lastTestAtFieldNameFor(submission.definition.testId)?.let { fieldName ->
+                userUpdate[fieldName] = now
+            }
+            userRef.set(userUpdate, SetOptions.merge()).await()
 
             FirestoreResult.GenericSuccess
         } catch (e: Exception) {

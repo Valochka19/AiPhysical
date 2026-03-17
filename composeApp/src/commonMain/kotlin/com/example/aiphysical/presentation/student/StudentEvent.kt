@@ -25,7 +25,12 @@ sealed class StudentEvent {
     data class UpdateChatInput(val text: String) : StudentEvent()
     object ClearChatError : StudentEvent()
     object ClearChatHistory : StudentEvent()
-    // ── Burnout Test ──────────────────────────────────────────────────────────
+    // ── Generic Student Test ──────────────────────────────────────────────────
+    object CloseActiveTest : StudentEvent()
+    data class AnswerCurrentTestQuestion(val answerType: AnswerType) : StudentEvent()
+    object RetryCurrentTestGemini : StudentEvent()
+    object ResetCurrentTest : StudentEvent()
+    // ── Burnout compatibility wrappers ────────────────────────────────────────
     object OpenBurnoutTest : StudentEvent()
     object CloseBurnoutTest : StudentEvent()
     data class AnswerBurnoutQuestion(val answerType: AnswerType) : StudentEvent()

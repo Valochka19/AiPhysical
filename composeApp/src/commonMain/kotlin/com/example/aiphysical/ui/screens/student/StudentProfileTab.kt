@@ -121,7 +121,7 @@ fun StudentProfileTab(
 
         // ── Test history preview ──────────────────────────────────────────────
         if (state.testHistory.isNotEmpty()) {
-            TestHistorySection(history = state.testHistory.take(5), strings = strings)
+            TestHistorySection(history = state.testHistory.sortedByDescending { it.dateMillis }.take(5), strings = strings)
         }
 
         HorizontalDivider(color = Color.White.copy(0.08f))

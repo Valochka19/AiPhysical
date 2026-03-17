@@ -1,6 +1,6 @@
 package com.example.aiphysical.presentation.student
 
-import com.example.aiphysical.data.model.BurnoutTestUiState
+import com.example.aiphysical.data.model.StudentTestUiState
 import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.OrganizationCourse
@@ -52,7 +52,7 @@ data class StudentUiState(
     val chatInput: String = "",
     val isChatLoading: Boolean = false,
     val chatError: String? = null,
-    // ── Burnout Test ──────────────────────────────────────────────────────────
-    /** Non-null while the burnout test overlay is open */
-    val burnoutTestState: BurnoutTestUiState? = null,
+    // ── Active Student Test ───────────────────────────────────────────────────
+    /** Non-null while any student test overlay is open */
+    val activeTestState: StudentTestUiState? = null,
 )

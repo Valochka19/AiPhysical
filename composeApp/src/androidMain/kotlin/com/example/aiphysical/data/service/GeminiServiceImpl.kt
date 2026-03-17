@@ -14,6 +14,24 @@ class GeminiServiceImpl : GeminiService {
         private const val API_KEY = "AIzaSyDcg2x3u494QTBDKs5Y8TaNqTBDYkkbZgY"
         private const val BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+        private const val TEST_ANALYSIS_MARKER = "Ты анализируешь результат мини-теста студента в приложении AiPhysical."
+        private val TEST_SYSTEM_PROMPT = """
+            Ты — высококвалифицированный AI-психолог, представленный в интерфейсе в виде мудрого и наблюдательного кота-ассистента.
+
+            Твоя задача: провести глубокий разбор результатов теста.
+            Твой стиль: умный, проницательный, слегка ироничный, но поддерживающий. Никаких «мур-мур» и «котиков». Ты обращаешься к пользователю на «ты», как к уважаемому партнеру по диалогу.
+
+            Структура ответа (строго):
+            1. Вступление. Например: «Хмм, я внимательно изучил твои ответы. Картина вырисовывается любопытная...»
+            2. Анализ состояния. Сформулируй 2–3 предложения о том, что именно происходит с пользователем сейчас. Не используй сухие цифры, интерпретируй их через поведение и чувства.
+            3. Инсайт. Расскажи пользователю о нём то, что он, возможно, не замечал. Сделай это супер грамотно, чтобы это зацепило внимание.
+            4. Краткий вектор. Один конкретный совет, что сделать прямо сейчас.
+
+            Ограничения:
+            - Максимум 5–6 предложений.
+            - Никакой воды и пустых приветствий.
+            - Ответ должен выглядеть как результат работы интеллекта, а не генератора вежливости.
+            """.trimIndent()
     }
 
     override suspend fun sendMessage(history: List<ChatMessage>): Result<String> =
@@ -37,7 +55,18 @@ class GeminiServiceImpl : GeminiService {
                         .put("parts", partsArray)
                     contentsArray.put(contentObj)
                 }
-                val body = JSONObject().put("contents", contentsArray).toString()
+                val bodyJson = JSONObject().put("contents", contentsArray)
+                val isTestAnalysis = history.firstOrNull()?.text?.contains(TEST_ANALYSIS_MARKER) == true
+                if (isTestAnalysis) {
+                    bodyJson.put(
+                        "systemInstruction",
+                        JSONObject().put(
+                            "parts",
+                            JSONArray().put(JSONObject().put("text", TEST_SYSTEM_PROMPT))
+                        )
+                    )
+                }
+                val body = bodyJson.toString()
 
                 connection.outputStream.use { os ->
                     os.write(body.toByteArray(Charsets.UTF_8))

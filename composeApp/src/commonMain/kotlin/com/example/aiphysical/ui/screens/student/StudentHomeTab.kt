@@ -24,6 +24,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.AppCourseCatalog
+import com.example.aiphysical.data.model.MetricSemantics
+import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.data.model.buildStudentMetricSummaries
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.presentation.student.StudentUiState
@@ -74,6 +77,8 @@ fun StudentHomeTab(
             OverallHealthCard(
                 score = state.overallScore,
                 status = state.profile.latestAiStatus,
+                profile = state.profile,
+                completedIds = state.completedTestIds,
                 onGenerateReport = { vm.onEvent(StudentEvent.GenerateReport) }
             )
 
@@ -309,11 +314,15 @@ private fun TestStoryCard(
 private fun OverallHealthCard(
     score: Float,
     status: String,
+    profile: UserProfile,
+    completedIds: Set<String>,
     onGenerateReport: () -> Unit,
 ) {
     val accentColor = statusToColor(status)
     val hasData = score > 0f
     val displayScore = if (hasData) score else 50f
+    val metricSummaries = remember(profile, completedIds) { buildStudentMetricSummaries(profile, completedIds) }
+    val completedCount = metricSummaries.count { it.isCompleted }
 
     Column(
         modifier = Modifier
@@ -371,18 +380,58 @@ private fun OverallHealthCard(
                 )
                 Text(description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, lineHeight = 18.sp)
 
-                // Mini metrics row
-                if (hasData) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        MiniScoreDot("😊", accentColor)
-                        MiniScoreDot("🚀", PsychTeal)
-                        MiniScoreDot("☁️", MetricAnxiety)
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    MiniScoreDot("🔥", MetricBurnout)
+                    MiniScoreDot("⚡", MetricStress)
+                    MiniScoreDot("😊", MetricEmotion)
+                    MiniScoreDot("🚀", MetricMotivation)
+                    MiniScoreDot("☁️", MetricAnxiety)
                 }
             }
         }
 
         HorizontalDivider(color = accentColor.copy(0.15f))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Детализация по тестам",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Пройдено $completedCount из ${metricSummaries.size}",
+                    color = TextHint,
+                    fontSize = 11.sp
+                )
+            }
+
+            metricSummaries.forEach { metric ->
+                StudentMetricRow(
+                    label = metric.label,
+                    value = metric.score,
+                    semantics = metric.semantics,
+                    isCompleted = metric.isCompleted
+                )
+            }
+
+            if (completedCount < metricSummaries.size) {
+                Text(
+                    "Общий процент сейчас считается только по уже пройденным тестам, чтобы не искажать картину.",
+                    color = TextHint,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
 
         // Generate Report CTA
         Box(
@@ -501,6 +550,85 @@ private fun MiniScoreDot(emoji: String, color: Color) {
             .border(1.dp, color.copy(0.4f), CircleShape),
         contentAlignment = Alignment.Center
     ) { Text(emoji, fontSize = 12.sp) }
+}
+
+@Composable
+private fun StudentMetricRow(
+    label: String,
+    value: Float,
+    semantics: MetricSemantics,
+    isCompleted: Boolean,
+) {
+    val safeValue = value.coerceIn(0f, 100f)
+    val statusColor = when (semantics) {
+        MetricSemantics.HIGH_IS_BAD -> when {
+            safeValue >= 70f -> PsychCritical
+            safeValue >= 40f -> PsychWarning
+            else -> PsychTeal
+        }
+
+        MetricSemantics.HIGH_IS_GOOD -> when {
+            safeValue >= 70f -> PsychTeal
+            safeValue >= 40f -> PsychWarning
+            else -> PsychCritical
+        }
+    }
+    val statusLabel = if (!isCompleted) {
+        "Не пройден"
+    } else when (semantics) {
+        MetricSemantics.HIGH_IS_BAD -> when {
+            safeValue >= 70f -> "Риск высокий"
+            safeValue >= 40f -> "Есть напряжение"
+            else -> "Стабильно"
+        }
+
+        MetricSemantics.HIGH_IS_GOOD -> when {
+            safeValue >= 70f -> "Хорошо"
+            safeValue >= 40f -> "Средне"
+            else -> "Просело"
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(statusLabel, color = if (isCompleted) statusColor else TextHint, fontSize = 10.sp)
+            }
+            Text(
+                if (isCompleted) "${safeValue.toInt()}%" else "—",
+                color = if (isCompleted) statusColor else TextHint,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.White.copy(0.08f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(if (isCompleted) safeValue / 100f else 0f)
+                    .fillMaxHeight()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                if (isCompleted) statusColor else TextHint.copy(0.2f),
+                                if (isCompleted) statusColor.copy(0.55f) else TextHint.copy(0.08f)
+                            )
+                        ),
+                        RoundedCornerShape(4.dp)
+                    )
+            )
+        }
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
