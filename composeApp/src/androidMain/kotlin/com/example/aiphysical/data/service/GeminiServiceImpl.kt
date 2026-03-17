@@ -1,5 +1,6 @@
 package com.example.aiphysical.data.service
 
+import com.example.aiphysical.BuildConfig
 import com.example.aiphysical.data.model.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,7 +12,6 @@ import java.net.URL
 class GeminiServiceImpl : GeminiService {
 
     companion object {
-        private const val API_KEY = "AIzaSyDcg2x3u494QTBDKs5Y8TaNqTBDYkkbZgY"
         private const val BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
         private const val TEST_ANALYSIS_MARKER = "Ты анализируешь результат мини-теста студента в приложении AiPhysical."
@@ -34,10 +34,20 @@ class GeminiServiceImpl : GeminiService {
             """.trimIndent()
     }
 
-    override suspend fun sendMessage(history: List<ChatMessage>): Result<String> =
+    override suspend fun sendMessage(
+        history: List<ChatMessage>,
+        systemInstruction: String?
+    ): Result<String> =
         withContext(Dispatchers.IO) {
             try {
-                val url        = URL("$BASE_URL?key=$API_KEY")
+                val apiKey = BuildConfig.GEMINI_API_KEY
+                if (apiKey.isBlank()) {
+                    return@withContext Result.failure(
+                        Exception("Gemini API key не настроен. Добавь geminiApiKey в local.properties.")
+                    )
+                }
+
+                val url        = URL("$BASE_URL?key=$apiKey")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -57,12 +67,17 @@ class GeminiServiceImpl : GeminiService {
                 }
                 val bodyJson = JSONObject().put("contents", contentsArray)
                 val isTestAnalysis = history.firstOrNull()?.text?.contains(TEST_ANALYSIS_MARKER) == true
-                if (isTestAnalysis) {
+                val resolvedSystemInstruction = when {
+                    !systemInstruction.isNullOrBlank() -> systemInstruction
+                    isTestAnalysis -> TEST_SYSTEM_PROMPT
+                    else -> null
+                }
+                if (!resolvedSystemInstruction.isNullOrBlank()) {
                     bodyJson.put(
                         "systemInstruction",
                         JSONObject().put(
                             "parts",
-                            JSONArray().put(JSONObject().put("text", TEST_SYSTEM_PROMPT))
+                            JSONArray().put(JSONObject().put("text", resolvedSystemInstruction))
                         )
                     )
                 }

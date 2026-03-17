@@ -245,7 +245,7 @@ private fun ChatEmptyState() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+internal fun ChatBubble(message: ChatMessage) {
     val isUser = message.role == "user"
 
     Row(

@@ -9,7 +9,7 @@ import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
 
 // ── Navigation tabs ───────────────────────────────────────────────────────────
-enum class StudentTab { Home, Help, Courses, Chat, Profile }
+enum class StudentTab { Home, Help, Courses, Profile }
 
 // ── 5 test types (match DB IDs) ───────────────────────────────────────────────
 enum class StudentTestType(
@@ -52,6 +52,7 @@ data class StudentUiState(
     val chatInput: String = "",
     val isChatLoading: Boolean = false,
     val chatError: String? = null,
+    val showAiChat: Boolean = false,
     // ── Active Student Test ───────────────────────────────────────────────────
     /** Non-null while any student test overlay is open */
     val activeTestState: StudentTestUiState? = null,

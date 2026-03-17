@@ -21,6 +21,8 @@ sealed class StudentEvent {
     data class OpenTextCourse(val course: OrganizationCourse) : StudentEvent()
     object CloseTextCourse : StudentEvent()
     // ── AI Chat ───────────────────────────────────────────────────────────────
+    object OpenAiChat : StudentEvent()
+    object CloseAiChat : StudentEvent()
     data class SendChatMessage(val message: String) : StudentEvent()
     data class UpdateChatInput(val text: String) : StudentEvent()
     object ClearChatError : StudentEvent()
