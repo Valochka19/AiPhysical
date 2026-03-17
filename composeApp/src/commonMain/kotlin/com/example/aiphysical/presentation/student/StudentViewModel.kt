@@ -4,6 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.aiphysical.data.model.BurnoutAnswer
+import com.example.aiphysical.data.model.BurnoutScoring
+import com.example.aiphysical.data.model.BurnoutTestStep
+import com.example.aiphysical.data.model.BurnoutTestUiState
+import com.example.aiphysical.data.model.BURNOUT_QUESTIONS
 import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.service.FirestoreResult
@@ -67,6 +72,14 @@ class StudentViewModel(
             StudentEvent.ClearChatError     -> _state.update { it.copy(chatError = null) }
             StudentEvent.ClearChatHistory   -> _state.update {
                 it.copy(chatMessages = emptyList(), chatError = null)
+            }
+            // ── Burnout Test ──────────────────────────────────────────────────
+            StudentEvent.OpenBurnoutTest              -> openBurnoutTest()
+            StudentEvent.CloseBurnoutTest             -> _state.update { it.copy(burnoutTestState = null) }
+            is StudentEvent.AnswerBurnoutQuestion     -> handleBurnoutAnswer(event.answerType)
+            StudentEvent.RetryBurnoutGemini           -> retryBurnoutGemini()
+            StudentEvent.ResetBurnoutTest             -> _state.update {
+                it.copy(burnoutTestState = BurnoutTestUiState())
             }
         }
     }
@@ -212,12 +225,186 @@ class StudentViewModel(
     }
 
     private fun handleStartTest(testType: StudentTestType) {
-        emit(StudentEffect.ShowSnackbar("🚀 Тест «${testType.label}» — функция в разработке"))
-        emit(StudentEffect.NavigateToTest(testType))
+        when (testType) {
+            StudentTestType.BURNOUT -> openBurnoutTest()
+            else -> {
+                emit(StudentEffect.ShowSnackbar("🚀 Тест «${testType.label}» — функция в разработке"))
+                emit(StudentEffect.NavigateToTest(testType))
+            }
+        }
     }
 
     private fun handleGenerateReport() {
         emit(StudentEffect.ShowSnackbar("📊 Генерация отчёта — функция в разработке"))
+    }
+
+    // ─── Burnout Test ─────────────────────────────────────────────────────────
+
+    private fun openBurnoutTest() {
+        _state.update { it.copy(burnoutTestState = BurnoutTestUiState()) }
+    }
+
+    private fun handleBurnoutAnswer(answerType: com.example.aiphysical.data.model.AnswerType) {
+        val testState = _state.value.burnoutTestState ?: return
+        if (testState.isAnswering) return
+        val question = BURNOUT_QUESTIONS.getOrNull(testState.currentQuestionIndex) ?: return
+
+        val newAnswer = BurnoutAnswer(
+            questionId   = question.id,
+            questionText = question.text,
+            catEmotion   = question.catEmotion,
+            answerType   = answerType
+        )
+        val newAnswers = testState.answers + newAnswer
+        val nextIndex  = testState.currentQuestionIndex + 1
+
+        if (nextIndex >= BURNOUT_QUESTIONS.size) {
+            // All questions answered → start Gemini analysis
+            _state.update {
+                it.copy(
+                    burnoutTestState = testState.copy(
+                        answers              = newAnswers,
+                        currentQuestionIndex = nextIndex,
+                        isAnswering          = true,
+                        step                 = BurnoutTestStep.LoadingResult
+                    )
+                )
+            }
+            launchBurnoutGemini(newAnswers)
+        } else {
+            _state.update {
+                it.copy(
+                    burnoutTestState = testState.copy(
+                        answers              = newAnswers,
+                        currentQuestionIndex = nextIndex,
+                        isAnswering          = true
+                    )
+                )
+            }
+            // Short delay for animation, then unlock
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(350)
+                _state.update { s ->
+                    s.copy(burnoutTestState = s.burnoutTestState?.copy(isAnswering = false))
+                }
+            }
+        }
+    }
+
+    private fun retryBurnoutGemini() {
+        val testState = _state.value.burnoutTestState ?: return
+        val answers   = testState.answers
+        if (answers.isEmpty()) return
+        _state.update {
+            it.copy(
+                burnoutTestState = testState.copy(
+                    step        = BurnoutTestStep.LoadingResult,
+                    errorMessage = null
+                )
+            )
+        }
+        launchBurnoutGemini(answers)
+    }
+
+    private fun launchBurnoutGemini(answers: List<BurnoutAnswer>) {
+        val score      = BurnoutScoring.computeScore(answers)
+        val assessment = BurnoutScoring.computeAssessment(score)
+        val prompt     = buildBurnoutPrompt(answers, score, assessment)
+
+        viewModelScope.launch {
+            geminiService.sendMessage(listOf(ChatMessage(role = "user", text = prompt))).fold(
+                onSuccess = { feedbackText ->
+                    // Save to Firestore
+                    firestoreService.saveBurnoutTestResult(
+                        uid          = uid,
+                        score        = score,
+                        aiAssessment = assessment,
+                        feedbackText = feedbackText,
+                        answers      = answers
+                    )
+                    // Reload data to update profile & history in state
+                    loadData()
+                    _state.update { s ->
+                        s.copy(
+                            burnoutTestState = s.burnoutTestState?.copy(
+                                step        = BurnoutTestStep.Result(feedbackText, score, assessment),
+                                isAnswering = false,
+                                errorMessage = null
+                            )
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    // Gemini failed — show fallback result locally, still save score
+                    val fallback = buildBurnoutFallback(score, assessment)
+                    firestoreService.saveBurnoutTestResult(
+                        uid          = uid,
+                        score        = score,
+                        aiAssessment = assessment,
+                        feedbackText = fallback,
+                        answers      = answers
+                    )
+                    loadData()
+                    _state.update { s ->
+                        s.copy(
+                            burnoutTestState = s.burnoutTestState?.copy(
+                                step         = BurnoutTestStep.Result(fallback, score, assessment),
+                                isAnswering  = false,
+                                errorMessage = "⚠️ AI недоступен, показан локальный результат"
+                            )
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private fun buildBurnoutPrompt(
+        answers: List<BurnoutAnswer>,
+        score: Int,
+        assessment: String
+    ): String {
+        val statusLabel = when (assessment) {
+            "normal"   -> "норма"
+            "stress"   -> "повышенный стресс"
+            "critical" -> "критическое состояние"
+            else       -> "неизвестно"
+        }
+        val answersBlock = answers.joinToString("\n") { a ->
+            "${a.questionId}. Вопрос: «${a.questionText}»\n   Ответ: ${a.answerType.label} (вес: ${a.answerType.weight}/4)"
+        }
+        return """
+Студент прошёл тест на эмоциональное выгорание.
+Ниже его ответы на 10 утверждений.
+
+Список вопросов и ответов:
+$answersBlock
+
+Суммарный технический score: $score/100.
+Предварительный статус: $statusLabel.
+
+Ты — Кот-психолог, доброжелательный маскот приложения AiPhysical.
+Сформируй именно результат теста, а не обычный чат-ответ.
+
+Требования к ответу:
+- Язык: русский
+- Объём: 4–5 предложений
+- Тон: тёплый, эмпатичный, дружелюбный
+- Обращайся к студенту как к другу («ты»)
+- Опиши общее состояние человека по его ответам
+- Мягко скажи, насколько похоже на признаки выгорания
+- Дай 1–2 практичных и добрых совета
+- Не ставь диагнозов, не пугай
+- Не используй сухой канцелярский стиль
+- Это должен быть итог теста, написанный от лица заботливого кота-маскота
+        """.trimIndent()
+    }
+
+    private fun buildBurnoutFallback(score: Int, assessment: String): String = when (assessment) {
+        "normal"   -> "Мяу! 😸 Судя по твоим ответам, ты держишься молодцом — признаков серьёзного выгорания не видно. Твои ресурсы в порядке, и это здорово! Просто не забывай иногда устраивать себе маленькие праздники и отдых. Ты на правильном пути!"
+        "stress"   -> "Мурр... 🐱 Я вижу, что тебе сейчас не совсем легко. Некоторые ответы намекают на накопившуюся усталость и небольшое напряжение. Попробуй уделить себе чуть больше внимания: прогулка, сон, общение с теми, кто тебя заряжает. Ты справишься!"
+        "critical" -> "Котёнок, мне важно тебе кое-что сказать. 🐾 Твои ответы говорят о том, что ты сейчас сильно устал — эмоционально и физически. Это серьёзный сигнал, и его не стоит игнорировать. Пожалуйста, поговори с кем-то близким или специалистом — ты заслуживаешь поддержки и заботы."
+        else       -> "Мяу! 🐱 Спасибо, что прошёл тест. Я обработал твои ответы и подготовил результат. Помни, что забота о себе — это важно, и маленькие шаги каждый день делают большую разницу!"
     }
 
     // ─── Analytics ────────────────────────────────────────────────────────────

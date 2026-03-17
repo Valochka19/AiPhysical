@@ -88,7 +88,7 @@ fun MemberDetailScreen(
             if (state.selectedMemberTestHistory.isEmpty()) {
                 item { GlassDetailEmpty(strings.noTestHistory, "🧪") }
             } else {
-                items(state.selectedMemberTestHistory, key = { it.testId }) { test ->
+                items(state.selectedMemberTestHistory, key = { "${it.testId}_${it.dateMillis}" }) { test ->
                     PremiumTestResultCard(test = test, strings = strings)
                 }
             }

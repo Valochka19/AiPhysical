@@ -48,4 +48,14 @@ class FirestoreServiceStubImpl : FirestoreService {
 
     override suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult =
         FirestoreResult.Failure(msg)
+
+    // ── Burnout Test Result stub ──────────────────────────────────────────────
+
+    override suspend fun saveBurnoutTestResult(
+        uid: String,
+        score: Int,
+        aiAssessment: String,
+        feedbackText: String,
+        answers: List<com.example.aiphysical.data.model.BurnoutAnswer>
+    ): FirestoreResult = FirestoreResult.Failure(msg)
 }

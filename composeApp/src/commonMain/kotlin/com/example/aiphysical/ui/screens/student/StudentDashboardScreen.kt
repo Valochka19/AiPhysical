@@ -61,7 +61,7 @@ fun StudentDashboardScreen(
         vm.effects.collectLatest { effect ->
             when (effect) {
                 is StudentEffect.ShowSnackbar     -> snackbarHostState.showSnackbar(effect.message, duration = SnackbarDuration.Short)
-                is StudentEffect.NavigateToTest   -> { /* TODO: open test screen */ }
+                is StudentEffect.NavigateToTest   -> { /* Burnout opens as overlay; other tests handled here in future */ }
                 is StudentEffect.OpenUrl          -> {
                     try { uriHandler.openUri(effect.url) }
                     catch (_: Exception) { snackbarHostState.showSnackbar("Не удалось открыть ссылку") }
@@ -154,6 +154,15 @@ fun StudentDashboardScreen(
                 TextCourseViewerDialog(
                     course = state.selectedAddedCourse!!,
                     onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
+                )
+            }
+
+            // ── Burnout Test full-screen overlay ──────────────────────────────
+            val burnoutState = state.burnoutTestState
+            if (burnoutState != null) {
+                BurnoutTestScreen(
+                    testState = burnoutState,
+                    vm        = vm
                 )
             }
         }

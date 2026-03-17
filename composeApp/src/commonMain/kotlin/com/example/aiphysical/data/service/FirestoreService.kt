@@ -97,4 +97,17 @@ interface FirestoreService {
 
     /** Delete an organization-level course by id */
     suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult
+
+    // ── Burnout Test Result ───────────────────────────────────────────────────
+    /**
+     * Saves a burnout test attempt to `users/{uid}/testResults/{autoId}` and
+     * updates main user fields: burnoutScore, latestAiStatus, lastBurnoutTestAt.
+     */
+    suspend fun saveBurnoutTestResult(
+        uid: String,
+        score: Int,
+        aiAssessment: String,
+        feedbackText: String,
+        answers: List<com.example.aiphysical.data.model.BurnoutAnswer>
+    ): FirestoreResult
 }

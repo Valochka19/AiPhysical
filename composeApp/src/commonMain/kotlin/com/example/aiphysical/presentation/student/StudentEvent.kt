@@ -1,5 +1,6 @@
 package com.example.aiphysical.presentation.student
 
+import com.example.aiphysical.data.model.AnswerType
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.auth.AppLanguage
 
@@ -24,4 +25,10 @@ sealed class StudentEvent {
     data class UpdateChatInput(val text: String) : StudentEvent()
     object ClearChatError : StudentEvent()
     object ClearChatHistory : StudentEvent()
+    // ── Burnout Test ──────────────────────────────────────────────────────────
+    object OpenBurnoutTest : StudentEvent()
+    object CloseBurnoutTest : StudentEvent()
+    data class AnswerBurnoutQuestion(val answerType: AnswerType) : StudentEvent()
+    object RetryBurnoutGemini : StudentEvent()
+    object ResetBurnoutTest : StudentEvent()
 }

@@ -119,11 +119,14 @@ class FirestoreServiceImpl : FirestoreService {
                 .collection("testResults").orderBy("dateMillis").get().await()
             val results = snap.documents.map { doc ->
                 TestResult(
-                    testId = doc.id,
-                    testName = doc.getString("testName") ?: "—",
-                    dateMillis = doc.getLong("dateMillis") ?: 0L,
-                    score = (doc.getDouble("score") ?: 0.0).toFloat(),
-                    aiAssessment = doc.getString("aiAssessment") ?: "unknown"
+                    // Read testId from stored field first; fall back to doc.id for legacy records
+                    testId       = doc.getString("testId") ?: doc.id,
+                    attemptId    = doc.id,
+                    testName     = doc.getString("testName") ?: "—",
+                    dateMillis   = doc.getLong("dateMillis") ?: 0L,
+                    score        = (doc.getDouble("score") ?: 0.0).toFloat(),
+                    aiAssessment = doc.getString("aiAssessment") ?: "unknown",
+                    feedbackText = doc.getString("feedbackText") ?: ""
                 )
             }
             FirestoreResult.TestHistorySuccess(results)
@@ -237,6 +240,58 @@ class FirestoreServiceImpl : FirestoreService {
             db.collection("organizations").document(orgId).collection("courses").document(courseId).delete().await()
             FirestoreResult.GenericSuccess
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка удаления курса") }
+    }
+
+    // ── Burnout Test Result ───────────────────────────────────────────────────
+
+    override suspend fun saveBurnoutTestResult(
+        uid: String,
+        score: Int,
+        aiAssessment: String,
+        feedbackText: String,
+        answers: List<BurnoutAnswer>
+    ): FirestoreResult {
+        return try {
+            val now = System.currentTimeMillis()
+            val attemptRef = db.collection("users").document(uid)
+                .collection("testResults").document() // auto-generated id
+
+            val answersData = answers.map { a ->
+                mapOf(
+                    "questionId"   to a.questionId,
+                    "questionText" to a.questionText,
+                    "catEmotion"   to a.catEmotion.name,
+                    "answerType"   to a.answerType.name,
+                    "answerLabel"  to a.answerType.label,
+                    "weight"       to a.answerType.weight
+                )
+            }
+            val docData = mapOf(
+                "testId"        to "burnout",
+                "testName"      to "Выгорание",
+                "dateMillis"    to now,
+                "score"         to score.toDouble(),
+                "aiAssessment"  to aiAssessment,
+                "feedbackText"  to feedbackText,
+                "questionCount" to answers.size,
+                "version"       to 1,
+                "answers"       to answersData
+            )
+            attemptRef.set(docData).await()
+
+            // Update top-level user document
+            db.collection("users").document(uid).update(
+                mapOf(
+                    "burnoutScore"       to score.toDouble(),
+                    "latestAiStatus"     to aiAssessment,
+                    "lastBurnoutTestAt"  to now
+                )
+            ).await()
+
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка сохранения результата теста")
+        }
     }
 
     // ── Extension functions ───────────────────────────────────────────────────
