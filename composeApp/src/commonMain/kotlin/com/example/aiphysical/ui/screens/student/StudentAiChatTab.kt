@@ -168,7 +168,7 @@ private fun ChatHeader(
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Gemini 1.5 Flash • $messageCount сообщ.",
+                "Gemini 3 Flash Preview • $messageCount сообщ.",
                 color = PsychTeal.copy(0.8f),
                 fontSize = 11.sp
             )

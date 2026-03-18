@@ -145,7 +145,7 @@ class StudentViewModel(
                 systemInstruction = systemPrompt
             ).fold(
                 onSuccess = { responseText ->
-                    val modelMsg = ChatMessage(role = "model", text = responseText)
+                    val modelMsg = ChatMessage(role = "model", text = normalizeAssistantText(responseText))
                     _state.update { it.copy(chatMessages = it.chatMessages + modelMsg, isChatLoading = false) }
                 },
                 onFailure = { error ->
@@ -584,7 +584,7 @@ class StudentViewModel(
                         answers = answers,
                         score = score,
                         assessment = assessment,
-                        feedbackText = feedbackText,
+                        feedbackText = normalizeAssistantText(feedbackText),
                         initialErrorMessage = null
                     )
                 },
@@ -601,6 +601,17 @@ class StudentViewModel(
                 }
             )
         }
+    }
+
+    private fun normalizeAssistantText(text: String): String {
+        return text
+            .replace("\r\n", "\n")
+            .replace(Regex("""\*\*(.*?)\*\*"""), "$1")
+            .replace(Regex("""(?m)^\s*[*•#]+\s*"""), "")
+            .replace(Regex("""(?m)^\s*[-–—]+\s*"""), "— ")
+            .replace(Regex("""[ \t]{2,}"""), " ")
+            .replace(Regex("""\n{3,}"""), "\n\n")
+            .trim()
     }
 
     private suspend fun persistAndPresentResult(

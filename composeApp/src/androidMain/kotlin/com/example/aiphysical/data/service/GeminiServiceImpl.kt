@@ -13,7 +13,9 @@ class GeminiServiceImpl : GeminiService {
 
     companion object {
         private const val BASE_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+        private const val DEFAULT_SYSTEM_PROMPT =
+            "Ты — Уми, эмпатичный и теплый ИИ-помощник. Твоя миссия — анализировать психологические тесты и поддерживать пользователей. Твой тон: уютный, неформальный, поддерживающий. Ты не врач, но ты рядом."
         private const val TEST_ANALYSIS_MARKER = "Ты анализируешь результат мини-теста студента в приложении AiPhysical."
         private val TEST_SYSTEM_PROMPT = """
             Ты — высококвалифицированный AI-психолог, представленный в интерфейсе в виде мудрого и наблюдательного кота-ассистента.
@@ -67,12 +69,19 @@ class GeminiServiceImpl : GeminiService {
                 }
                 val bodyJson = JSONObject().put("contents", contentsArray)
                 val isTestAnalysis = history.firstOrNull()?.text?.contains(TEST_ANALYSIS_MARKER) == true
-                val resolvedSystemInstruction = when {
+                val contextualInstruction = when {
                     !systemInstruction.isNullOrBlank() -> systemInstruction
                     isTestAnalysis -> TEST_SYSTEM_PROMPT
                     else -> null
                 }
-                if (!resolvedSystemInstruction.isNullOrBlank()) {
+                val resolvedSystemInstruction = buildString {
+                    append(DEFAULT_SYSTEM_PROMPT)
+                    if (!contextualInstruction.isNullOrBlank()) {
+                        append("\n\n")
+                        append(contextualInstruction)
+                    }
+                }
+                if (resolvedSystemInstruction.isNotBlank()) {
                     bodyJson.put(
                         "systemInstruction",
                         JSONObject().put(
@@ -81,6 +90,30 @@ class GeminiServiceImpl : GeminiService {
                         )
                     )
                 }
+                bodyJson.put(
+                    "safetySettings",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("category", "HARM_CATEGORY_HARASSMENT")
+                                .put("threshold", "BLOCK_ONLY_HIGH")
+                        )
+                        .put(
+                            JSONObject()
+                                .put("category", "HARM_CATEGORY_HATE_SPEECH")
+                                .put("threshold", "BLOCK_ONLY_HIGH")
+                        )
+                )
+                bodyJson.put(
+                    "generationConfig",
+                    JSONObject()
+                        .put("maxOutputTokens", 300)
+                        .put("temperature", 0.6)
+                        .put(
+                            "thinkingConfig",
+                            JSONObject().put("thinkingBudget", 0)
+                        )
+                )
                 val body = bodyJson.toString()
 
                 connection.outputStream.use { os ->
@@ -107,9 +140,29 @@ class GeminiServiceImpl : GeminiService {
                 if (candidates.length() == 0) {
                     return@withContext Result.failure(Exception("Модель не вернула ответ"))
                 }
-                val content = candidates.getJSONObject(0).getJSONObject("content")
-                val parts   = content.getJSONArray("parts")
-                val text    = parts.getJSONObject(0).getString("text")
+                val candidate = candidates.getJSONObject(0)
+                val finishReason = candidate.optString("finishReason")
+                val content = candidate.optJSONObject("content")
+                    ?: return@withContext Result.failure(Exception("Модель вернула пустой ответ"))
+                val parts = content.optJSONArray("parts")
+                    ?: return@withContext Result.failure(Exception("Модель вернула ответ без текста"))
+                val text = buildString {
+                    for (index in 0 until parts.length()) {
+                        val partText = parts.optJSONObject(index)?.optString("text").orEmpty()
+                        if (partText.isNotBlank()) {
+                            if (isNotEmpty()) append('\n')
+                            append(partText)
+                        }
+                    }
+                }.trim()
+
+                if (text.isBlank()) {
+                    return@withContext Result.failure(Exception("Модель не вернула текстовый ответ"))
+                }
+
+                if (finishReason == "SAFETY") {
+                    return@withContext Result.failure(Exception("Ответ был остановлен настройками безопасности"))
+                }
 
                 Result.success(text)
             } catch (e: Exception) {
