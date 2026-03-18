@@ -193,7 +193,7 @@ private fun InviteUserHighEndButton(label: String, onClick: () -> Unit) {
             ) { Text("+", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
             Column {
                 Text(label, style = TextStyle(brush = Brush.horizontalGradient(listOf(Color.White, CyanAccent.copy(0.9f))), fontSize = 15.sp, fontWeight = FontWeight.Bold))
-                Text("Психолог или Студент", color = Color.White.copy(0.4f), fontSize = 11.sp)
+                Text("Психолог, студент или преподаватель", color = Color.White.copy(0.4f), fontSize = 11.sp)
             }
         }
     }
@@ -229,7 +229,12 @@ private fun ManagementMemberCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val isBlocked = member.isBlocked
-    val roleColor = when (member.role) { "director" -> NeonViolet; "psychologist" -> CyanAccent; else -> TextSecondary }
+    val roleColor = when (member.role) {
+        "director" -> NeonViolet
+        "psychologist" -> CyanAccent
+        "teacher" -> AlertOrange
+        else -> TextSecondary
+    }
     val borderBrush = when {
         isBlocked -> Brush.horizontalGradient(listOf(ErrorColor.copy(0.5f), ErrorColor.copy(0.2f)))
         member.latestAiStatus == "critical" -> Brush.horizontalGradient(listOf(StatusCritical.copy(0.5f), StatusCritical.copy(0.2f)))
@@ -327,6 +332,7 @@ private fun ManagementMemberCard(
 private fun roleLabel(role: String, strings: Strings): String = when (role) {
     "director"     -> strings.roleDirectorShort
     "psychologist" -> strings.rolePsychShort
+    "teacher"      -> strings.roleTeacherShort
     else           -> strings.roleStudentShort
 }
 
@@ -488,6 +494,7 @@ private fun RoleChangeBottomSheet(
 ) {
     val roles = listOf(
         Triple("user",         "🎓", strings.roleStudentShort),
+        Triple("teacher",      "🧑‍🏫", strings.roleTeacherShort),
         Triple("psychologist", "🧠", strings.rolePsychShort),
     )
     ModalBottomSheet(

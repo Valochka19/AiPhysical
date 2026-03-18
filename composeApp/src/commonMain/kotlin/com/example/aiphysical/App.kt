@@ -3,6 +3,7 @@ package com.example.aiphysical
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +21,7 @@ import com.example.aiphysical.ui.screens.*
 import com.example.aiphysical.ui.screens.director.DirectorDashboardScreen
 import com.example.aiphysical.ui.screens.psychologist.PsychologistDashboardScreen
 import com.example.aiphysical.ui.screens.student.StudentDashboardScreen
+import com.example.aiphysical.ui.screens.teacher.TeacherDashboardScreen
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.util.createFirebaseAuthService
 import com.example.aiphysical.util.createFirestoreService
@@ -34,6 +36,26 @@ fun App() {
             )
         }
         val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+
+        if (uiState.isRestoringSession) {
+            AnimatedBackground(animate = false) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(color = VioletGlow)
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        text = "Восстанавливаем сессию...",
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            return@AIPhysicalTheme
+        }
 
         AnimatedContent(
             targetState = uiState.currentScreen,
@@ -71,6 +93,13 @@ fun App() {
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 
+                // ── Teacher Dashboard ─────────────────────────────────────────────────
+                is AuthScreen.TeacherDashboard -> TeacherDashboardScreen(
+                    uid = screen.uid,
+                    orgId = screen.orgId,
+                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                )
+
                 // ── Generic Home (fallback for unknown roles) ─────────────────────────
                 is AuthScreen.GenericHome -> GenericHomeScreen(
                     uid = screen.uid,
@@ -98,6 +127,7 @@ private fun GenericHomeScreen(
     val (emoji, roleColor) = when (role) {
         "psychologist" -> Pair("🧠", AccentCyan)
         "user" -> Pair("👤", VioletLight)
+        "teacher" -> Pair("🧑‍🏫", AlertOrange)
         else -> Pair("✅", SuccessColor)
     }
 

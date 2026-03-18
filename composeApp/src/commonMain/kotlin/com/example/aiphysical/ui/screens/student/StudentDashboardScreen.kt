@@ -58,6 +58,7 @@ fun StudentDashboardScreen(
     onLogout: () -> Unit,
 ) {
     val vm: StudentViewModel = viewModel(
+        key = "student:$uid:$orgId",
         factory = StudentViewModel.factory(
             uid = uid,
             orgId = orgId,

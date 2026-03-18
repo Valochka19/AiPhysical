@@ -46,7 +46,7 @@ fun AnalyticsTab(
             "JUNIOR" -> state.members.filter { it.ageGroup.equals("JUNIOR", ignoreCase = true) }
             "MIDDLE" -> state.members.filter { it.ageGroup.equals("MIDDLE", ignoreCase = true) }
             "SENIOR" -> state.members.filter { it.ageGroup.equals("SENIOR", ignoreCase = true) }
-            "STAFF"  -> state.members.filter { it.role == "psychologist" || it.role == "director" }
+            "STAFF"  -> state.members.filter { it.role == "psychologist" || it.role == "director" || it.role == "teacher" }
             else     -> state.members
         }
     }

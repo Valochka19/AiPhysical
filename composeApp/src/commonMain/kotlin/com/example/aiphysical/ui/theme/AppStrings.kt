@@ -8,7 +8,7 @@ data class Strings(
     val noAccount: String, val haveAccount: String, val loading: String, val back: String,
     val appTitle: String, val appSubtitle: String,
     val chooseRole: String, val roleDirector: String, val rolePsychologist: String,
-    val roleStudent: String, val roleDirectorDesc: String, val rolePsychDesc: String,
+    val roleStudent: String, val roleTeacher: String, val roleDirectorDesc: String, val rolePsychDesc: String,
     val roleStudentDesc: String, val orgName: String, val fullName: String,
     val createOrg: String, val specialCode: String, val orgCode: String,
     val ageGroupLabel: String, val inviteCodeStudent: String, val inviteCodePsych: String,
@@ -65,7 +65,7 @@ data class Strings(
     // ── NEW: Header ───────────────────────────────────────────────────────────
     val welcomeDirector: String, val orgHealthTitle: String,
     // ── NEW: Role short labels ────────────────────────────────────────────────
-    val roleDirectorShort: String, val rolePsychShort: String, val roleStudentShort: String,
+    val roleDirectorShort: String, val rolePsychShort: String, val roleStudentShort: String, val roleTeacherShort: String,
     // ── NEW: Matte redesign strings ───────────────────────────────────────────
     val inviteToOrg: String,       // "Пригласить в организацию" — big button on Dashboard
     val aiAnalysisTitle: String,   // "AI Анализ" — clean AI card title
@@ -115,6 +115,13 @@ data class Strings(
     val profileLogout: String,        // "Выйти из аккаунта"
     val profileAbout: String,         // "О приложении"
     val scoreLabel: String,           // "Балл:"
+    // ── Teacher dashboard ─────────────────────────────────────────────────────
+    val teacherDashboardTitle: String,
+    val teacherDashboardSubtitle: String,
+    val teacherTestsTitle: String,
+    val teacherTestsSoon: String,
+    val teacherHelpTitle: String,
+    val teacherHelpText: String,
 )
 
 fun getStrings(lang: AppLanguage): Strings = when (lang) {
@@ -124,7 +131,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         haveAccount = "Тіркелгіңіз бар ма? Кіру", loading = "Жүктелуде...", back = "Артқа",
         appTitle = "AI Physical", appSubtitle = "Денсаулық & Психологиялық әл-ауқат",
         chooseRole = "Рөлді таңдаңыз", roleDirector = "Ұйым өкілі (Директор)",
-        rolePsychologist = "Психолог", roleStudent = "Студент / Қызметкер",
+        rolePsychologist = "Психолог", roleStudent = "Студент / Қызметкер", roleTeacher = "Мұғалім",
         roleDirectorDesc = "Жаңа ұйым құру және қосылу кодтарын алу",
         rolePsychDesc = "Директордан шақыру кодымен тіркелу",
         roleStudentDesc = "Ұйым кодымен қосылу", orgName = "Ұйым атауы",
@@ -162,7 +169,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         metricStress = "Стресс",
         inviteUser = "Пайдаланушыны шақыру", inviteSheetTitle = "Шақыру түрін таңдаңыз",
         psychAccess = "Психолог рұқсаты", psychAccessDesc = "Толық аналитика",
-        studentAccess = "Студент рұқсаты", studentAccessDesc = "Тесттер мен курстар",
+        studentAccess = "Студент рұқсаты", studentAccessDesc = "Студенттер, қызметкерлер және мұғалімдер үшін",
         changeRole = "Рөлді өзгерту", blockUser = "Бұғаттау", unblockUser = "Бұғатты алу",
         userManagement = "Пайдаланушыларды басқару",
         filterAll = "Барлығы", filterJunior = "Кіші", filterMiddle = "Орта",
@@ -172,7 +179,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         roleChangedMsg = "Рөл өзгертілді", userBlockedMsg = "Пайдаланушы бұғатталды",
         userUnblockedMsg = "Бұғат алынды",
         welcomeDirector = "Қош келдіңіз, ", orgHealthTitle = "KASU Психикалық денсаулық",
-        roleDirectorShort = "Директор", rolePsychShort = "Психолог", roleStudentShort = "Студент",
+        roleDirectorShort = "Директор", rolePsychShort = "Психолог", roleStudentShort = "Студент", roleTeacherShort = "Мұғалім",
         inviteToOrg = "Ұйымға шақыру",
         aiAnalysisTitle = "Уми Талдауы",
         filterSchool = "Мектеп",
@@ -194,7 +201,13 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         profileInfoTitle = "АҚПАРАТ", profileRole = "Рөл", profileGroup = "Топ",
         profileTestsDone = "Өткен тесттер", profileCourseProgress = "Курс барысы",
         profileNotSpecified = "Белгісіз", profileLogout = "Аккаунттан шығу",
-        profileAbout = "Қолданба туралы", scoreLabel = "Балл:"
+        profileAbout = "Қолданба туралы", scoreLabel = "Балл:",
+        teacherDashboardTitle = "Мұғалім панелі",
+        teacherDashboardSubtitle = "Сынып қолдауы, курстар және пайдалы материалдар",
+        teacherTestsTitle = "Мұғалімге арналған құралдар",
+        teacherTestsSoon = "Мұғалімдерге арналған тесттер жақын арада пайда болады",
+        teacherHelpTitle = "Психологиялық қолдау арнасы",
+        teacherHelpText = "Қажет болса, ұйым психологына хабарласып, қолдау материалдарын курстар бөлімінен ашыңыз"
     )
     AppLanguage.RU -> Strings(
         login = "Войти", register = "Зарегистрироваться", email = "Электронная почта",
@@ -202,7 +215,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         haveAccount = "Уже есть аккаунт? Войти", loading = "Загрузка...", back = "Назад",
         appTitle = "AI Physical", appSubtitle = "Здоровье & Психологическое благополучие",
         chooseRole = "Выберите вашу роль", roleDirector = "Представитель организации (Директор)",
-        rolePsychologist = "Психолог", roleStudent = "Студент / Сотрудник",
+        rolePsychologist = "Психолог", roleStudent = "Студент / Сотрудник", roleTeacher = "Преподаватель",
         roleDirectorDesc = "Создать новую организацию и получить коды для приглашений",
         rolePsychDesc = "Регистрация по коду от директора",
         roleStudentDesc = "Присоединиться по коду организации", orgName = "Название организации",
@@ -241,7 +254,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         metricStress = "Стресс",
         inviteUser = "Пригласить пользователя", inviteSheetTitle = "Выберите тип приглашения",
         psychAccess = "Доступ Психолога", psychAccessDesc = "Полная аналитика",
-        studentAccess = "Доступ Студента", studentAccessDesc = "Тесты и курсы",
+        studentAccess = "Доступ Студента", studentAccessDesc = "Для студентов, сотрудников и преподавателей",
         changeRole = "Изменить роль", blockUser = "Заблокировать", unblockUser = "Разблокировать",
         userManagement = "Управление участниками",
         filterAll = "Все", filterJunior = "Начальная", filterMiddle = "Средняя",
@@ -251,7 +264,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         roleChangedMsg = "Роль изменена", userBlockedMsg = "Пользователь заблокирован",
         userUnblockedMsg = "Пользователь разблокирован",
         welcomeDirector = "Добро пожаловать, ", orgHealthTitle = "Ментальное здоровье KASU",
-        roleDirectorShort = "Директор", rolePsychShort = "Психолог", roleStudentShort = "Студент",
+        roleDirectorShort = "Директор", rolePsychShort = "Психолог", roleStudentShort = "Студент", roleTeacherShort = "Преподаватель",
         inviteToOrg = "Пригласить в организацию",
         aiAnalysisTitle = "Уми Анализ",
         filterSchool = "Школа",
@@ -273,7 +286,13 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         profileInfoTitle = "ИНФОРМАЦИЯ", profileRole = "Роль", profileGroup = "Группа",
         profileTestsDone = "Пройдено тестов", profileCourseProgress = "Прогресс курсов",
         profileNotSpecified = "Не указана", profileLogout = "Выйти из аккаунта",
-        profileAbout = "О приложении", scoreLabel = "Балл:"
+        profileAbout = "О приложении", scoreLabel = "Балл:",
+        teacherDashboardTitle = "Панель преподавателя",
+        teacherDashboardSubtitle = "Поддержка класса, курсы и полезные материалы",
+        teacherTestsTitle = "Инструменты преподавателя",
+        teacherTestsSoon = "Тесты для преподавателей скоро появятся",
+        teacherHelpTitle = "Канал психологической поддержки",
+        teacherHelpText = "При необходимости свяжитесь с психологом организации и откройте полезные материалы в разделе курсов"
     )
     AppLanguage.EN -> Strings(
         login = "Login", register = "Register", email = "Email", password = "Password",
@@ -281,7 +300,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         haveAccount = "Already have an account? Login", loading = "Loading...", back = "Back",
         appTitle = "AI Physical", appSubtitle = "Health & Mental Well-being",
         chooseRole = "Choose your role", roleDirector = "Organization Representative (Director)",
-        rolePsychologist = "Psychologist", roleStudent = "Student / Employee",
+        rolePsychologist = "Psychologist", roleStudent = "Student / Employee", roleTeacher = "Teacher",
         roleDirectorDesc = "Create a new organization and get invitation codes",
         rolePsychDesc = "Register using invite code from Director",
         roleStudentDesc = "Join with organization code", orgName = "Organization Name",
@@ -320,7 +339,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         metricStress = "Stress",
         inviteUser = "Invite User", inviteSheetTitle = "Choose Invitation Type",
         psychAccess = "Psychologist Access", psychAccessDesc = "Full analytics",
-        studentAccess = "Student Access", studentAccessDesc = "Tests and courses",
+        studentAccess = "Student Access", studentAccessDesc = "For students, employees, and teachers",
         changeRole = "Change Role", blockUser = "Block", unblockUser = "Unblock",
         userManagement = "User Management",
         filterAll = "All", filterJunior = "Junior", filterMiddle = "Middle",
@@ -330,7 +349,7 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         roleChangedMsg = "Role changed", userBlockedMsg = "User blocked",
         userUnblockedMsg = "User unblocked",
         welcomeDirector = "Welcome, ", orgHealthTitle = "KASU Mental Health",
-        roleDirectorShort = "Director", rolePsychShort = "Psychologist", roleStudentShort = "Student",
+        roleDirectorShort = "Director", rolePsychShort = "Psychologist", roleStudentShort = "Student", roleTeacherShort = "Teacher",
         inviteToOrg = "Invite to Organization",
         aiAnalysisTitle = "Уми Analysis",
         filterSchool = "School",
@@ -352,6 +371,12 @@ fun getStrings(lang: AppLanguage): Strings = when (lang) {
         profileInfoTitle = "INFORMATION", profileRole = "Role", profileGroup = "Group",
         profileTestsDone = "Tests Completed", profileCourseProgress = "Course Progress",
         profileNotSpecified = "Not specified", profileLogout = "Log out of account",
-        profileAbout = "About App", scoreLabel = "Score:"
+        profileAbout = "About App", scoreLabel = "Score:",
+        teacherDashboardTitle = "Teacher Dashboard",
+        teacherDashboardSubtitle = "Classroom support, courses, and practical materials",
+        teacherTestsTitle = "Teacher tools",
+        teacherTestsSoon = "Teacher tests are coming soon",
+        teacherHelpTitle = "Psychological support channel",
+        teacherHelpText = "If needed, contact your organization's psychologist and open support materials in the courses section"
     )
 }

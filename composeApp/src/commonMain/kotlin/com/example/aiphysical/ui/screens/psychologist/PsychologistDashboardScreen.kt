@@ -45,6 +45,7 @@ fun PsychologistDashboardScreen(
     onLogout: () -> Unit,
 ) {
     val vm: PsychologistViewModel = viewModel(
+        key = "psychologist:$uid:$orgId",
         factory = PsychologistViewModel.factory(
             orgId = orgId,
             uid = uid,

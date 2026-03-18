@@ -155,7 +155,17 @@ private fun PremiumMemberHeaderCard(member: UserProfile, strings: Strings) {
 
         // Meta info row
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-            MetaInfoChip("🎭", strings.memberRole, member.role.replaceFirstChar { it.uppercase() }, NeonViolet)
+            MetaInfoChip(
+                "🎭",
+                strings.memberRole,
+                when (member.role) {
+                    "director" -> strings.roleDirectorShort
+                    "psychologist" -> strings.rolePsychShort
+                    "teacher" -> strings.roleTeacherShort
+                    else -> strings.roleStudentShort
+                },
+                NeonViolet
+            )
             if (member.ageGroup.isNotBlank()) MetaInfoChip("📅", strings.memberAge, member.ageGroup, CyanAccent)
             MetaInfoChip("⚡", strings.kpiStress, "${member.stressScore.toInt()}%", MetricStress)
             MetaInfoChip("📚", strings.kpiEngagement, "${member.courseProgressPercent.toInt()}%", MetricMotivation)
