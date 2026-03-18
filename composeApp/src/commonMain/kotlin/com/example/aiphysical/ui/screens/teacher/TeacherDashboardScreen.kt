@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,12 +25,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -39,8 +43,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,12 +60,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.aiphysical.presentation.chat.SupportChatEvent
+import com.example.aiphysical.presentation.chat.SupportChatViewModel
 import com.example.aiphysical.presentation.auth.AppLanguage
 import com.example.aiphysical.presentation.student.StudentEffect
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTab
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.ui.screens.chat.DashboardDrawerSheet
+import com.example.aiphysical.ui.screens.chat.DashboardMenuButton
+import com.example.aiphysical.ui.screens.chat.DashboardOverlayDestination
+import com.example.aiphysical.ui.screens.chat.PointsPlaceholderScreen
+import com.example.aiphysical.ui.screens.chat.SupportChatScreen
 import com.example.aiphysical.ui.screens.student.StudentCoursesTab
 import com.example.aiphysical.ui.screens.student.TextCourseViewerDialog
 import com.example.aiphysical.ui.theme.AlertOrange
@@ -81,18 +95,30 @@ fun TeacherDashboardScreen(
     orgId: String,
     onLogout: () -> Unit,
 ) {
+    val firestoreService = remember { createFirestoreService() }
     val vm: StudentViewModel = viewModel(
         key = "teacher:$uid:$orgId",
         factory = StudentViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = createFirestoreService()
+            firestoreService = firestoreService
+        )
+    )
+    val supportVm: SupportChatViewModel = viewModel(
+        key = "support-chat:teacher:$uid:$orgId",
+        factory = SupportChatViewModel.factory(
+            uid = uid,
+            orgId = orgId,
+            firestoreService = firestoreService
         )
     )
     val state by vm.state.collectAsStateWithLifecycle()
+    val supportState by supportVm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
 
     LaunchedEffect(Unit) {
         vm.effects.collectLatest { effect ->
@@ -110,77 +136,131 @@ fun TeacherDashboardScreen(
         }
     }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = Color(0xFF1A1428),
-                    contentColor = AlertOrange,
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .border(1.dp, AlertOrange.copy(0.28f), RoundedCornerShape(14.dp))
-                )
-            }
-        },
-        bottomBar = {
-            TeacherBottomNavBar(
-                selectedTab = state.selectedTab,
-                strings = getStrings(state.currentLanguage),
-                onTabSelected = { vm.onEvent(StudentEvent.NavigateToTab(it)) }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DashboardDrawerSheet(
+                onProfileClick = {
+                    vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Profile))
+                    drawerOverlay = DashboardOverlayDestination.None
+                    coroutineScope.launch { drawerState.close() }
+                },
+                onPointsClick = {
+                    drawerOverlay = DashboardOverlayDestination.Points
+                    coroutineScope.launch { drawerState.close() }
+                },
+                onChatClick = {
+                    drawerOverlay = DashboardOverlayDestination.Chat
+                    coroutineScope.launch { drawerState.close() }
+                }
             )
         }
-    ) { innerPadding ->
-        TeacherBackground {
-            AnimatedContent(
-                targetState = state.selectedTab,
-                transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
-                label = "teacher_tab"
-            ) { tab ->
-                when (tab) {
-                    StudentTab.Home -> TeacherHomeTab(
-                        state = state,
-                        modifier = Modifier.padding(innerPadding),
-                        onOpenCourses = { vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Courses)) },
-                        onOpenHelp = { vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Help)) },
-                        onShowTeacherTestsStub = {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar(getStrings(state.currentLanguage).teacherTestsSoon)
-                            }
-                        },
-                        onLogout = onLogout
-                    )
-                    StudentTab.Help -> TeacherHelpTab(
-                        state = state,
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                    StudentTab.Courses -> StudentCoursesTab(
-                        state = state,
-                        vm = vm,
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                    StudentTab.Profile -> TeacherProfileTab(
-                        state = state,
-                        onLogout = onLogout,
-                        onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
-                        modifier = Modifier.padding(innerPadding)
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = {
+                SnackbarHost(snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = Color(0xFF1A1428),
+                        contentColor = AlertOrange,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .border(1.dp, AlertOrange.copy(0.28f), RoundedCornerShape(14.dp))
                     )
                 }
-            }
-
-            if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
-                TextCourseViewerDialog(
-                    course = state.selectedAddedCourse!!,
-                    onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
+            },
+            bottomBar = {
+                TeacherBottomNavBar(
+                    selectedTab = state.selectedTab,
+                    strings = getStrings(state.currentLanguage),
+                    onTabSelected = {
+                        drawerOverlay = DashboardOverlayDestination.None
+                        vm.onEvent(StudentEvent.NavigateToTab(it))
+                    }
                 )
+            }
+        ) { innerPadding ->
+            TeacherBackground {
+                AnimatedContent(
+                    targetState = state.selectedTab,
+                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                    label = "teacher_tab"
+                ) { tab ->
+                    when (tab) {
+                        StudentTab.Home -> TeacherHomeTab(
+                            state = state,
+                            modifier = Modifier.padding(innerPadding),
+                            onOpenCourses = { vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Courses)) },
+                            onOpenHelp = { vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Help)) },
+                            onShowTeacherTestsStub = {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(getStrings(state.currentLanguage).teacherTestsSoon)
+                                }
+                            },
+                            onLogout = onLogout
+                        )
+                        StudentTab.Help -> TeacherHelpTab(
+                            state = state,
+                            onOpenPsychologistChat = { drawerOverlay = DashboardOverlayDestination.Chat },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                        StudentTab.Courses -> StudentCoursesTab(
+                            state = state,
+                            vm = vm,
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                        StudentTab.Profile -> TeacherProfileTab(
+                            state = state,
+                            onLogout = onLogout,
+                            onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
+                }
+
+                if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
+                    TextCourseViewerDialog(
+                        course = state.selectedAddedCourse!!,
+                        onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
+                    )
+                }
+
+                if (drawerOverlay == DashboardOverlayDestination.None) {
+                    DashboardMenuButton(
+                        onClick = { coroutineScope.launch { drawerState.open() } },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(top = 10.dp, end = 16.dp)
+                    )
+                }
+
+                when (drawerOverlay) {
+                    DashboardOverlayDestination.Chat -> SupportChatScreen(
+                        state = supportState,
+                        onBack = { drawerOverlay = DashboardOverlayDestination.None },
+                        onContactSelected = { supportVm.onEvent(SupportChatEvent.SelectContact(it)) },
+                        onConversationBack = { supportVm.onEvent(SupportChatEvent.ClearSelection) },
+                        onInputChange = { supportVm.onEvent(SupportChatEvent.UpdateInput(it)) },
+                        onSend = { supportVm.onEvent(SupportChatEvent.SendMessage) },
+                        onDismissError = { supportVm.onEvent(SupportChatEvent.DismissError) },
+                        modifier = Modifier.fillMaxSize().padding(innerPadding)
+                    )
+                    DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
+                        title = "Баллы преподавателя",
+                        onBack = { drawerOverlay = DashboardOverlayDestination.None },
+                        modifier = Modifier.fillMaxSize().padding(innerPadding)
+                    )
+                    DashboardOverlayDestination.None -> Unit
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TeacherBackground(content: @Composable () -> Unit) {
+private fun TeacherBackground(content: @Composable BoxScope.() -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -490,6 +570,7 @@ private fun TeacherActionCard(
 @Composable
 private fun TeacherHelpTab(
     state: StudentUiState,
+    onOpenPsychologistChat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val strings = getStrings(state.currentLanguage)
@@ -510,7 +591,7 @@ private fun TeacherHelpTab(
             title = strings.contactPsychologist,
             subtitle = if (state.profile.psychComment.isNotBlank()) state.profile.psychComment else strings.teacherHelpText,
             accent = PsychTeal,
-            onClick = {}
+            onClick = onOpenPsychologistChat
         )
 
         TeacherActionCard(

@@ -20,11 +20,27 @@ class FirestoreServiceStubImpl : FirestoreService {
     override suspend fun getOrganizationMembers(orgId: String) = FirestoreResult.Failure(msg)
     override suspend fun getUserTestHistory(uid: String) = FirestoreResult.Failure(msg)
     override suspend fun getUserCourseProgress(uid: String) = FirestoreResult.Failure(msg)
+    override suspend fun getPsychChatContacts(orgId: String, currentUid: String, currentRole: String) = FirestoreResult.Failure(msg)
     override suspend fun updateUserRole(uid: String, newRole: String) = FirestoreResult.Failure(msg)
     override suspend fun updateUserBlockStatus(uid: String, isBlocked: Boolean) = FirestoreResult.Failure(msg)
 
     override fun observeOrganizationMembers(orgId: String): Flow<FirestoreResult> =
         flowOf(FirestoreResult.Failure(msg))
+
+    override fun observePsychChatThreads(orgId: String, currentUid: String): Flow<FirestoreResult> =
+        flowOf(FirestoreResult.Failure(msg))
+
+    override fun observePsychChatMessages(chatId: String): Flow<FirestoreResult> =
+        flowOf(FirestoreResult.Failure(msg))
+
+    override suspend fun sendPsychChatMessage(
+        orgId: String,
+        senderId: String,
+        senderRole: String,
+        recipientId: String,
+        recipientRole: String,
+        text: String
+    ): FirestoreResult = FirestoreResult.Failure(msg)
 
     override suspend fun updateStudentRecommendation(
         studentId: String,

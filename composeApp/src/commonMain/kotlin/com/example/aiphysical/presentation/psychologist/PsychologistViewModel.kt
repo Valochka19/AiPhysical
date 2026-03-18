@@ -9,6 +9,7 @@ import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
+import com.example.aiphysical.util.currentTimeMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -327,7 +328,7 @@ class PsychologistViewModel(
 
         _state.update { it.copy(isPublishingCourse = true) }
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
+            val now = currentTimeMillis()
             val course = OrganizationCourse(
                 orgId         = orgId,
                 title         = s.newCourseTitle.trim(),

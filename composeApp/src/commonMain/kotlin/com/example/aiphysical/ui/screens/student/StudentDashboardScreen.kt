@@ -39,13 +39,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.aiphysical.data.model.OrganizationCourse
+import com.example.aiphysical.presentation.chat.SupportChatEvent
+import com.example.aiphysical.presentation.chat.SupportChatViewModel
 import com.example.aiphysical.presentation.student.*
 import com.example.aiphysical.ui.components.FloatingUmiAvatarBadge
 import com.example.aiphysical.ui.components.UmiAvatarBadge
+import com.example.aiphysical.ui.screens.chat.DashboardDrawerSheet
+import com.example.aiphysical.ui.screens.chat.DashboardMenuButton
+import com.example.aiphysical.ui.screens.chat.DashboardOverlayDestination
+import com.example.aiphysical.ui.screens.chat.PointsPlaceholderScreen
+import com.example.aiphysical.ui.screens.chat.SupportChatScreen
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
 import com.example.aiphysical.util.createFirestoreService
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  StudentDashboardScreen — Entry Point
@@ -57,17 +65,30 @@ fun StudentDashboardScreen(
     orgId: String,
     onLogout: () -> Unit,
 ) {
+    val firestoreService = remember { createFirestoreService() }
     val vm: StudentViewModel = viewModel(
         key = "student:$uid:$orgId",
         factory = StudentViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = createFirestoreService()
+            firestoreService = firestoreService
+        )
+    )
+    val supportVm: SupportChatViewModel = viewModel(
+        key = "support-chat:student:$uid:$orgId",
+        factory = SupportChatViewModel.factory(
+            uid = uid,
+            orgId = orgId,
+            firestoreService = firestoreService
         )
     )
     val state by vm.state.collectAsStateWithLifecycle()
+    val supportState by supportVm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val uriHandler = LocalUriHandler.current
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
+    var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
 
     // Collect side-effects
     LaunchedEffect(Unit) {
@@ -83,124 +104,181 @@ fun StudentDashboardScreen(
         }
     }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = Color(0xFF161632),
-                    contentColor = PsychTeal,
-                    modifier = Modifier.padding(16.dp).border(1.dp, PsychTeal.copy(0.3f), RoundedCornerShape(14.dp))
-                )
-            }
-        },
-        bottomBar = {
-            if (!state.showAiChat) {
-                StudentBottomNavBar(
-                    selectedTab = state.selectedTab,
-                    strings = getStrings(state.currentLanguage),
-                    onTabSelected = { vm.onEvent(StudentEvent.NavigateToTab(it)) }
-                )
-            }
-        }
-    ) { innerPadding ->
-
-        // Animated deep dark background
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF050010), Color(0xFF0B0B1E), Color(0xFF050010))
-                    )
-                )
-        ) {
-            // Ambient orb — top left
-            Box(
-                modifier = Modifier
-                    .size(300.dp)
-                    .offset(x = (-80).dp, y = (-60).dp)
-                    .background(
-                        Brush.radialGradient(listOf(Color(0xFF8A2BE2).copy(0.18f), Color.Transparent)),
-                        CircleShape
-                    )
-            )
-            // Ambient orb — bottom right
-            Box(
-                modifier = Modifier
-                    .size(250.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 60.dp, y = 60.dp)
-                    .background(
-                        Brush.radialGradient(listOf(PsychTeal.copy(0.12f), Color.Transparent)),
-                        CircleShape
-                    )
-            )
-
-            // Main content — animated tab transitions
-            AnimatedContent(
-                targetState = state.selectedTab,
-                transitionSpec = {
-                    fadeIn(tween(160)) togetherWith fadeOut(tween(120))
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DashboardDrawerSheet(
+                onProfileClick = {
+                    vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Profile))
+                    drawerOverlay = DashboardOverlayDestination.None
+                    coroutineScope.launch { drawerState.close() }
                 },
-                label = "student_tab"
-            ) { tab ->
-                when (tab) {
-                    StudentTab.Home    -> StudentHomeTab(    state = state, vm = vm, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
-                    StudentTab.Help    -> StudentHelpTab(    state = state,           modifier = Modifier.padding(innerPadding))
-                    StudentTab.Courses -> StudentCoursesTab( state = state, vm = vm,  modifier = Modifier.padding(innerPadding))
-                    StudentTab.Profile -> StudentProfileTab(
-                        state = state,
-                        onLogout = onLogout,
-                        onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
-                        modifier = Modifier.padding(innerPadding)
+                onPointsClick = {
+                    drawerOverlay = DashboardOverlayDestination.Points
+                    coroutineScope.launch { drawerState.close() }
+                },
+                onChatClick = {
+                    drawerOverlay = DashboardOverlayDestination.Chat
+                    coroutineScope.launch { drawerState.close() }
+                }
+            )
+        }
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = {
+                SnackbarHost(snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = Color(0xFF161632),
+                        contentColor = PsychTeal,
+                        modifier = Modifier.padding(16.dp).border(1.dp, PsychTeal.copy(0.3f), RoundedCornerShape(14.dp))
+                    )
+                }
+            },
+            bottomBar = {
+                if (!state.showAiChat) {
+                    StudentBottomNavBar(
+                        selectedTab = state.selectedTab,
+                        strings = getStrings(state.currentLanguage),
+                        onTabSelected = {
+                            drawerOverlay = DashboardOverlayDestination.None
+                            vm.onEvent(StudentEvent.NavigateToTab(it))
+                        }
                     )
                 }
             }
+        ) { innerPadding ->
 
-            // ── Text Course Viewer overlay ─────────────────────────────────────
-            if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
-                TextCourseViewerDialog(
-                    course = state.selectedAddedCourse!!,
-                    onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
-                )
-            }
-
-            // ── Student Test full-screen overlay ──────────────────────────────
-            val activeTestState = state.activeTestState
-            if (activeTestState != null) {
-                StudentTestScreen(
-                    testState = activeTestState,
-                    vm = vm
-                )
-            }
-
-            // ── Floating AI Chat Button ────────────────────────────────────────
-            if (activeTestState == null) {
-                AiChatFab(
-                    hasMessages = state.chatMessages.isNotEmpty(),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(
-                            end = 18.dp,
-                            bottom = innerPadding.calculateBottomPadding() + 14.dp
+            // Animated deep dark background
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF050010), Color(0xFF0B0B1E), Color(0xFF050010))
                         )
-                ) { vm.onEvent(StudentEvent.OpenAiChat) }
-            }
-
-            // ── AI Chat Overlay ───────────────────────────────────────────────
-            AnimatedVisibility(
-                visible = state.showAiChat,
-                modifier = Modifier.fillMaxSize(),
-                enter = fadeIn(tween(180)),
-                exit  = fadeOut(tween(140))
+                    )
             ) {
-                AiChatOverlay(
-                    state = state,
-                    vm = vm,
-                    onDismiss = { vm.onEvent(StudentEvent.CloseAiChat) }
+                // Ambient orb — top left
+                Box(
+                    modifier = Modifier
+                        .size(300.dp)
+                        .offset(x = (-80).dp, y = (-60).dp)
+                        .background(
+                            Brush.radialGradient(listOf(Color(0xFF8A2BE2).copy(0.18f), Color.Transparent)),
+                            CircleShape
+                        )
                 )
+                // Ambient orb — bottom right
+                Box(
+                    modifier = Modifier
+                        .size(250.dp)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 60.dp, y = 60.dp)
+                        .background(
+                            Brush.radialGradient(listOf(PsychTeal.copy(0.12f), Color.Transparent)),
+                            CircleShape
+                        )
+                )
+
+                // Main content — animated tab transitions
+                AnimatedContent(
+                    targetState = state.selectedTab,
+                    transitionSpec = {
+                        fadeIn(tween(160)) togetherWith fadeOut(tween(120))
+                    },
+                    label = "student_tab"
+                ) { tab ->
+                    when (tab) {
+                        StudentTab.Home    -> StudentHomeTab(    state = state, vm = vm, onLogout = onLogout, modifier = Modifier.padding(innerPadding))
+                        StudentTab.Help    -> StudentHelpTab(
+                            state = state,
+                            onOpenPsychologistChat = { drawerOverlay = DashboardOverlayDestination.Chat },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                        StudentTab.Courses -> StudentCoursesTab( state = state, vm = vm,  modifier = Modifier.padding(innerPadding))
+                        StudentTab.Profile -> StudentProfileTab(
+                            state = state,
+                            onLogout = onLogout,
+                            onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
+                }
+
+                // ── Text Course Viewer overlay ─────────────────────────────────────
+                if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
+                    TextCourseViewerDialog(
+                        course = state.selectedAddedCourse!!,
+                        onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
+                    )
+                }
+
+                // ── Student Test full-screen overlay ──────────────────────────────
+                val activeTestState = state.activeTestState
+                if (activeTestState != null) {
+                    StudentTestScreen(
+                        testState = activeTestState,
+                        vm = vm
+                    )
+                }
+
+                // ── Floating AI Chat Button ────────────────────────────────────────
+                if (activeTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
+                    AiChatFab(
+                        hasMessages = state.chatMessages.isNotEmpty(),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = 18.dp,
+                                bottom = innerPadding.calculateBottomPadding() + 14.dp
+                            )
+                    ) { vm.onEvent(StudentEvent.OpenAiChat) }
+                }
+
+                // ── AI Chat Overlay ───────────────────────────────────────────────
+                AnimatedVisibility(
+                    visible = state.showAiChat,
+                    modifier = Modifier.fillMaxSize(),
+                    enter = fadeIn(tween(180)),
+                    exit  = fadeOut(tween(140))
+                ) {
+                    AiChatOverlay(
+                        state = state,
+                        vm = vm,
+                        onDismiss = { vm.onEvent(StudentEvent.CloseAiChat) }
+                    )
+                }
+
+                if (!state.showAiChat && activeTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
+                    DashboardMenuButton(
+                        onClick = { coroutineScope.launch { drawerState.open() } },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(top = 10.dp, end = 16.dp)
+                    )
+                }
+
+                when (drawerOverlay) {
+                    DashboardOverlayDestination.Chat -> SupportChatScreen(
+                        state = supportState,
+                        onBack = { drawerOverlay = DashboardOverlayDestination.None },
+                        onContactSelected = { supportVm.onEvent(SupportChatEvent.SelectContact(it)) },
+                        onConversationBack = { supportVm.onEvent(SupportChatEvent.ClearSelection) },
+                        onInputChange = { supportVm.onEvent(SupportChatEvent.UpdateInput(it)) },
+                        onSend = { supportVm.onEvent(SupportChatEvent.SendMessage) },
+                        onDismissError = { supportVm.onEvent(SupportChatEvent.DismissError) },
+                        modifier = Modifier.fillMaxSize().padding(innerPadding)
+                    )
+                    DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
+                        title = "Баллы студента",
+                        onBack = { drawerOverlay = DashboardOverlayDestination.None },
+                        modifier = Modifier.fillMaxSize().padding(innerPadding)
+                    )
+                    DashboardOverlayDestination.None -> Unit
+                }
             }
         }
     }

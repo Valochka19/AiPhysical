@@ -7,9 +7,12 @@ sealed class FirestoreResult {
     data class OrgSuccess(val org: Organization) : FirestoreResult()
     data class UserProfileSuccess(val profile: UserProfile) : FirestoreResult()
     data class MembersSuccess(val members: List<UserProfile>) : FirestoreResult()
+    data class ChatContactsSuccess(val contacts: List<UserProfile>) : FirestoreResult()
     data class TestHistorySuccess(val results: List<TestResult>) : FirestoreResult()
     data class CourseProgressSuccess(val progressList: List<CourseProgress>) : FirestoreResult()
     data class OrganizationCoursesSuccess(val courses: List<OrganizationCourse>) : FirestoreResult()
+    data class PsychChatThreadsSuccess(val threads: List<PsychChatThread>) : FirestoreResult()
+    data class PsychChatMessagesSuccess(val messages: List<PsychChatMessage>) : FirestoreResult()
     object GenericSuccess : FirestoreResult()
     object NotFound : FirestoreResult()
     data class Failure(val message: String) : FirestoreResult()
@@ -52,6 +55,19 @@ interface FirestoreService {
 
     suspend fun getUserTestHistory(uid: String): FirestoreResult
     suspend fun getUserCourseProgress(uid: String): FirestoreResult
+
+    // ── Support chat with psychologist ─────────────────────────────────────────
+    suspend fun getPsychChatContacts(orgId: String, currentUid: String, currentRole: String): FirestoreResult
+    fun observePsychChatThreads(orgId: String, currentUid: String): Flow<FirestoreResult>
+    fun observePsychChatMessages(chatId: String): Flow<FirestoreResult>
+    suspend fun sendPsychChatMessage(
+        orgId: String,
+        senderId: String,
+        senderRole: String,
+        recipientId: String,
+        recipientRole: String,
+        text: String
+    ): FirestoreResult
 
     // ── Director Dashboard — real-time listener ───────────────────────────────
 

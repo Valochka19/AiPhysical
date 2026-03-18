@@ -26,6 +26,7 @@ import com.example.aiphysical.ui.theme.*
 @Composable
 fun StudentHelpTab(
     state: StudentUiState,
+    onOpenPsychologistChat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -60,7 +61,7 @@ fun StudentHelpTab(
         }
 
         // Psychologist contact card
-        PsychologistContactCard()
+        PsychologistContactCard(onOpenPsychologistChat = onOpenPsychologistChat)
 
         HorizontalDivider(color = Color.White.copy(0.08f))
 
@@ -89,13 +90,16 @@ fun StudentHelpTab(
 }
 
 @Composable
-private fun PsychologistContactCard() {
+private fun PsychologistContactCard(
+    onOpenPsychologistChat: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(Brush.verticalGradient(listOf(PsychTeal.copy(0.14f), PsychTeal.copy(0.04f))))
             .border(1.5.dp, Brush.horizontalGradient(listOf(PsychTeal.copy(0.7f), PsychTeal.copy(0.2f))), RoundedCornerShape(22.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onOpenPsychologistChat)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -134,6 +138,7 @@ private fun PsychologistContactCard() {
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color.White.copy(0.06f))
                 .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(12.dp))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onOpenPsychologistChat)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -153,8 +158,8 @@ private fun PsychologistContactCard() {
         }
 
         Text(
-            "💬 Чат с психологом — функция в разработке",
-            color = TextHint,
+            "💬 Открыть личный чат с психологом",
+            color = PsychTeal.copy(0.9f),
             fontSize = 11.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()

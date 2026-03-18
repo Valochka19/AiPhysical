@@ -28,12 +28,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.aiphysical.presentation.chat.SupportChatEvent
+import com.example.aiphysical.presentation.chat.SupportChatViewModel
 import com.example.aiphysical.presentation.psychologist.*
+import com.example.aiphysical.ui.screens.chat.DashboardDrawerSheet
+import com.example.aiphysical.ui.screens.chat.DashboardMenuButton
+import com.example.aiphysical.ui.screens.chat.DashboardOverlayDestination
+import com.example.aiphysical.ui.screens.chat.PointsPlaceholderScreen
+import com.example.aiphysical.ui.screens.chat.SupportChatScreen
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
 import com.example.aiphysical.util.BackPressHandler
 import com.example.aiphysical.util.createFirestoreService
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 // ─── Entry Point ──────────────────────────────────────────────────────────────
 
@@ -44,20 +52,33 @@ fun PsychologistDashboardScreen(
     fullName: String,
     onLogout: () -> Unit,
 ) {
+    val firestoreService = remember { createFirestoreService() }
     val vm: PsychologistViewModel = viewModel(
         key = "psychologist:$uid:$orgId",
         factory = PsychologistViewModel.factory(
             orgId = orgId,
             uid = uid,
             psychologistName = fullName,
-            firestoreService = createFirestoreService()
+            firestoreService = firestoreService
+        )
+    )
+    val supportVm: SupportChatViewModel = viewModel(
+        key = "support-chat:psychologist:$uid:$orgId",
+        factory = SupportChatViewModel.factory(
+            uid = uid,
+            orgId = orgId,
+            firestoreService = firestoreService
         )
     )
 
     val state by vm.state.collectAsStateWithLifecycle()
+    val supportState by supportVm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
     val uriHandler = LocalUriHandler.current
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
+    var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
 
     // Collect MVI side-effects
     LaunchedEffect(Unit) {
@@ -81,108 +102,158 @@ fun PsychologistDashboardScreen(
         onBack = { vm.onEvent(PsychologistEvent.BackToDashboard) }
     )
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = MatteSurface,
-                    contentColor = PsychTeal,
-                    actionColor = PsychTeal,
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .border(1.dp, PsychTeal.copy(0.3f), RoundedCornerShape(14.dp))
-                )
-            }
-        },
-        bottomBar = {
-            // Only show bottom nav when not in StudentDetail view
-            if (state.currentScreen == PsychologistScreen.Dashboard) {
-                PsychBottomNavBar(
-                    selectedTab = state.selectedTab,
-                    criticalCount = state.criticalStudents.size,
-                    pendingCount = state.pendingRecommendations.size,
-                    strings = getStrings(state.currentLanguage),
-                    onTabSelected = { vm.onEvent(PsychologistEvent.NavigateToTab(it)) }
-                )
-            }
-        }
-    ) { innerPadding ->
-        // Pure matte background — no orbs, no glassmorphism
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PsychBackground)
-        ) {
-            AnimatedContent(
-                targetState = state.selectedTab to state.currentScreen,
-                transitionSpec = {
-                    val isForward = targetState.first.ordinal >= initialState.first.ordinal
-                    (slideInHorizontally(tween(280)) { if (isForward) it / 4 else -it / 4 } +
-                     fadeIn(tween(280))) togetherWith
-                    (slideOutHorizontally(tween(220)) { if (isForward) -it / 4 else it / 4 } +
-                     fadeOut(tween(220)))
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DashboardDrawerSheet(
+                onProfileClick = {
+                    drawerOverlay = DashboardOverlayDestination.None
+                    vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Library))
+                    coroutineScope.launch { drawerState.close() }
                 },
-                label = "psych_content"
-            ) { (tab, screen) ->
-                when {
-                    // StudentDetail is shown inside StudentDatabaseTab (it manages its own nav state)
-                    screen == PsychologistScreen.StudentDetail ||
-                    tab == PsychologistTab.Database -> {
-                        StudentDatabaseTab(
-                            state = state,
-                            vm = vm,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-                    tab == PsychologistTab.Overview -> {
-                        PatientOverviewTab(
-                            state = state,
-                            vm = vm,
-                            onLogout = onLogout,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-                    tab == PsychologistTab.Interventions -> {
-                        InterventionsTab(
-                            state = state,
-                            vm = vm,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-                    tab == PsychologistTab.Library -> {
-                        LibraryTab(
-                            state = state,
-                            vm = vm,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-                    else -> {
-                        PatientOverviewTab(
-                            state = state,
-                            vm = vm,
-                            onLogout = onLogout,
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
+                onPointsClick = {
+                    drawerOverlay = DashboardOverlayDestination.Points
+                    coroutineScope.launch { drawerState.close() }
+                },
+                onChatClick = {
+                    drawerOverlay = DashboardOverlayDestination.Chat
+                    coroutineScope.launch { drawerState.close() }
+                }
+            )
+        }
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = {
+                SnackbarHost(snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MatteSurface,
+                        contentColor = PsychTeal,
+                        actionColor = PsychTeal,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .border(1.dp, PsychTeal.copy(0.3f), RoundedCornerShape(14.dp))
+                    )
+                }
+            },
+            bottomBar = {
+                if (state.currentScreen == PsychologistScreen.Dashboard) {
+                    PsychBottomNavBar(
+                        selectedTab = state.selectedTab,
+                        criticalCount = state.criticalStudents.size,
+                        pendingCount = state.pendingRecommendations.size,
+                        strings = getStrings(state.currentLanguage),
+                        onTabSelected = {
+                            drawerOverlay = DashboardOverlayDestination.None
+                            vm.onEvent(PsychologistEvent.NavigateToTab(it))
+                        }
+                    )
                 }
             }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PsychBackground)
+            ) {
+                AnimatedContent(
+                    targetState = state.selectedTab to state.currentScreen,
+                    transitionSpec = {
+                        val isForward = targetState.first.ordinal >= initialState.first.ordinal
+                        (slideInHorizontally(tween(280)) { if (isForward) it / 4 else -it / 4 } +
+                         fadeIn(tween(280))) togetherWith
+                        (slideOutHorizontally(tween(220)) { if (isForward) -it / 4 else it / 4 } +
+                         fadeOut(tween(220)))
+                    },
+                    label = "psych_content"
+                ) { (tab, screen) ->
+                    when {
+                        screen == PsychologistScreen.StudentDetail ||
+                        tab == PsychologistTab.Database -> {
+                            StudentDatabaseTab(
+                                state = state,
+                                vm = vm,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        tab == PsychologistTab.Overview -> {
+                            PatientOverviewTab(
+                                state = state,
+                                vm = vm,
+                                onLogout = onLogout,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        tab == PsychologistTab.Interventions -> {
+                            InterventionsTab(
+                                state = state,
+                                vm = vm,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        tab == PsychologistTab.Library -> {
+                            LibraryTab(
+                                state = state,
+                                vm = vm,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        else -> {
+                            PatientOverviewTab(
+                                state = state,
+                                vm = vm,
+                                onLogout = onLogout,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                    }
+                }
 
-            // ── GLOBAL OVERLAYS (shown regardless of active tab) ──────────────
-            // FIX: RecommendationSheet is hoisted here so it works from any tab
-            //      (StudentDatabaseTab, PatientOverviewTab, etc.)
-            if (state.showRecommendationSheet) {
-                RecommendationSheet(state = state, vm = vm)
-            }
+                if (state.showRecommendationSheet) {
+                    RecommendationSheet(state = state, vm = vm)
+                }
 
-            // Test result report sheet (opened from home screen feed)
-            val feedItem = state.selectedTestFeedItem
-            if (state.showTestResultSheet && feedItem != null) {
-                TestResultReportSheet(
-                    item = feedItem,
-                    onDismiss = { vm.onEvent(PsychologistEvent.DismissTestResultSheet) }
-                )
+                val feedItem = state.selectedTestFeedItem
+                if (state.showTestResultSheet && feedItem != null) {
+                    TestResultReportSheet(
+                        item = feedItem,
+                        onDismiss = { vm.onEvent(PsychologistEvent.DismissTestResultSheet) }
+                    )
+                }
+
+                if (drawerOverlay == DashboardOverlayDestination.None && state.currentScreen == PsychologistScreen.Dashboard) {
+                    DashboardMenuButton(
+                        onClick = { coroutineScope.launch { drawerState.open() } },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(top = 10.dp, end = 16.dp)
+                    )
+                }
+
+                when (drawerOverlay) {
+                    DashboardOverlayDestination.Chat -> SupportChatScreen(
+                        state = supportState,
+                        onBack = { drawerOverlay = DashboardOverlayDestination.None },
+                        onContactSelected = { supportVm.onEvent(SupportChatEvent.SelectContact(it)) },
+                        onConversationBack = { supportVm.onEvent(SupportChatEvent.ClearSelection) },
+                        onInputChange = { supportVm.onEvent(SupportChatEvent.UpdateInput(it)) },
+                        onSend = { supportVm.onEvent(SupportChatEvent.SendMessage) },
+                        onDismissError = { supportVm.onEvent(SupportChatEvent.DismissError) },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                    DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
+                        title = "Баллы психолога",
+                        onBack = { drawerOverlay = DashboardOverlayDestination.None },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                    DashboardOverlayDestination.None -> Unit
+                }
             }
         }
     }
