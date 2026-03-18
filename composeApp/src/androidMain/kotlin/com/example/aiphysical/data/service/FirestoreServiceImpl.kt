@@ -383,6 +383,116 @@ class FirestoreServiceImpl : FirestoreService {
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка удаления курса") }
     }
 
+    override suspend fun upsertBaseCourseProgress(uid: String, course: BaseCourseCatalogItem): FirestoreResult {
+        return try {
+            val now = System.currentTimeMillis()
+            val userRef = db.collection("users").document(uid)
+            val progressRef = userRef.collection("courseProgress").document(course.id)
+
+            progressRef.set(
+                mapOf(
+                    "courseId" to course.id,
+                    "courseName" to course.title,
+                    "progress" to 1.0,
+                    "lastAccessMillis" to now
+                ),
+                SetOptions.merge()
+            ).await()
+
+            val progressSnapshot = userRef.collection("courseProgress").get().await()
+            val progressByCourseId = progressSnapshot.documents.associate { doc ->
+                doc.id to (doc.getDouble("progress") ?: 0.0).toFloat()
+            }
+            val courseProgressPercent = AppCourseCatalog.computeBaseCourseProgressPercent(progressByCourseId)
+            userRef.set(
+                mapOf("courseProgressPercent" to courseProgressPercent.toDouble()),
+                SetOptions.merge()
+            ).await()
+
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка обновления прогресса курса")
+        }
+    }
+
+    override suspend fun getOrganizationBaseCourseCompletionStats(orgId: String): FirestoreResult {
+        return try {
+            val detailsByCourseId = computeOrganizationBaseCourseCompletionDetails(orgId)
+            val stats = AppCourseCatalog.baseCourses.map { course ->
+                val details = detailsByCourseId[course.id] ?: BaseCourseCompletionDetails(
+                    courseId = course.id,
+                    courseName = course.title
+                )
+                BaseCourseCompletionStats(
+                    courseId = course.id,
+                    courseName = course.title,
+                    completedCount = details.completedMembers.size,
+                    inProgressCount = details.inProgressMembers.size,
+                    notStartedCount = details.notStartedMembers.size
+                )
+            }
+            FirestoreResult.BaseCourseCompletionStatsSuccess(stats)
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки статистики курсов")
+        }
+    }
+
+    override suspend fun getOrganizationBaseCourseCompletionDetails(orgId: String, courseId: String): FirestoreResult {
+        return try {
+            val course = AppCourseCatalog.baseCourseById(courseId)
+                ?: return FirestoreResult.Failure("Базовый курс не найден")
+            val details = computeOrganizationBaseCourseCompletionDetails(orgId)[courseId]
+                ?: BaseCourseCompletionDetails(courseId = course.id, courseName = course.title)
+            FirestoreResult.BaseCourseCompletionDetailsSuccess(details)
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки статуса прохождения курса")
+        }
+    }
+
+    override suspend fun getOrganizationTestStats(orgId: String): FirestoreResult {
+        return try {
+            val students = loadOrganizationStudents(orgId)
+            val attemptsByTestId = mutableMapOf<String, MutableList<Pair<String, String>>>()
+
+            students.forEach { student ->
+                val testSnapshot = db.collection("users").document(student.uid)
+                    .collection("testResults")
+                    .get()
+                    .await()
+
+                testSnapshot.documents.forEach { doc ->
+                    val testId = doc.getString("testId") ?: return@forEach
+                    val testName = doc.getString("testName") ?: testId
+                    val assessment = doc.getString("aiAssessment") ?: "unknown"
+                    attemptsByTestId.getOrPut(testId) { mutableListOf() }
+                        .add(testName to assessment)
+                }
+            }
+
+            val stats = com.example.aiphysical.presentation.student.StudentTestType.entries.map { type ->
+                val attempts = attemptsByTestId[type.testId].orEmpty()
+                val dominantAssessment = attempts
+                    .groupingBy { it.second }
+                    .eachCount()
+                    .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                    ?.key
+                    ?: "unknown"
+
+                OrganizationTestStats(
+                    testType = type,
+                    testId = type.testId,
+                    testName = studentTestDefinitionFor(type).testName,
+                    totalAttempts = attempts.size,
+                    mostFrequentAssessment = dominantAssessment
+                )
+            }
+
+            FirestoreResult.OrganizationTestStatsSuccess(stats)
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки статистики тестов")
+        }
+    }
+
     // ── Student Test Result ───────────────────────────────────────────────────
 
     override suspend fun saveStudentTestResult(
@@ -513,6 +623,77 @@ class FirestoreServiceImpl : FirestoreService {
         text = getString("text") ?: "",
         createdAt = getLong("createdAt") ?: 0L,
     )
+
+    private suspend fun loadOrganizationStudents(orgId: String): List<UserProfile> {
+        val snapshot = db.collection("users")
+            .whereEqualTo("orgId", orgId)
+            .get()
+            .await()
+        return snapshot.documents
+            .map { it.toUserProfile() }
+            .filter { it.role == "user" }
+            .sortedBy { it.fullName.lowercase() }
+    }
+
+    private suspend fun computeOrganizationBaseCourseCompletionDetails(
+        orgId: String
+    ): Map<String, BaseCourseCompletionDetails> {
+        val students = loadOrganizationStudents(orgId)
+        val detailsMap = AppCourseCatalog.baseCourses.associate { course ->
+            course.id to BaseCourseCompletionDetails(
+                courseId = course.id,
+                courseName = course.title
+            )
+        }.toMutableMap()
+
+        students.forEach { student ->
+            val progressByCourseId = db.collection("users").document(student.uid)
+                .collection("courseProgress")
+                .get()
+                .await()
+                .documents
+                .associate { doc ->
+                    doc.id to CourseProgress(
+                        courseId = doc.getString("courseId") ?: doc.id,
+                        courseName = doc.getString("courseName") ?: doc.id,
+                        progress = (doc.getDouble("progress") ?: 0.0).toFloat(),
+                        lastAccessMillis = doc.getLong("lastAccessMillis") ?: 0L
+                    )
+                }
+
+            AppCourseCatalog.baseCourses.forEach { course ->
+                val progress = progressByCourseId[course.id]
+                val member = CourseCompletionMember(
+                    userId = student.uid,
+                    fullName = student.fullName,
+                    progress = progress?.progress ?: 0f,
+                    lastAccessMillis = progress?.lastAccessMillis ?: 0L
+                )
+                val current = detailsMap.getValue(course.id)
+                detailsMap[course.id] = when {
+                    progress == null || progress.progress <= 0f -> current.copy(
+                        notStartedMembers = current.notStartedMembers + member
+                    )
+
+                    progress.progress >= 1f -> current.copy(
+                        completedMembers = current.completedMembers + member
+                    )
+
+                    else -> current.copy(
+                        inProgressMembers = current.inProgressMembers + member
+                    )
+                }
+            }
+        }
+
+        return detailsMap.mapValues { (_, details) ->
+            details.copy(
+                completedMembers = details.completedMembers.sortedBy { it.fullName.lowercase() },
+                inProgressMembers = details.inProgressMembers.sortedBy { it.fullName.lowercase() },
+                notStartedMembers = details.notStartedMembers.sortedBy { it.fullName.lowercase() }
+            )
+        }
+    }
 
     private fun String.normalizedPsychChatRoleAwarePair(role: String): Pair<String, String> =
         this to role.normalizedPsychChatRole()

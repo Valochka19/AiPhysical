@@ -1,6 +1,5 @@
 package com.example.aiphysical.ui.screens.director
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,39 +8,39 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.AppCourseCatalog
-import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.AppStudentTestCatalog
+import com.example.aiphysical.data.model.BaseCourseCompletionDetails
+import com.example.aiphysical.data.model.CourseCompletionMember
 import com.example.aiphysical.data.model.OrganizationCourse
-import com.example.aiphysical.presentation.director.*
-import com.example.aiphysical.ui.components.UmiAvatarBadge
+import com.example.aiphysical.data.model.OrganizationTestStats
+import com.example.aiphysical.data.model.assessmentLabel
+import com.example.aiphysical.presentation.director.DirectorDashboardState
+import com.example.aiphysical.presentation.director.DirectorDashboardViewModel
+import com.example.aiphysical.presentation.director.DirectorEvent
+import com.example.aiphysical.ui.components.OrganizationCourseCard
+import com.example.aiphysical.ui.components.PlatformCourseCard
 import com.example.aiphysical.ui.theme.*
-
-private data class TestInfo(val emoji: String, val name: String, val description: String, val color: Color)
-
-private val mandatoryTests = listOf(
-    TestInfo("🔥", "Burnout Inventory (MBI)",  "Измерение уровня профессионального выгорания",   MetricBurnout),
-    TestInfo("⚡", "PSS-10 (Stress Scale)",    "Шкала воспринимаемого стресса Коэна",             MetricStress),
-    TestInfo("💭", "PHQ-9 (Depression)",       "Опросник здоровья пациента — Депрессия",          Color(0xFFE040FB)),
-    TestInfo("😰", "GAD-7 (Anxiety)",          "Обобщённая шкала тревожного расстройства",        MetricAnxiety),
-    TestInfo("💪", "WLEIS (Motivation)",        "Шкала эмоционального интеллекта и мотивации",    MetricMotivation),
-)
 
 @Composable
 fun ContentTab(
@@ -57,7 +56,6 @@ fun ContentTab(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ── Header ─────────────────────────────────────────────────────────
             item {
                 Column(
                     modifier = Modifier
@@ -68,53 +66,97 @@ fun ContentTab(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        strings.tabContent,
-                        style = TextStyle(brush = Brush.horizontalGradient(listOf(NeonViolet, CyanAccent)), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    )
+                    Text(strings.tabContent, style = MaterialTheme.typography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.ExtraBold)
                     Text("${strings.testsTitle} & ${strings.coursesTitle}", color = Color.White.copy(0.4f), fontSize = 11.sp)
                 }
             }
 
-            // ── Stats chips ────────────────────────────────────────────────────
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ContentStatChip("🧪", "${mandatoryTests.size}", strings.testsTitle, NeonViolet, Modifier.weight(1f))
+                    ContentStatChip("🧪", "${AppStudentTestCatalog.items.size}", strings.testsTitle, NeonViolet, Modifier.weight(1f))
                     ContentStatChip("📚", "${AppCourseCatalog.baseCourses.size}", strings.coursesTitle, CyanAccent, Modifier.weight(1f))
                     ContentStatChip("➕", "${state.addedCourses.size}", "Добавлено", AlertOrange, Modifier.weight(1f))
                 }
             }
 
-            // ── Tests Section ──────────────────────────────────────────────────
             item {
                 ContentSectionHeader(
-                    emoji = "🧪", title = strings.testsTitle,
-                    subtitle = "5 обязательных диагностических тестов", accentColor = NeonViolet
+                    emoji = "🧪",
+                    title = strings.testsTitle,
+                    subtitle = "Реальные тесты студента и статистика по организации",
+                    accentColor = NeonViolet
                 )
             }
-            itemsIndexed(mandatoryTests) { index, test ->
-                PremiumTestCard(test = test, statsLabel = strings.viewStats, index = index + 1)
+            itemsIndexed(AppStudentTestCatalog.items) { index, item ->
+                val stats = state.testStats.firstOrNull { it.testType == item.type }
+                DirectorTestCard(
+                    index = index + 1,
+                    emoji = item.emoji,
+                    name = item.title,
+                    description = item.description,
+                    color = Color(item.accentColorHex),
+                    stats = stats,
+                    isLoading = state.isLoadingTestStats && state.selectedTestStats?.testType == item.type,
+                    onStats = { vm.onEvent(DirectorEvent.OpenTestStats(item.type)) }
+                )
             }
 
-            // ── Base Courses Section ───────────────────────────────────────────
             item {
                 Spacer(Modifier.height(4.dp))
                 ContentSectionHeader(
-                    emoji = "📚", title = strings.coursesTitle,
-                    subtitle = "${AppCourseCatalog.baseCourses.size} базовых курсов платформы", accentColor = CyanAccent
+                    emoji = "📚",
+                    title = strings.coursesTitle,
+                    subtitle = "${AppCourseCatalog.baseCourses.size} базовых курсов платформы",
+                    accentColor = CyanAccent
                 )
             }
             itemsIndexed(AppCourseCatalog.baseCourses) { _, course ->
-                BaseCourseCard(course = course)
+                val completionStats = state.baseCourseCompletionStats.firstOrNull { it.courseId == course.id }
+                PlatformCourseCard(
+                    course = course,
+                    onClick = { vm.onEvent(DirectorEvent.OpenBaseCourse(course)) },
+                    badgeText = completionStats?.completedCount?.takeIf { it > 0 }?.let { "$it прошли" },
+                    footer = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = completionStats?.let { "Прошли: ${it.completedCount} · Не начинали: ${it.notStartedCount}" } ?: "Нет данных по организации",
+                                color = TextHint,
+                                fontSize = 11.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(CyanAccent.copy(0.14f))
+                                    .border(1.dp, CyanAccent.copy(0.35f), RoundedCornerShape(10.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { vm.onEvent(DirectorEvent.OpenBaseCourseCompletion(course.id)) }
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                            ) {
+                                if (state.isLoadingCourseCompletionDetails && state.selectedBaseCourseCompletion?.courseId == course.id) {
+                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), color = CyanAccent, strokeWidth = 1.8.dp)
+                                } else {
+                                    Text("Кто прошёл", color = CyanAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                )
             }
 
-            // ── Added Courses Section ──────────────────────────────────────────
             item {
                 Spacer(Modifier.height(4.dp))
                 ContentSectionHeader(
-                    emoji = "➕", title = "Добавленные курсы",
-                    subtitle = if (state.addedCourses.isEmpty()) "Психолог ещё не добавил курсы"
-                               else "${state.addedCourses.size} курс(ов) от психолога",
+                    emoji = "➕",
+                    title = "Добавленные курсы",
+                    subtitle = if (state.addedCourses.isEmpty()) "Психолог ещё не добавил курсы" else "${state.addedCourses.size} курс(ов) от психолога",
                     accentColor = AlertOrange
                 )
             }
@@ -137,7 +179,10 @@ fun ContentTab(
                 }
             } else {
                 itemsIndexed(state.addedCourses) { _, course ->
-                    DirectorAddedCourseCard(course = course, onClick = { vm.onEvent(DirectorEvent.OpenAddedCourse(course)) })
+                    OrganizationCourseCard(
+                        course = course,
+                        onClick = { vm.onEvent(DirectorEvent.OpenAddedCourse(course)) }
+                    )
                 }
             }
 
@@ -147,8 +192,22 @@ fun ContentTab(
         // ── Text Course Viewer overlay ─────────────────────────────────────────
         if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
             DirectorTextCourseDialog(
-                course = state.selectedAddedCourse!!,
+                course = state.selectedAddedCourse,
                 onDismiss = { vm.onEvent(DirectorEvent.CloseTextCourseViewer) }
+            )
+        }
+
+        if (state.showTestStatsDialog && state.selectedTestStats != null) {
+            DirectorTestStatsDialog(
+                stats = state.selectedTestStats,
+                onDismiss = { vm.onEvent(DirectorEvent.CloseTestStatsDialog) }
+            )
+        }
+
+        if (state.showBaseCourseCompletionDialog && state.selectedBaseCourseCompletion != null) {
+            BaseCourseCompletionDialog(
+                details = state.selectedBaseCourseCompletion,
+                onDismiss = { vm.onEvent(DirectorEvent.CloseBaseCourseCompletionDialog) }
             )
         }
     }
@@ -198,135 +257,208 @@ private fun ContentStatChip(emoji: String, value: String, label: String, color: 
     }
 }
 
-// ─── Premium Test Card ────────────────────────────────────────────────────────
+// ─── Director Test Card ────────────────────────────────────────────────────────
 
 @Composable
-private fun PremiumTestCard(test: TestInfo, statsLabel: String, index: Int) {
+private fun DirectorTestCard(
+    index: Int,
+    emoji: String,
+    name: String,
+    description: String,
+    color: Color,
+    stats: OrganizationTestStats?,
+    isLoading: Boolean,
+    onStats: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Brush.horizontalGradient(listOf(test.color.copy(0.12f), Color.White.copy(0.04f))))
-            .border(1.dp, Brush.horizontalGradient(listOf(test.color.copy(0.4f), Color.White.copy(0.06f))), RoundedCornerShape(20.dp))
+            .background(Brush.horizontalGradient(listOf(color.copy(0.12f), Color.White.copy(0.04f))))
+            .border(1.dp, Brush.horizontalGradient(listOf(color.copy(0.4f), Color.White.copy(0.06f))), RoundedCornerShape(20.dp))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
-            Modifier.size(46.dp).background(test.color.copy(0.2f), RoundedCornerShape(14.dp)).border(1.dp, test.color.copy(0.5f), RoundedCornerShape(14.dp)),
+            Modifier.size(46.dp).background(color.copy(0.2f), RoundedCornerShape(14.dp)).border(1.dp, color.copy(0.5f), RoundedCornerShape(14.dp)),
             Alignment.Center
-        ) { Text(test.emoji, fontSize = 18.sp) }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        ) { Text(emoji, fontSize = 18.sp) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.background(test.color.copy(0.2f), RoundedCornerShape(6.dp)).border(1.dp, test.color.copy(0.4f), RoundedCornerShape(6.dp)).padding(horizontal = 5.dp, vertical = 2.dp)) {
-                    Text("$index", color = test.color, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                Box(Modifier.background(color.copy(0.2f), RoundedCornerShape(6.dp)).border(1.dp, color.copy(0.4f), RoundedCornerShape(6.dp)).padding(horizontal = 5.dp, vertical = 2.dp)) {
+                    Text("$index", color = color, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
                 }
-                Text(test.name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
-            Text(test.description, color = TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            Text(description, color = TextSecondary, fontSize = 11.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                stats?.let { "${it.totalAttempts} прохождений · ${assessmentLabel(it.mostFrequentAssessment)}" } ?: "Нет данных по организации",
+                color = TextHint,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         TextButton(
-            onClick = {},
-            modifier = Modifier.background(test.color.copy(0.14f), RoundedCornerShape(12.dp)).border(1.dp, test.color.copy(0.35f), RoundedCornerShape(12.dp))
-        ) { Text("📊 $statsLabel", color = test.color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+            onClick = onStats,
+            modifier = Modifier.background(color.copy(0.14f), RoundedCornerShape(12.dp)).border(1.dp, color.copy(0.35f), RoundedCornerShape(12.dp))
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = color, strokeWidth = 1.8.dp)
+            } else {
+                Text("📊 Статистика", color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
-// ─── Base Course Card (AppCourseCatalog) ──────────────────────────────────────
+// ─── Director Test Stats Dialog ───────────────────────────────────────────────
 
 @Composable
-private fun BaseCourseCard(course: com.example.aiphysical.data.model.BaseCourseCatalogItem) {
-    val color = Color(course.accentColorHex)
-    val infiniteTransition = rememberInfiniteTransition(label = "base_${course.id}")
-    val aiGlow by if (course.isAiRecommended) infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "glow_${course.id}"
-    ) else remember { mutableStateOf(0f) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (course.isAiRecommended) Modifier.drawBehind {
-                drawRoundRect(NeonViolet.copy(alpha = aiGlow * 0.1f), cornerRadius = CornerRadius(22.dp.toPx()))
-            } else Modifier)
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color.White.copy(0.04f))
-            .border(
-                if (course.isAiRecommended) 1.5.dp else 1.dp,
-                if (course.isAiRecommended) Brush.linearGradient(listOf(NeonViolet.copy(0.6f), CyanAccent.copy(0.5f)))
-                else Brush.linearGradient(listOf(Color.White.copy(0.14f), Color.White.copy(0.04f))),
-                RoundedCornerShape(22.dp)
-            )
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+private fun DirectorTestStatsDialog(stats: OrganizationTestStats, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(
-                Modifier.size(44.dp).background(Brush.radialGradient(listOf(color.copy(0.4f), CyanAccent.copy(0.2f))), RoundedCornerShape(14.dp)).border(1.dp, color.copy(0.5f), RoundedCornerShape(14.dp)),
-                Alignment.Center
-            ) { Text(course.emoji, fontSize = 22.sp) }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(course.title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(course.description, color = TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("⏱", fontSize = 12.sp)
-                Text(course.durationLabel, color = CyanAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-        if (course.isAiRecommended) {
-            Row(
-                modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(NeonViolet.copy(0.2f), CyanAccent.copy(0.12f)))).border(1.dp, Brush.horizontalGradient(listOf(NeonViolet.copy(0.5f), CyanAccent.copy(0.4f))), RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF050010).copy(0.88f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Color(0xFF0D0D22))
+                    .border(1.dp, Brush.horizontalGradient(listOf(CyanAccent.copy(0.4f), NeonViolet.copy(0.3f))), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                UmiAvatarBadge(
-                    modifier = Modifier.size(12.dp),
-                    backgroundColor = Color.White.copy(0.06f),
-                    borderColor = NeonViolet.copy(0.35f),
-                    borderWidth = 0.8.dp,
-                    imagePadding = 1.dp,
-                    contentDescription = "Уми рекомендует"
-                )
-                Text("AI рекомендует", style = TextStyle(brush = Brush.horizontalGradient(listOf(NeonViolet, CyanAccent)), fontSize = 10.sp, fontWeight = FontWeight.Bold))
+                Box(Modifier.width(48.dp).height(4.dp).background(Color.White.copy(0.12f), RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
+                Text(stats.testName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Статистика по студентам текущей организации", color = Color.White.copy(0.55f), fontSize = 13.sp)
+                HorizontalDivider(color = Color.White.copy(0.08f))
+                DirectorStatRow("Всего прохождений", stats.totalAttempts.toString(), CyanAccent)
+                DirectorStatRow("Чаще всего", assessmentLabel(stats.mostFrequentAssessment), NeonViolet)
+                if (stats.totalAttempts == 0) {
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(0.04f)).border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp)).padding(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Пока нет прохождений этого теста", color = Color.White.copy(0.45f), fontSize = 13.sp)
+                    }
+                }
             }
         }
     }
 }
 
-// ─── Director Added Course Card ───────────────────────────────────────────────
+// ─── Director Stat Row ─────────────────────────────────────────────────────────
 
 @Composable
-private fun DirectorAddedCourseCard(course: OrganizationCourse, onClick: () -> Unit) {
-    val typeColor = if (course.type == CourseContentType.VIDEO) AlertOrange else CyanAccent
-    val typeLabel = if (course.type == CourseContentType.VIDEO) "Видео" else "Текстовый"
-    val typeEmoji = if (course.type == CourseContentType.VIDEO) "🎬" else "📝"
+private fun DirectorStatRow(label: String, value: String, color: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, color = Color.White.copy(0.45f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(color.copy(0.14f)).border(1.dp, color.copy(0.35f), RoundedCornerShape(14.dp)).padding(14.dp)
+        ) {
+            Text(value, color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(0.04f))
-            .border(1.dp, Brush.horizontalGradient(listOf(typeColor.copy(0.35f), typeColor.copy(0.08f))), RoundedCornerShape(18.dp))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+// ─── Base Course Completion Dialog ─────────────────────────────────────────────
+
+@Composable
+private fun BaseCourseCompletionDialog(details: BaseCourseCompletionDetails, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(Modifier.size(46.dp).background(typeColor.copy(0.18f), RoundedCornerShape(14.dp)).border(1.dp, typeColor.copy(0.4f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-            Text(typeEmoji, fontSize = 20.sp)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(course.title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.background(typeColor.copy(0.15f), RoundedCornerShape(6.dp)).border(1.dp, typeColor.copy(0.35f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                    Text(typeLabel, color = typeColor, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                }
-                if (course.createdByName.isNotBlank()) Text(course.createdByName, color = Color.White.copy(0.4f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF050010).copy(0.88f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Color(0xFF0D0D22))
+                    .border(1.dp, Brush.horizontalGradient(listOf(CyanAccent.copy(0.4f), NeonViolet.copy(0.3f))), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(Modifier.width(48.dp).height(4.dp).background(Color.White.copy(0.12f), RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
+                Text(details.courseName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Статусы прохождения среди студентов организации", color = Color.White.copy(0.55f), fontSize = 13.sp)
+                CompletionSection("Прошли курс", details.completedMembers, StatusNormal)
+                CompletionSection("Начали / в процессе", details.inProgressMembers, AlertOrange)
+                CompletionSection("Не начинали", details.notStartedMembers, TextHint)
             }
-            if (course.description.isNotBlank()) Text(course.description, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text("›", color = typeColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+// ─── Completion Section ────────────────────────────────────────────────────────
+
+@Composable
+private fun CompletionSection(title: String, members: List<CourseCompletionMember>, color: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(8.dp).background(color, CircleShape))
+            Text(title, color = color, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+            Text("${members.size}", color = Color.White.copy(0.45f), fontSize = 11.sp)
+        }
+
+        if (members.isEmpty()) {
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(0.04f)).border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp)).padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Нет студентов в этой группе", color = Color.White.copy(0.45f), fontSize = 12.sp)
+            }
+        } else {
+            members.forEach { member ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(0.04f))
+                        .border(1.dp, color.copy(0.22f), RoundedCornerShape(14.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        Modifier.size(38.dp).background(color.copy(0.16f), RoundedCornerShape(12.dp)).border(1.dp, color.copy(0.3f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(member.fullName.take(1).uppercase(), color = color, fontWeight = FontWeight.ExtraBold)
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(member.fullName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (member.lastAccessMillis > 0L) "Последний доступ: ${formatCourseDate(member.lastAccessMillis)}" else "Последний доступ: —",
+                            color = Color.White.copy(0.45f),
+                            fontSize = 10.sp
+                        )
+                    }
+                    Text("${(member.progress.coerceIn(0f, 1f) * 100).toInt()}%", color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }
 
@@ -385,4 +517,14 @@ private fun DirectorTextCourseDialog(course: OrganizationCourse, onDismiss: () -
             }
         }
     }
+}
+
+private fun formatCourseDate(millis: Long): String {
+    if (millis == 0L) return "—"
+    val totalDays = millis / 86_400_000L
+    val year = 1970 + (totalDays / 365.2425).toInt()
+    val dayOfYear = (totalDays % 365).toInt().coerceIn(1, 365)
+    val month = (dayOfYear / 30.44).toInt().coerceIn(0, 11) + 1
+    val day = (dayOfYear % 31).coerceIn(1, 31)
+    return "${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}.$year"
 }

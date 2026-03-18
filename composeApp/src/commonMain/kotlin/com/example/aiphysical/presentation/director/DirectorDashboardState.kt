@@ -44,4 +44,12 @@ data class DirectorDashboardState(
     val isLoadingAddedCourses: Boolean = false,
     val selectedAddedCourse: OrganizationCourse? = null,
     val showTextCourseViewer: Boolean = false,
+    val testStats: List<OrganizationTestStats> = emptyList(),
+    val isLoadingTestStats: Boolean = false,
+    val selectedTestStats: OrganizationTestStats? = null,
+    val showTestStatsDialog: Boolean = false,
+    val baseCourseCompletionStats: List<BaseCourseCompletionStats> = emptyList(),
+    val isLoadingCourseCompletionDetails: Boolean = false,
+    val selectedBaseCourseCompletion: BaseCourseCompletionDetails? = null,
+    val showBaseCourseCompletionDialog: Boolean = false,
 )

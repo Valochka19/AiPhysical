@@ -4,11 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationTestStats
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.data.model.studentTestDefinitionFor
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
+import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.util.currentTimeMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
@@ -122,7 +126,7 @@ class PsychologistViewModel(
                 it.copy(
                     showAddCourseSheet = false,
                     newCourseTitle = "", newCourseDescription = "",
-                    newCourseType = com.example.aiphysical.data.model.CourseContentType.TEXT,
+                    newCourseType = CourseContentType.TEXT,
                     newCourseTextContent = "", newCourseVideoUrl = ""
                 )
             }
@@ -136,11 +140,16 @@ class PsychologistViewModel(
             // ── Added courses viewer ──────────────────────────────────────────
             PsychologistEvent.OpenAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = true) }
             PsychologistEvent.CloseAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = false) }
+            is PsychologistEvent.OpenBaseCourse -> handleOpenBaseCourse(event.course)
             is PsychologistEvent.OpenAddedCourse -> handleOpenAddedCourse(event.course)
             PsychologistEvent.CloseSelectedAddedCourse -> _state.update { it.copy(selectedAddedCourse = null) }
             is PsychologistEvent.DeleteAddedCourse -> handleDeleteCourse(event.courseId)
             PsychologistEvent.CloseTextCourseViewer -> _state.update {
                 it.copy(showTextCourseViewer = false, selectedAddedCourse = null)
+            }
+            is PsychologistEvent.OpenTestStats -> handleOpenTestStats(event.testType)
+            PsychologistEvent.CloseTestStatsDialog -> _state.update {
+                it.copy(showTestStatsDialog = false, selectedTestStats = null)
             }
         }
     }
@@ -380,6 +389,21 @@ class PsychologistViewModel(
         }
     }
 
+    private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
+        if (course.courseUrl.isBlank()) {
+            emitEffect(PsychologistEffect.ShowSnackbar("Ссылка на курс недоступна"))
+            return
+        }
+
+        emitEffect(PsychologistEffect.OpenUrl(course.courseUrl))
+        viewModelScope.launch {
+            when (firestoreService.upsertBaseCourseProgress(uid, course)) {
+                is FirestoreResult.Failure -> emitEffect(PsychologistEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
+                else -> Unit
+            }
+        }
+    }
+
     private fun handleOpenAddedCourse(course: OrganizationCourse) {
         when (course.type) {
             CourseContentType.VIDEO -> {
@@ -391,6 +415,47 @@ class PsychologistViewModel(
             }
             CourseContentType.TEXT -> {
                 _state.update { it.copy(selectedAddedCourse = course, showTextCourseViewer = true) }
+            }
+        }
+    }
+
+    private fun handleOpenTestStats(testType: StudentTestType) {
+        val cached = _state.value.testStats.firstOrNull { it.testType == testType }
+        if (cached != null) {
+            _state.update { it.copy(selectedTestStats = cached, showTestStatsDialog = true) }
+            return
+        }
+
+        _state.update {
+            it.copy(
+                isLoadingTestStats = true,
+                selectedTestStats = OrganizationTestStats(
+                    testType = testType,
+                    testId = testType.testId,
+                    testName = studentTestDefinitionFor(testType).testName
+                )
+            )
+        }
+        viewModelScope.launch {
+            when (val result = firestoreService.getOrganizationTestStats(orgId)) {
+                is FirestoreResult.OrganizationTestStatsSuccess -> {
+                    val selected = result.stats.firstOrNull { it.testType == testType }
+                    _state.update {
+                        it.copy(
+                            testStats = result.stats,
+                            isLoadingTestStats = false,
+                            selectedTestStats = selected,
+                            showTestStatsDialog = true
+                        )
+                    }
+                }
+
+                is FirestoreResult.Failure -> {
+                    _state.update { it.copy(isLoadingTestStats = false) }
+                    emitEffect(PsychologistEffect.ShowSnackbar("Не удалось загрузить статистику теста"))
+                }
+
+                else -> _state.update { it.copy(isLoadingTestStats = false) }
             }
         }
     }

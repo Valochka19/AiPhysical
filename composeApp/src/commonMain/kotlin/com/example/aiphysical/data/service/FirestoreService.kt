@@ -11,6 +11,9 @@ sealed class FirestoreResult {
     data class TestHistorySuccess(val results: List<TestResult>) : FirestoreResult()
     data class CourseProgressSuccess(val progressList: List<CourseProgress>) : FirestoreResult()
     data class OrganizationCoursesSuccess(val courses: List<OrganizationCourse>) : FirestoreResult()
+    data class OrganizationTestStatsSuccess(val stats: List<OrganizationTestStats>) : FirestoreResult()
+    data class BaseCourseCompletionStatsSuccess(val stats: List<BaseCourseCompletionStats>) : FirestoreResult()
+    data class BaseCourseCompletionDetailsSuccess(val details: BaseCourseCompletionDetails) : FirestoreResult()
     data class PsychChatThreadsSuccess(val threads: List<PsychChatThread>) : FirestoreResult()
     data class PsychChatMessagesSuccess(val messages: List<PsychChatMessage>) : FirestoreResult()
     object GenericSuccess : FirestoreResult()
@@ -73,7 +76,7 @@ interface FirestoreService {
 
     /**
      * Возвращает холодный [Flow], который слушает коллекцию `users`
-     * с фильтром `orgId == [orgId]` через [addSnapshotListener].
+     * с фильтром `orgId == [orgId]` через snapshot listener Firestore.
      * Каждый раз, когда любой участник организации изменяется (добавление,
      * удаление, обновление поля), Flow эмитирует новый [FirestoreResult.MembersSuccess].
      *
@@ -114,6 +117,22 @@ interface FirestoreService {
     /** Delete an organization-level course by id */
     suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult
 
+    // ── Base platform courses progress ─────────────────────────────────────────
+
+    /** Marks a base platform course as completed for the current user and updates users/{uid}.courseProgressPercent. */
+    suspend fun upsertBaseCourseProgress(uid: String, course: BaseCourseCatalogItem): FirestoreResult
+
+    /** Organization-scoped aggregated completion counters for the five base platform courses. */
+    suspend fun getOrganizationBaseCourseCompletionStats(orgId: String): FirestoreResult
+
+    /** Organization-scoped member breakdown for a concrete base platform course. */
+    suspend fun getOrganizationBaseCourseCompletionDetails(orgId: String, courseId: String): FirestoreResult
+
+    // ── Organization-wide test statistics ──────────────────────────────────────
+
+    /** Aggregates test attempts only across students of the current organization. */
+    suspend fun getOrganizationTestStats(orgId: String): FirestoreResult
+
     // ── Student Test Results ───────────────────────────────────────────────────
     /**
      * Saves any student test attempt to `users/{uid}/testResults/{attemptId}`,
@@ -131,7 +150,7 @@ interface FirestoreService {
         score: Int,
         aiAssessment: String,
         feedbackText: String,
-        answers: List<com.example.aiphysical.data.model.BurnoutAnswer>
+        answers: List<BurnoutAnswer>
     ): FirestoreResult = saveStudentTestResult(
         uid = uid,
         submission = StudentTestSubmission(

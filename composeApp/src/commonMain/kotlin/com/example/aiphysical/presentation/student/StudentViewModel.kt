@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.example.aiphysical.data.model.AppCourseCatalog
+import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.StudentTestAnswer
@@ -79,6 +80,7 @@ class StudentViewModel(
 
             StudentEvent.OpenAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = true) }
             StudentEvent.CloseAddedCourses -> _state.update { it.copy(showAddedCoursesViewer = false) }
+            is StudentEvent.OpenBaseCourse -> handleOpenBaseCourse(event.course)
             is StudentEvent.OpenAddedCourse -> handleOpenAddedCourse(event.course)
             StudentEvent.CloseSelectedAddedCourse -> _state.update { it.copy(selectedAddedCourse = null) }
             is StudentEvent.OpenTextCourse -> _state.update {
@@ -483,6 +485,21 @@ class StudentViewModel(
                 else emit(StudentEffect.ShowSnackbar("Ссылка на видео недоступна"))
             }
             CourseContentType.TEXT -> _state.update { it.copy(selectedAddedCourse = course, showTextCourseViewer = true) }
+        }
+    }
+
+    private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
+        if (course.courseUrl.isBlank()) {
+            emit(StudentEffect.ShowSnackbar("Ссылка на курс недоступна"))
+            return
+        }
+
+        emit(StudentEffect.OpenUrl(course.courseUrl))
+        viewModelScope.launch {
+            when (val result = firestoreService.upsertBaseCourseProgress(uid, course)) {
+                is FirestoreResult.Failure -> emit(StudentEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
+                else -> loadData()
+            }
         }
     }
 

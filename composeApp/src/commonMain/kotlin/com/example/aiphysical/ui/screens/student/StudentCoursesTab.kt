@@ -24,6 +24,8 @@ import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.ui.components.OrganizationCourseCard
+import com.example.aiphysical.ui.components.PlatformCourseCard
 import com.example.aiphysical.ui.theme.*
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -64,13 +66,10 @@ fun StudentCoursesTab(
 
         AppCourseCatalog.baseCourses.forEach { item ->
             val progress = state.courseProgress.find { it.courseId == item.id }?.progress ?: 0f
-            CourseCatalogCard(
-                emoji       = item.emoji,
-                title       = item.title,
-                description = item.description,
-                duration    = item.durationLabel,
-                colorHex    = item.accentColorHex,
-                progress    = progress
+            PlatformCourseCard(
+                course = item,
+                progress = progress,
+                onClick = { vm.onEvent(StudentEvent.OpenBaseCourse(item)) }
             )
         }
 
@@ -297,73 +296,8 @@ private fun AddedCoursesSection(
             }
         } else {
             courses.forEach { course ->
-                AddedCourseCard(course = course, onClick = { onCourse(course) })
+                OrganizationCourseCard(course = course, onClick = { onCourse(course) })
             }
-        }
-    }
-}
-
-@Composable
-internal fun AddedCourseCard(
-    course: OrganizationCourse,
-    onClick: () -> Unit,
-    showDeleteButton: Boolean = false,
-    onDelete: (() -> Unit)? = null,
-) {
-    val typeColor = if (course.type == CourseContentType.VIDEO) Color(0xFFFF8C00) else PsychTeal
-    val typeLabel = if (course.type == CourseContentType.VIDEO) "Видео" else "Текстовый"
-    val typeEmoji = if (course.type == CourseContentType.VIDEO) "🎬" else "📝"
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(Brush.verticalGradient(listOf(Color.White.copy(0.08f), Color.White.copy(0.03f))))
-            .border(1.dp, Brush.verticalGradient(listOf(typeColor.copy(0.35f), typeColor.copy(0.08f))), RoundedCornerShape(14.dp))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            Modifier
-                .size(44.dp)
-                .background(typeColor.copy(0.18f), RoundedCornerShape(12.dp))
-                .border(1.dp, typeColor.copy(0.4f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) { Text(typeEmoji, fontSize = 20.sp) }
-
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(course.title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .background(typeColor.copy(0.15f), RoundedCornerShape(6.dp))
-                        .border(1.dp, typeColor.copy(0.35f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(typeLabel, color = typeColor, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                }
-                if (course.createdByName.isNotBlank()) {
-                    Text(course.createdByName, color = TextHint, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            if (course.description.isNotBlank()) {
-                Text(course.description, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-
-        if (showDeleteButton && onDelete != null) {
-            Box(
-                Modifier
-                    .size(32.dp)
-                    .background(PsychCritical.copy(0.15f), RoundedCornerShape(8.dp))
-                    .border(1.dp, PsychCritical.copy(0.4f), RoundedCornerShape(8.dp))
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDelete),
-                contentAlignment = Alignment.Center
-            ) { Text("🗑", fontSize = 14.sp) }
-        } else {
-            Text("›", color = typeColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

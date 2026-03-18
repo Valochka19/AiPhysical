@@ -1,6 +1,7 @@
 package com.example.aiphysical.presentation.student
 
 import com.example.aiphysical.data.model.AnswerType
+import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.auth.AppLanguage
 
@@ -16,6 +17,7 @@ sealed class StudentEvent {
     // ── Added courses ─────────────────────────────────────────────────────────
     object OpenAddedCourses : StudentEvent()
     object CloseAddedCourses : StudentEvent()
+    data class OpenBaseCourse(val course: BaseCourseCatalogItem) : StudentEvent()
     data class OpenAddedCourse(val course: OrganizationCourse) : StudentEvent()
     object CloseSelectedAddedCourse : StudentEvent()
     data class OpenTextCourse(val course: OrganizationCourse) : StudentEvent()

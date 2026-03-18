@@ -36,6 +36,7 @@ class DirectorDashboardViewModel(
         loadDashboard()
         loadAiInsight()
         observeAddedCourses()
+        refreshContentInsights()
     }
 
     fun onEvent(event: DirectorEvent) {
@@ -116,6 +117,15 @@ class DirectorDashboardViewModel(
             is DirectorEvent.SetAnalyticsFilter -> _state.update { it.copy(analyticsFilter = event.filter) }
 
             // ── Added courses ─────────────────────────────────────────────────
+            is DirectorEvent.OpenBaseCourse -> handleOpenBaseCourse(event.course)
+            is DirectorEvent.OpenBaseCourseCompletion -> handleOpenBaseCourseCompletion(event.courseId)
+            DirectorEvent.CloseBaseCourseCompletionDialog -> _state.update {
+                it.copy(showBaseCourseCompletionDialog = false, selectedBaseCourseCompletion = null)
+            }
+            is DirectorEvent.OpenTestStats -> handleOpenTestStats(event.testType)
+            DirectorEvent.CloseTestStatsDialog -> _state.update {
+                it.copy(showTestStatsDialog = false, selectedTestStats = null)
+            }
             is DirectorEvent.OpenAddedCourse -> handleOpenAddedCourse(event.course)
             DirectorEvent.CloseTextCourseViewer -> _state.update {
                 it.copy(showTextCourseViewer = false, selectedAddedCourse = null)
@@ -145,7 +155,7 @@ class DirectorDashboardViewModel(
         membersObserverJob?.cancel()
         membersObserverJob = viewModelScope.launch {
             firestoreService.observeOrganizationMembers(orgId)
-                .catch { e -> _state.update { it.copy(isLoading = false) } }
+                .catch { _state.update { it.copy(isLoading = false) } }
                 .collect { result ->
                     when (result) {
                         is FirestoreResult.MembersSuccess -> {
@@ -165,6 +175,7 @@ class DirectorDashboardViewModel(
                                     psychologists = psychologists
                                 )
                             }
+                            refreshContentInsights()
                         }
                         is FirestoreResult.Failure ->
                             _state.update { it.copy(isLoading = false) }
@@ -321,6 +332,108 @@ class DirectorDashboardViewModel(
                         else -> { /* ignore */ }
                     }
                 }
+        }
+    }
+
+    private fun refreshContentInsights() {
+        if (orgId.isBlank()) return
+        viewModelScope.launch {
+            when (val result = firestoreService.getOrganizationBaseCourseCompletionStats(orgId)) {
+                is FirestoreResult.BaseCourseCompletionStatsSuccess -> _state.update {
+                    it.copy(baseCourseCompletionStats = result.stats)
+                }
+                else -> Unit
+            }
+
+            when (val result = firestoreService.getOrganizationTestStats(orgId)) {
+                is FirestoreResult.OrganizationTestStatsSuccess -> _state.update {
+                    it.copy(testStats = result.stats)
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
+        if (course.courseUrl.isBlank()) {
+            emitEffect(DirectorEffect.ShowSnackbar("Ссылка на курс недоступна"))
+            return
+        }
+
+        emitEffect(DirectorEffect.OpenUrl(course.courseUrl))
+        viewModelScope.launch {
+            when (firestoreService.upsertBaseCourseProgress(uid, course)) {
+                is FirestoreResult.Failure -> emitEffect(DirectorEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
+                else -> Unit
+            }
+        }
+    }
+
+    private fun handleOpenBaseCourseCompletion(courseId: String) {
+        val courseName = AppCourseCatalog.baseCourseById(courseId)?.title.orEmpty()
+        _state.update {
+            it.copy(
+                isLoadingCourseCompletionDetails = true,
+                selectedBaseCourseCompletion = BaseCourseCompletionDetails(
+                    courseId = courseId,
+                    courseName = courseName
+                )
+            )
+        }
+        viewModelScope.launch {
+            when (val result = firestoreService.getOrganizationBaseCourseCompletionDetails(orgId, courseId)) {
+                is FirestoreResult.BaseCourseCompletionDetailsSuccess -> _state.update {
+                    it.copy(
+                        isLoadingCourseCompletionDetails = false,
+                        selectedBaseCourseCompletion = result.details,
+                        showBaseCourseCompletionDialog = true
+                    )
+                }
+                is FirestoreResult.Failure -> {
+                    _state.update { it.copy(isLoadingCourseCompletionDetails = false) }
+                    emitEffect(DirectorEffect.ShowSnackbar("Не удалось загрузить прохождение курса"))
+                }
+                else -> _state.update { it.copy(isLoadingCourseCompletionDetails = false) }
+            }
+        }
+    }
+
+    private fun handleOpenTestStats(testType: com.example.aiphysical.presentation.student.StudentTestType) {
+        val cached = _state.value.testStats.firstOrNull { it.testType == testType }
+        if (cached != null) {
+            _state.update { it.copy(selectedTestStats = cached, showTestStatsDialog = true) }
+            return
+        }
+
+        _state.update {
+            it.copy(
+                isLoadingTestStats = true,
+                selectedTestStats = OrganizationTestStats(
+                    testType = testType,
+                    testId = testType.testId,
+                    testName = studentTestDefinitionFor(testType).testName
+                )
+            )
+        }
+        viewModelScope.launch {
+            when (val result = firestoreService.getOrganizationTestStats(orgId)) {
+                is FirestoreResult.OrganizationTestStatsSuccess -> {
+                    val selected = result.stats.firstOrNull { it.testType == testType }
+                    _state.update {
+                        it.copy(
+                            testStats = result.stats,
+                            isLoadingTestStats = false,
+                            selectedTestStats = selected,
+                            showTestStatsDialog = true
+                        )
+                    }
+                }
+                is FirestoreResult.Failure -> {
+                    _state.update { it.copy(isLoadingTestStats = false) }
+                    emitEffect(DirectorEffect.ShowSnackbar("Не удалось загрузить статистику теста"))
+                }
+                else -> _state.update { it.copy(isLoadingTestStats = false) }
+            }
         }
     }
 

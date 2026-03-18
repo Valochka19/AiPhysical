@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,22 +22,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.AppCourseCatalog
+import com.example.aiphysical.data.model.AppStudentTestCatalog
+import com.example.aiphysical.data.model.OrganizationTestStats
+import com.example.aiphysical.data.model.assessmentLabel
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
+import com.example.aiphysical.ui.components.OrganizationCourseCard
+import com.example.aiphysical.ui.components.PlatformCourseCard
 import com.example.aiphysical.ui.theme.*
 
-// ── 5 Mandatory Tests ─────────────────────────────────────────────────────────
-
-private val MANDATORY_TESTS = listOf(
-    Triple("test_burnout",   "🔥", "Тест на выгорание (Маслах)"),
-    Triple("test_stress",    "⚡", "Шкала стресса PSS-10"),
-    Triple("test_anxiety",   "🌀", "Опросник тревожности GAD-7"),
-    Triple("test_emotion",   "💭", "Тест эмоционального истощения"),
-    Triple("test_balance",   "⚖️", "Баланс работа / жизнь"),
-)
 
 @Composable
 fun LibraryTab(
@@ -63,20 +60,29 @@ fun LibraryTab(
 
         // ── Tests Section ──────────────────────────────────────────────────────
         LibrarySection(title = "5 ОБЯЗАТЕЛЬНЫХ ТЕСТОВ", emoji = "📋") {
-            MANDATORY_TESTS.forEachIndexed { index, (_, emoji, name) ->
-                TestLibraryItem(index = index + 1, emoji = emoji, name = name, isLast = index == MANDATORY_TESTS.lastIndex)
+            AppStudentTestCatalog.items.forEachIndexed { index, item ->
+                val stats = state.testStats.firstOrNull { it.testType == item.type }
+                PsychologistTestLibraryCard(
+                    index = index + 1,
+                    emoji = item.emoji,
+                    name = item.title,
+                    description = item.description,
+                    stats = stats,
+                    isLoadingStats = state.isLoadingTestStats && state.selectedTestStats?.testType == item.type,
+                    onStatsClick = { vm.onEvent(PsychologistEvent.OpenTestStats(item.type)) },
+                    isLast = index == AppStudentTestCatalog.items.lastIndex
+                )
             }
         }
 
         // ── Base Courses Section (from shared catalog) ─────────────────────────
         LibrarySection(title = "5 БАЗОВЫХ КУРСОВ", emoji = "📚") {
-            AppCourseCatalog.baseCourses.forEachIndexed { index, item ->
+            AppCourseCatalog.baseCourses.forEach { item ->
                 val assignedCount = state.students.count { it.assignedCourseId == item.id }
-                CourseLibraryItem(
-                    emoji = item.emoji,
-                    name = item.title,
-                    assignedCount = assignedCount,
-                    isLast = index == AppCourseCatalog.baseCourses.lastIndex
+                PlatformCourseCard(
+                    course = item,
+                    badgeText = if (assignedCount > 0) "$assignedCount назн." else null,
+                    onClick = { vm.onEvent(PsychologistEvent.OpenBaseCourse(item)) }
                 )
             }
         }
@@ -121,8 +127,15 @@ fun LibraryTab(
     // ── Text course viewer ─────────────────────────────────────────────────────
     if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
         PsychTextCourseDialog(
-            course = state.selectedAddedCourse!!,
+            course = state.selectedAddedCourse,
             onDismiss = { vm.onEvent(PsychologistEvent.CloseTextCourseViewer) }
+        )
+    }
+
+    if (state.showTestStatsDialog && state.selectedTestStats != null) {
+        TestStatsDialog(
+            stats = state.selectedTestStats,
+            onDismiss = { vm.onEvent(PsychologistEvent.CloseTestStatsDialog) }
         )
     }
 }
@@ -296,59 +309,14 @@ private fun PsychAddedCoursesSection(
             }
         } else {
             courses.forEach { course ->
-                PsychCourseCard(
+                OrganizationCourseCard(
                     course = course,
                     onClick = { onCourse(course) },
+                    showDeleteButton = true,
                     onDelete = { onDelete(course.id) }
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun PsychCourseCard(course: OrganizationCourse, onClick: () -> Unit, onDelete: () -> Unit) {
-    val typeColor = if (course.type == CourseContentType.VIDEO) Color(0xFFFF8C00) else PsychTeal
-    val typeLabel = if (course.type == CourseContentType.VIDEO) "Видео" else "Текстовый"
-    val typeEmoji = if (course.type == CourseContentType.VIDEO) "🎬" else "📝"
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(PsychBackground)
-            .border(1.dp, MatteCardBorder, RoundedCornerShape(14.dp))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            Modifier.size(42.dp).background(typeColor.copy(0.15f), RoundedCornerShape(12.dp)).border(1.dp, typeColor.copy(0.35f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) { Text(typeEmoji, fontSize = 18.sp) }
-
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(course.title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.background(typeColor.copy(0.12f), RoundedCornerShape(6.dp)).border(1.dp, typeColor.copy(0.3f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
-                ) { Text(typeLabel, color = typeColor, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold) }
-                Text("Вы", color = TextHint, fontSize = 10.sp)
-            }
-            if (course.description.isNotBlank()) {
-                Text(course.description, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-
-        Box(
-            Modifier
-                .size(32.dp)
-                .background(PsychCritical.copy(0.12f), RoundedCornerShape(8.dp))
-                .border(1.dp, PsychCritical.copy(0.35f), RoundedCornerShape(8.dp))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDelete),
-            contentAlignment = Alignment.Center
-        ) { Text("🗑", fontSize = 13.sp) }
     }
 }
 
@@ -581,75 +549,103 @@ private fun PsychTextCourseDialog(course: OrganizationCourse, onDismiss: () -> U
 // ── Test Item ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun TestLibraryItem(index: Int, emoji: String, name: String, isLast: Boolean) {
-    val accentColors = listOf(MetricBurnout, MetricStress, MetricAnxiety, MetricEmotion, MetricMotivation)
+private fun PsychologistTestLibraryCard(
+    index: Int,
+    emoji: String,
+    name: String,
+    description: String,
+    stats: OrganizationTestStats?,
+    isLoadingStats: Boolean,
+    onStatsClick: () -> Unit,
+    isLast: Boolean,
+) {
+    val accentColors = listOf(MetricBurnout, MetricStress, MetricEmotion, MetricMotivation, MetricAnxiety)
     val color = accentColors.getOrElse(index - 1) { PsychTeal }
-    var expanded by remember { mutableStateOf(false) }
-    val descriptions = listOf(
-        "Оценивает три компонента выгорания: эмоциональное истощение, деперсонализацию и личностные достижения. 22 вопроса.",
-        "Шкала воспринимаемого стресса из 10 вопросов. Оценивает уровень стресса за последний месяц.",
-        "Опросник тревожного расстройства из 7 вопросов. Широко используется в клинической практике.",
-        "Оценивает степень эмоционального истощения и burnout через анализ чувств и реакций.",
-        "Анализирует баланс между профессиональной деятельностью и личной жизнью студента."
-    )
-    val desc = descriptions.getOrElse(index - 1) { "" }
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { expanded = !expanded }
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Number badge
-            Box(Modifier.size(34.dp).background(color.copy(0.15f), CircleShape).border(1.dp, color.copy(0.4f), CircleShape), contentAlignment = Alignment.Center) {
-                Text("$index", color = color, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            Text(emoji, fontSize = 16.sp)
-            Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Text(if (expanded) "▲" else "▼", color = TextHint, fontSize = 10.sp)
-        }
-        if (expanded) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 50.dp, bottom = 10.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(color.copy(0.07f))
-                    .border(1.dp, color.copy(0.2f), RoundedCornerShape(10.dp))
-                    .padding(12.dp)
-            ) { Text(desc, color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp) }
-        }
-        if (!isLast) HorizontalDivider(color = MatteCardBorder, modifier = Modifier.padding(start = 50.dp))
-    }
-}
-
-// ── Course Item ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun CourseLibraryItem(emoji: String, name: String, assignedCount: Int, isLast: Boolean) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(Modifier.size(34.dp).background(PsychTeal.copy(0.12f), CircleShape).border(1.dp, PsychTeal.copy(0.35f), CircleShape), contentAlignment = Alignment.Center) {
-                Text(emoji, fontSize = 16.sp)
+            Box(Modifier.size(34.dp).background(color.copy(0.15f), CircleShape).border(1.dp, color.copy(0.4f), CircleShape), contentAlignment = Alignment.Center) {
+                Text("$index", color = color, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
             }
-            Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            if (assignedCount > 0) {
-                Box(
-                    modifier = Modifier
-                        .background(PsychTeal.copy(0.15f), RoundedCornerShape(10.dp))
-                        .border(1.dp, PsychTeal.copy(0.35f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) { Text("$assignedCount назн.", color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+            Text(emoji, fontSize = 16.sp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(description, color = TextSecondary, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val statsText = stats?.let { "${it.totalAttempts} прохожд. · ${assessmentLabel(it.mostFrequentAssessment)}" } ?: "Нет данных по организации"
+                Text(statsText, color = TextHint, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            TextButton(
+                onClick = onStatsClick,
+                modifier = Modifier
+                    .background(color.copy(0.12f), RoundedCornerShape(10.dp))
+                    .border(1.dp, color.copy(0.35f), RoundedCornerShape(10.dp))
+            ) {
+                if (isLoadingStats) {
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), color = color, strokeWidth = 1.8.dp)
+                } else {
+                    Text("📊 Статистика", color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
         if (!isLast) HorizontalDivider(color = MatteCardBorder, modifier = Modifier.padding(start = 50.dp))
+    }
+}
+
+@Composable
+private fun TestStatsDialog(stats: OrganizationTestStats, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(PsychBackground.copy(0.88f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(MatteSurface)
+                    .border(1.dp, Brush.horizontalGradient(listOf(PsychTeal.copy(0.4f), MatteCardBorder)), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(Modifier.width(48.dp).height(4.dp).background(MatteCardBorder, RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
+                Text(stats.testName, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Статистика по студентам вашей организации", color = TextSecondary, fontSize = 13.sp)
+                HorizontalDivider(color = MatteCardBorder)
+                LibraryStatsRow(label = "Всего прохождений", value = stats.totalAttempts.toString(), color = PsychTeal)
+                LibraryStatsRow(label = "Чаще всего", value = assessmentLabel(stats.mostFrequentAssessment), color = NeonViolet)
+                if (stats.totalAttempts == 0) {
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PsychBackground).border(1.dp, MatteCardBorder, RoundedCornerShape(14.dp)).padding(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Пока нет прохождений этого теста в текущей организации", color = TextSecondary, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryStatsRow(label: String, value: String, color: Color) {
+    Column {
+        Text(label, color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(color.copy(0.12f)).border(1.dp, color.copy(0.35f), RoundedCornerShape(14.dp)).padding(14.dp)
+        ) {
+            Text(value, color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 

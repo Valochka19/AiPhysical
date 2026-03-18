@@ -30,6 +30,7 @@ data class BaseCourseCatalogItem(
     val durationLabel: String,
     val emoji: String,
     val accentColorHex: Long,
+    val courseUrl: String,
     val isAiRecommended: Boolean = false
 )
 
@@ -44,6 +45,7 @@ object AppCourseCatalog {
             durationLabel = "6 уроков",
             emoji = "🧘",
             accentColorHex = 0xFF00CED1,
+            courseUrl = "https://youtu.be/aysI7KtC41E",
             isAiRecommended = true
         ),
         BaseCourseCatalogItem(
@@ -53,6 +55,7 @@ object AppCourseCatalog {
             durationLabel = "6 уроков",
             emoji = "🛡️",
             accentColorHex = 0xFFFF5370,
+            courseUrl = "https://youtu.be/itqzMEq-TRk",
             isAiRecommended = true
         ),
         BaseCourseCatalogItem(
@@ -62,6 +65,7 @@ object AppCourseCatalog {
             durationLabel = "7 уроков",
             emoji = "💡",
             accentColorHex = 0xFFFF8C00,
+            courseUrl = "https://youtu.be/ParxvOOsjsk",
             isAiRecommended = true
         ),
         BaseCourseCatalogItem(
@@ -71,6 +75,7 @@ object AppCourseCatalog {
             durationLabel = "5 уроков",
             emoji = "🚀",
             accentColorHex = 0xFF4FD18A,
+            courseUrl = "https://youtu.be/JzGDsl0DpAY",
             isAiRecommended = false
         ),
         BaseCourseCatalogItem(
@@ -80,8 +85,21 @@ object AppCourseCatalog {
             durationLabel = "5 уроков",
             emoji = "🤝",
             accentColorHex = 0xFF9D5FF5,
+            courseUrl = "https://youtu.be/9w6YkGc2nDc",
             isAiRecommended = false
         )
     )
+
+    fun baseCourseById(courseId: String): BaseCourseCatalogItem? =
+        baseCourses.firstOrNull { it.id == courseId }
+
+    fun computeBaseCourseProgressPercent(progressByCourseId: Map<String, Float>): Float {
+        if (baseCourses.isEmpty()) return 0f
+        return (baseCourses
+            .map { progressByCourseId[it.id]?.coerceIn(0f, 1f) ?: 0f }
+            .average()
+            .toFloat() * 100f)
+            .coerceIn(0f, 100f)
+    }
 }
 

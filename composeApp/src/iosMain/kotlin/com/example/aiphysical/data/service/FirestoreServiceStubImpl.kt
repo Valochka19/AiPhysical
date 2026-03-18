@@ -65,6 +65,20 @@ class FirestoreServiceStubImpl : FirestoreService {
     override suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult =
         FirestoreResult.Failure(msg)
 
+    override suspend fun upsertBaseCourseProgress(uid: String, course: BaseCourseCatalogItem): FirestoreResult =
+        FirestoreResult.Failure(msg)
+
+    override suspend fun getOrganizationBaseCourseCompletionStats(orgId: String): FirestoreResult =
+        FirestoreResult.BaseCourseCompletionStatsSuccess(emptyList())
+
+    override suspend fun getOrganizationBaseCourseCompletionDetails(orgId: String, courseId: String): FirestoreResult =
+        FirestoreResult.BaseCourseCompletionDetailsSuccess(
+            BaseCourseCompletionDetails(courseId = courseId, courseName = "")
+        )
+
+    override suspend fun getOrganizationTestStats(orgId: String): FirestoreResult =
+        FirestoreResult.OrganizationTestStatsSuccess(emptyList())
+
     // ── Student Test Result stub ──────────────────────────────────────────────
 
     override suspend fun saveStudentTestResult(

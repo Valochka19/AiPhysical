@@ -1,6 +1,7 @@
 package com.example.aiphysical.presentation.psychologist
 
 import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationTestStats
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
@@ -70,6 +71,10 @@ data class PsychologistHomeState(
     val recentTestFeed: List<RecentTestFeedItem> = emptyList(),
     val showTestResultSheet: Boolean = false,
     val selectedTestFeedItem: RecentTestFeedItem? = null,
+    val testStats: List<OrganizationTestStats> = emptyList(),
+    val isLoadingTestStats: Boolean = false,
+    val selectedTestStats: OrganizationTestStats? = null,
+    val showTestStatsDialog: Boolean = false,
 
     // Feedback
     val snackbarMessage: String? = null,
