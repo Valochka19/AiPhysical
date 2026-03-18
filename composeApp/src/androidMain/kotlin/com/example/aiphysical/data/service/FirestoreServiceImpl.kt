@@ -160,6 +160,136 @@ class FirestoreServiceImpl : FirestoreService {
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка запроса Firestore") }
     }
 
+    override suspend fun getPsychChatContacts(orgId: String, currentUid: String, currentRole: String): FirestoreResult {
+        return try {
+            val allowedRoles = when (currentRole.normalizedPsychChatRole()) {
+                "psychologist" -> setOf("user", "teacher")
+                "user", "teacher" -> setOf("psychologist")
+                else -> emptySet()
+            }
+            if (allowedRoles.isEmpty()) return FirestoreResult.ChatContactsSuccess(emptyList())
+
+            val snap = db.collection("users")
+                .whereEqualTo("orgId", orgId)
+                .get()
+                .await()
+
+            val contacts = snap.documents
+                .map { it.toUserProfile() }
+                .filter { profile ->
+                    profile.uid != currentUid &&
+                        !profile.isBlocked &&
+                        profile.role.normalizedPsychChatRole() in allowedRoles
+                }
+                .sortedBy { it.fullName.lowercase() }
+
+            FirestoreResult.ChatContactsSuccess(contacts)
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки контактов чата")
+        }
+    }
+
+    override fun observePsychChatThreads(orgId: String, currentUid: String): Flow<FirestoreResult> = callbackFlow {
+        val listenerRegistration = db.collection("psychChats")
+            .whereArrayContains("participantIds", currentUid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(FirestoreResult.Failure(error.localizedMessage ?: "Ошибка слушателя чатов"))
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val threads = snapshot.documents
+                        .map { it.toPsychChatThread() }
+                        .filter { it.orgId == orgId }
+                        .sortedByDescending { it.updatedAt }
+                    trySend(FirestoreResult.PsychChatThreadsSuccess(threads))
+                }
+            }
+
+        awaitClose { listenerRegistration.remove() }
+    }
+
+    override fun observePsychChatMessages(chatId: String): Flow<FirestoreResult> = callbackFlow {
+        val listenerRegistration = db.collection("psychChats")
+            .document(chatId)
+            .collection("messages")
+            .orderBy("createdAt")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(FirestoreResult.Failure(error.localizedMessage ?: "Ошибка слушателя сообщений"))
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val messages = snapshot.documents
+                        .map { it.toPsychChatMessage() }
+                        .sortedBy { it.createdAt }
+                    trySend(FirestoreResult.PsychChatMessagesSuccess(messages))
+                }
+            }
+
+        awaitClose { listenerRegistration.remove() }
+    }
+
+    override suspend fun sendPsychChatMessage(
+        orgId: String,
+        senderId: String,
+        senderRole: String,
+        recipientId: String,
+        recipientRole: String,
+        text: String
+    ): FirestoreResult {
+        return try {
+            if (!isAllowedPsychChatPair(senderRole, recipientRole)) {
+                return FirestoreResult.Failure("Недопустимая пара ролей для личного чата")
+            }
+
+            val safeText = text.trimmedSupportMessage()
+            if (safeText.isBlank()) {
+                return FirestoreResult.Failure("Нельзя отправить пустое сообщение")
+            }
+
+            val chatId = buildPsychChatId(orgId, senderId, recipientId)
+            val participants = listOf(
+                senderId.normalizedPsychChatRoleAwarePair(senderRole),
+                recipientId.normalizedPsychChatRoleAwarePair(recipientRole)
+            ).sortedBy { it.first }
+            val now = System.currentTimeMillis()
+            val chatRef = db.collection("psychChats").document(chatId)
+            val messageRef = chatRef.collection("messages").document()
+            val batch = db.batch()
+
+            batch.set(
+                chatRef,
+                mapOf(
+                    "chatId" to chatId,
+                    "orgId" to orgId,
+                    "participantIds" to participants.map { it.first },
+                    "participantRoles" to participants.map { it.second },
+                    "lastMessageText" to safeText,
+                    "lastMessageAt" to now,
+                    "createdAt" to now,
+                    "updatedAt" to now,
+                ),
+                SetOptions.merge()
+            )
+            batch.set(
+                messageRef,
+                mapOf(
+                    "messageId" to messageRef.id,
+                    "chatId" to chatId,
+                    "senderId" to senderId,
+                    "senderRole" to senderRole.normalizedPsychChatRole(),
+                    "text" to safeText,
+                    "createdAt" to now,
+                )
+            )
+            batch.commit().await()
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка отправки сообщения")
+        }
+    }
+
     override suspend fun updateUserRole(uid: String, newRole: String): FirestoreResult {
         return try {
             db.collection("users").document(uid).update("role", newRole).await()
@@ -363,4 +493,27 @@ class FirestoreServiceImpl : FirestoreService {
         updatedAt     = getLong("updatedAt") ?: 0L,
         isPublished   = getBoolean("isPublished") ?: true
     )
+
+    private fun DocumentSnapshot.toPsychChatThread() = PsychChatThread(
+        chatId = getString("chatId") ?: this.id,
+        orgId = getString("orgId") ?: "",
+        participantIds = (get("participantIds") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+        participantRoles = (get("participantRoles") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+        lastMessageText = getString("lastMessageText") ?: "",
+        lastMessageAt = getLong("lastMessageAt") ?: 0L,
+        createdAt = getLong("createdAt") ?: 0L,
+        updatedAt = getLong("updatedAt") ?: 0L,
+    )
+
+    private fun DocumentSnapshot.toPsychChatMessage() = PsychChatMessage(
+        messageId = getString("messageId") ?: this.id,
+        chatId = getString("chatId") ?: "",
+        senderId = getString("senderId") ?: "",
+        senderRole = getString("senderRole") ?: "",
+        text = getString("text") ?: "",
+        createdAt = getLong("createdAt") ?: 0L,
+    )
+
+    private fun String.normalizedPsychChatRoleAwarePair(role: String): Pair<String, String> =
+        this to role.normalizedPsychChatRole()
 }

@@ -27,8 +27,9 @@ object AppAiKnowledge {
     private const val APP_FLOW = """
 Общая карта приложения:
 - Вход: Login, выбор роли, регистрация.
-- Роли: директор, психолог, студент.
+ - Роли: директор, психолог, студент, преподаватель.
 - Студент: Главная, Помощь, Курсы, Профиль, AI-чат.
+ - Преподаватель: Главная, Помощь, Курсы, Профиль.
 - Психолог: Студенты, Аналитика, Помощь, Библиотека.
 - Директор: Главная, Аналитика, Управление, Контент.
 """
@@ -41,6 +42,15 @@ object AppAiKnowledge {
 - Профиль: данные пользователя и язык.
 - AI-чат: помощник по навигации, тестам, курсам, прогрессу и возможностям приложения.
 - Тесты студента: выгорание, стресс, состояние, мотивация, тревожность.
+"""
+
+    private const val TEACHER_SLICE = """
+Роль преподаватель:
+- Главная: teacher badge, полезные материалы, блок будущих teacher-тестов.
+- Помощь: связь с психологом организации и быстрые каналы поддержки.
+- Курсы: организационные курсы и материалы для восстановления ресурса.
+- Профиль: данные аккаунта и язык.
+- Тесты преподавателя пока не внедрены: при нажатии показывается заглушка о скором запуске.
 """
 
     private const val PSYCHOLOGIST_SLICE = """
@@ -98,6 +108,7 @@ object AppAiKnowledge {
     private const val ROLE_REFERENCE_SHORT = """
 Роли для справки:
 - студент: Главная, Помощь, Курсы, Профиль.
+ - преподаватель: Главная, Помощь, Курсы, Профиль.
 - психолог: Студенты, Аналитика, Помощь, Библиотека.
 - директор: Главная, Аналитика, Управление, Контент.
 """
@@ -170,6 +181,7 @@ object AppAiKnowledge {
 
     fun buildRolesSlice(): String = listOf(
         ROLE_REFERENCE_SHORT.trim(),
+        TEACHER_SLICE.trim(),
         PSYCHOLOGIST_SLICE.trim(),
         DIRECTOR_SLICE.trim(),
         RESPONSE_STYLE_GENERAL.trim()
@@ -183,12 +195,13 @@ object AppAiKnowledge {
 
     fun buildGeneralSlice(): String = listOf(
         STUDENT_SLICE.trim(),
+        TEACHER_SLICE.trim(),
         ROLE_REFERENCE_SHORT.trim(),
         RESPONSE_STYLE_GENERAL.trim()
     ).joinToString("\n\n")
 
 
-    fun buildFullRoleReference(): String = listOf(STUDENT_SLICE.trim(), PSYCHOLOGIST_SLICE.trim(), DIRECTOR_SLICE.trim())
+    fun buildFullRoleReference(): String = listOf(STUDENT_SLICE.trim(), TEACHER_SLICE.trim(), PSYCHOLOGIST_SLICE.trim(), DIRECTOR_SLICE.trim())
         .joinToString("\n")
 }
 

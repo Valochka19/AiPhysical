@@ -22,6 +22,10 @@ class AuthViewModel(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    init {
+        restoreSession()
+    }
+
     fun onEvent(event: AuthEvent) {
         when (event) {
             is AuthEvent.Login -> handleLogin(event)
@@ -32,11 +36,50 @@ class AuthViewModel(
             AuthEvent.NavigateToRoleSelection -> _uiState.update { it.copy(currentScreen = AuthScreen.RoleSelection, errorMessage = null) }
             AuthEvent.NavigateToLogin -> _uiState.update { it.copy(currentScreen = AuthScreen.Login, errorMessage = null) }
             AuthEvent.DismissError -> _uiState.update { it.copy(errorMessage = null) }
-            AuthEvent.Logout -> {
-                viewModelScope.launch { authService.signOut() }
-                _uiState.update { AuthUiState(currentLanguage = it.currentLanguage) }
-            }
+            AuthEvent.Logout -> handleLogout()
             is AuthEvent.ChangeLanguage -> _uiState.update { it.copy(currentLanguage = event.language) }
+        }
+    }
+
+    private fun restoreSession() {
+        val currentUid = authService.getCurrentUserId()
+        if (currentUid.isNullOrBlank()) {
+            _uiState.update { it.copy(isRestoringSession = false, isLoading = false, isLoggedIn = false) }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null, isRestoringSession = true) }
+        viewModelScope.launch {
+            when (val profileResult = firestoreService.getUserProfile(currentUid)) {
+                is FirestoreResult.UserProfileSuccess -> {
+                    val nextScreen = routeByRole(currentUid, profileResult.profile)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            currentScreen = nextScreen,
+                            isLoggedIn = true,
+                            isRestoringSession = false,
+                            errorMessage = null
+                        )
+                    }
+                }
+
+                FirestoreResult.NotFound -> {
+                    authService.signOut()
+                    resetToLoggedOutState(_uiState.value.currentLanguage)
+                }
+
+                is FirestoreResult.Failure -> {
+                    resetToLoggedOutState(
+                        language = _uiState.value.currentLanguage,
+                        errorMessage = profileResult.message
+                    )
+                }
+
+                else -> {
+                    resetToLoggedOutState(_uiState.value.currentLanguage)
+                }
+            }
         }
     }
 
@@ -56,17 +99,17 @@ class AuthViewModel(
                         is FirestoreResult.UserProfileSuccess -> routeByRole(uid, profileResult.profile)
                         else -> AuthScreen.GenericHome(uid = uid, role = "unknown")
                     }
-                    _uiState.update { it.copy(isLoading = false, currentScreen = nextScreen, isLoggedIn = true) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            currentScreen = nextScreen,
+                            isLoggedIn = true,
+                            isRestoringSession = false
+                        )
+                    }
                 }
             }
         }
-    }
-
-    private fun routeByRole(uid: String, profile: UserProfile): AuthScreen = when (profile.role) {
-        "director"     -> AuthScreen.DirectorDashboard(uid = uid, orgId = profile.orgId)
-        "psychologist" -> AuthScreen.PsychologistDashboard(uid = uid, orgId = profile.orgId, fullName = profile.fullName)
-        "user"         -> AuthScreen.StudentDashboard(uid = uid, orgId = profile.orgId)
-        else           -> AuthScreen.GenericHome(uid = uid, role = profile.role)
     }
 
     // ─── Director registration ────────────────────────────────────────────────
@@ -94,7 +137,14 @@ class AuthViewModel(
                             when (val pRes = firestoreService.createUserProfile(profile)) {
                                 is FirestoreResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = pRes.message) }
                                 // 🔑 Navigate directly to DirectorDashboard — no back to registration
-                                else -> _uiState.update { it.copy(isLoading = false, currentScreen = AuthScreen.DirectorDashboard(uid = uid, orgId = orgId), isLoggedIn = true) }
+                                else -> _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        currentScreen = AuthScreen.DirectorDashboard(uid = uid, orgId = orgId),
+                                        isLoggedIn = true,
+                                        isRestoringSession = false
+                                    )
+                                }
                             }
                         }
                     }
@@ -171,7 +221,8 @@ class AuthViewModel(
                                             orgId = organizationId,
                                             fullName = event.fullName
                                         ),
-                                        isLoggedIn = true
+                                        isLoggedIn = true,
+                                        isRestoringSession = false
                                     )
                                 }
                             }
@@ -199,17 +250,23 @@ class AuthViewModel(
                     when (val authResult = authService.signUp(event.email, event.password)) {
                         is AuthResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = authResult.message) }
                         is AuthResult.Success -> {
-                            val profile = UserProfile(uid = authResult.uid, fullName = event.fullName, email = event.email, role = "user", orgId = orgRes.org.id, ageGroup = event.ageGroup.name)
+                            val persistedRole = event.ageGroup.persistedRole()
+                            val profile = UserProfile(
+                                uid = authResult.uid,
+                                fullName = event.fullName,
+                                email = event.email,
+                                role = persistedRole,
+                                orgId = orgRes.org.id,
+                                ageGroup = event.ageGroup.persistedAgeGroup()
+                            )
                             when (val pRes = firestoreService.createUserProfile(profile)) {
                                 is FirestoreResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = pRes.message) }
                                 else -> _uiState.update {
                                         it.copy(
                                             isLoading = false,
-                                            currentScreen = AuthScreen.StudentDashboard(
-                                                uid = authResult.uid,
-                                                orgId = orgRes.org.id
-                                            ),
-                                            isLoggedIn = true
+                                            currentScreen = routeByRole(authResult.uid, profile),
+                                            isLoggedIn = true,
+                                            isRestoringSession = false
                                         )
                                     }
                             }
@@ -222,6 +279,26 @@ class AuthViewModel(
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private fun handleLogout() {
+        val language = _uiState.value.currentLanguage
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            authService.signOut()
+            resetToLoggedOutState(language)
+        }
+    }
+
+    private fun resetToLoggedOutState(language: AppLanguage, errorMessage: String? = null) {
+        _uiState.value = AuthUiState(
+            currentScreen = AuthScreen.Login,
+            isLoading = false,
+            errorMessage = errorMessage,
+            currentLanguage = language,
+            isLoggedIn = false,
+            isRestoringSession = false
+        )
+    }
 
     private fun showError(msg: String) = _uiState.update { it.copy(errorMessage = msg) }
 

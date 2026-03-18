@@ -10,7 +10,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,6 +47,7 @@ fun DirectorDashboardScreen(
     onLogout: () -> Unit,
 ) {
     val vm: DirectorDashboardViewModel = viewModel(
+        key = "director:$uid:$orgId",
         factory = DirectorDashboardViewModel.factory(orgId, uid, createFirestoreService())
     )
     val state by vm.state.collectAsStateWithLifecycle()
@@ -274,6 +274,7 @@ fun statusLabel(status: String, strings: Strings, role: String = ""): String = w
     "critical" -> strings.statusCritical
     else       -> when (role) {
         "user"         -> strings.roleStudentShort
+        "teacher"      -> strings.roleTeacherShort
         "psychologist" -> strings.rolePsychShort
         "director"     -> strings.roleDirectorShort
         else           -> strings.statusUnknown

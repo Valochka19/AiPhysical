@@ -302,6 +302,7 @@ private fun PsychExpandableMemberCard(
         "critical" -> strings.statusCritical
         else -> when (member.role) {
             "user"         -> strings.roleStudentShort
+            "teacher"      -> strings.roleTeacherShort
             "psychologist" -> strings.rolePsychShort
             "director"     -> strings.roleDirectorShort
             else           -> strings.statusUnknown
@@ -620,6 +621,7 @@ private fun StudentIdentityCard(student: UserProfile, strings: com.example.aiphy
         "normal"   -> strings.statusNormal
         else -> when (student.role) {
             "user"         -> strings.roleStudentShort
+            "teacher"      -> strings.roleTeacherShort
             "psychologist" -> strings.rolePsychShort
             "director"     -> strings.roleDirectorShort
             else           -> strings.statusUnknown
