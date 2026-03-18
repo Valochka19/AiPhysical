@@ -185,6 +185,7 @@ private fun questionMascotAssetVariant(
     testType == StudentTestType.STRESS && questionId == 1 -> MascotAssetVariant.RACCOON_ENERGETIC
     testType == StudentTestType.EMOTION && questionId == 3 -> MascotAssetVariant.RACCOON_ENERGETIC
     testType == StudentTestType.MOTIVATION && questionId == 1 -> MascotAssetVariant.RACCOON_ENERGETIC
+    testType == StudentTestType.MOTIVATION && questionId == 7 -> MascotAssetVariant.RACCOON_ENERGETIC
     testType == StudentTestType.ANXIETY && questionId == 3 -> MascotAssetVariant.RACCOON_ENERGETIC
     else -> MascotAssetVariant.NONE
 }

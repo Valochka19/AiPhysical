@@ -29,11 +29,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import aiphysical.composeapp.generated.resources.Res
 import aiphysical.composeapp.generated.resources.enegretic_enot
-import aiphysical.composeapp.generated.resources.enot_happy
 import aiphysical.composeapp.generated.resources.joy_enot
 import aiphysical.composeapp.generated.resources.many_enot
+import aiphysical.composeapp.generated.resources.not_understand_enot
 import aiphysical.composeapp.generated.resources.peace_enot
 import aiphysical.composeapp.generated.resources.proud_enot
+import aiphysical.composeapp.generated.resources.rejoice_enot
 import aiphysical.composeapp.generated.resources.sad_enot
 import aiphysical.composeapp.generated.resources.surprised_enot
 import aiphysical.composeapp.generated.resources.uneasy_enot
@@ -61,7 +62,8 @@ enum class MascotAssetVariant {
     RACCOON_PROUD,
     RACCOON_SURPRISED,
     RACCOON_MANY,
-    RACCOON_WAIT
+    RACCOON_WAIT,
+    RACCOON_NOT_UNDERSTAND
 }
 
 @Composable
@@ -73,6 +75,8 @@ fun MascotComponent(
 ) {
     val resolvedAssetVariant = when {
         assetVariant != MascotAssetVariant.NONE -> assetVariant
+        catState == CatState.HAPPY -> MascotAssetVariant.RACCOON_HAPPY
+        catState == CatState.IN_BOX -> MascotAssetVariant.RACCOON_NOT_UNDERSTAND
         catState == CatState.IDLE -> MascotAssetVariant.RACCOON_WAIT
         catState == CatState.OVERWHELMED -> MascotAssetVariant.RACCOON_MANY
         catState == CatState.STRESS -> MascotAssetVariant.RACCOON_SURPRISED
@@ -130,7 +134,7 @@ fun MascotComponent(
                 MascotAssetVariant.RACCOON_HAPPY -> RaccoonAssetView(
                     catState = state,
                     size = size,
-                    painter = painterResource(Res.drawable.enot_happy),
+                    painter = painterResource(Res.drawable.rejoice_enot),
                     contentDescription = "Енот"
                 )
                 MascotAssetVariant.RACCOON_ENERGETIC -> RaccoonAssetView(
@@ -186,6 +190,12 @@ fun MascotComponent(
                     size = size,
                     painter = painterResource(Res.drawable.wait_enot),
                     contentDescription = "Ждущий енот"
+                )
+                MascotAssetVariant.RACCOON_NOT_UNDERSTAND -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.not_understand_enot),
+                    contentDescription = "Растерянный енот"
                 )
             }
         }
