@@ -97,6 +97,7 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
     val currentIndex = testState.currentQuestionIndex
     val question = definition.questions.getOrNull(currentIndex)
     val total = definition.questions.size
+    val questionScrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
@@ -104,71 +105,77 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp)
-            .padding(top = 16.dp, bottom = 24.dp),
+            .padding(top = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(questionScrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    definition.testName,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Text(
-                    "${currentIndex + 1} / $total",
-                    color = Color.White.copy(0.6f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color.White.copy(0.07f))
-                    .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(10.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { vm.onEvent(StudentEvent.CloseActiveTest) }
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("✕ Закрыть", color = Color.White.copy(0.55f), fontSize = 12.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        definition.testName,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        "${currentIndex + 1} / $total",
+                        color = Color.White.copy(0.6f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(0.07f))
+                        .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(10.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { vm.onEvent(StudentEvent.CloseActiveTest) }
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                ) {
+                    Text("✕ Закрыть", color = Color.White.copy(0.55f), fontSize = 12.sp)
+                }
+            }
+
+            StudentTestProgressBar(current = currentIndex, total = total)
+
+            val mascotAssetVariant = question?.let {
+                questionMascotAssetVariant(definition.type, it.id)
+            } ?: MascotAssetVariant.NONE
+
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                MascotComponent(
+                    catState = question?.catEmotion ?: CatState.IDLE,
+                    size = 104.dp,
+                    assetVariant = mascotAssetVariant
+                )
+            }
+
+            AnimatedContent(
+                targetState = question,
+                transitionSpec = {
+                    (slideInHorizontally(tween(300)) { it / 3 } + fadeIn(tween(250))) togetherWith
+                        (slideOutHorizontally(tween(200)) { -it / 3 } + fadeOut(tween(180)))
+                },
+                label = "student_question_card"
+            ) { q ->
+                QuestionCard(text = q?.text ?: "")
             }
         }
-
-        StudentTestProgressBar(current = currentIndex, total = total)
-
-        val mascotAssetVariant = question?.let {
-            questionMascotAssetVariant(definition.type, it.id)
-        } ?: MascotAssetVariant.NONE
-
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            MascotComponent(
-                catState = question?.catEmotion ?: CatState.IDLE,
-                size = 104.dp,
-                assetVariant = mascotAssetVariant
-            )
-        }
-
-        AnimatedContent(
-            targetState = question,
-            transitionSpec = {
-                (slideInHorizontally(tween(300)) { it / 3 } + fadeIn(tween(250))) togetherWith
-                    (slideOutHorizontally(tween(200)) { -it / 3 } + fadeOut(tween(180)))
-            },
-            label = "student_question_card"
-        ) { q ->
-            QuestionCard(text = q?.text ?: "")
-        }
-
-        Spacer(Modifier.weight(1f))
 
         AnswerButtonsColumn(
+            modifier = Modifier.padding(bottom = 8.dp),
             isAnswering = testState.isAnswering,
             onAnswer = { vm.onEvent(StudentEvent.AnswerCurrentTestQuestion(it)) }
         )
@@ -244,10 +251,14 @@ private fun QuestionCard(text: String) {
 
 @Composable
 private fun AnswerButtonsColumn(
+    modifier: Modifier = Modifier,
     isAnswering: Boolean,
     onAnswer: (AnswerType) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
         AnswerType.entries.forEach { answerType ->
             val borderColor = answerTypeBorderColor(answerType)
             Box(
@@ -316,7 +327,7 @@ private fun LoadingResultContent(testName: String) {
         }
         Spacer(Modifier.height(28.dp))
         Text(
-            "Кот думает...",
+            "Анализ данных..",
             color = PsychTeal,
             fontSize = 21.sp,
             fontWeight = FontWeight.Bold,

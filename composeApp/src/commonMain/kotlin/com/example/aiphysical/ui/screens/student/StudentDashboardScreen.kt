@@ -89,6 +89,7 @@ fun StudentDashboardScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
+    val activeTestState = state.activeTestState
 
     // Collect side-effects
     LaunchedEffect(Unit) {
@@ -137,7 +138,7 @@ fun StudentDashboardScreen(
                 }
             },
             bottomBar = {
-                if (!state.showAiChat) {
+                if (!state.showAiChat && activeTestState == null) {
                     StudentBottomNavBar(
                         selectedTab = state.selectedTab,
                         strings = getStrings(state.currentLanguage),
@@ -216,7 +217,6 @@ fun StudentDashboardScreen(
                 }
 
                 // ── Student Test full-screen overlay ──────────────────────────────
-                val activeTestState = state.activeTestState
                 if (activeTestState != null) {
                     StudentTestScreen(
                         testState = activeTestState,
