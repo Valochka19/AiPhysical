@@ -143,8 +143,16 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
 
         StudentTestProgressBar(current = currentIndex, total = total)
 
+        val mascotAssetVariant = question?.let {
+            questionMascotAssetVariant(definition.type, it.id)
+        } ?: MascotAssetVariant.NONE
+
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            MascotComponent(catState = question?.catEmotion ?: CatState.IDLE, size = 104.dp)
+            MascotComponent(
+                catState = question?.catEmotion ?: CatState.IDLE,
+                size = 104.dp,
+                assetVariant = mascotAssetVariant
+            )
         }
 
         AnimatedContent(
@@ -165,6 +173,20 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
             onAnswer = { vm.onEvent(StudentEvent.AnswerCurrentTestQuestion(it)) }
         )
     }
+}
+
+private fun questionMascotAssetVariant(
+    testType: StudentTestType,
+    questionId: Int,
+): MascotAssetVariant = when {
+    testType == StudentTestType.BURNOUT && questionId == 1 -> MascotAssetVariant.RACCOON_HAPPY
+    testType == StudentTestType.EMOTION && questionId == 1 -> MascotAssetVariant.RACCOON_HAPPY
+    testType == StudentTestType.BURNOUT && questionId == 5 -> MascotAssetVariant.RACCOON_ENERGETIC
+    testType == StudentTestType.STRESS && questionId == 1 -> MascotAssetVariant.RACCOON_ENERGETIC
+    testType == StudentTestType.EMOTION && questionId == 3 -> MascotAssetVariant.RACCOON_ENERGETIC
+    testType == StudentTestType.MOTIVATION && questionId == 1 -> MascotAssetVariant.RACCOON_ENERGETIC
+    testType == StudentTestType.ANXIETY && questionId == 3 -> MascotAssetVariant.RACCOON_ENERGETIC
+    else -> MascotAssetVariant.NONE
 }
 
 @Composable

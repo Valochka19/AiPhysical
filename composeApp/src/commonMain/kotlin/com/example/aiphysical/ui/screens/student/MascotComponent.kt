@@ -9,6 +9,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,14 +21,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import aiphysical.composeapp.generated.resources.Res
+import aiphysical.composeapp.generated.resources.enegretic_enot
+import aiphysical.composeapp.generated.resources.enot_happy
+import aiphysical.composeapp.generated.resources.joy_enot
+import aiphysical.composeapp.generated.resources.many_enot
+import aiphysical.composeapp.generated.resources.peace_enot
+import aiphysical.composeapp.generated.resources.proud_enot
+import aiphysical.composeapp.generated.resources.sad_enot
+import aiphysical.composeapp.generated.resources.surprised_enot
+import aiphysical.composeapp.generated.resources.uneasy_enot
+import aiphysical.composeapp.generated.resources.wait_enot
 import com.example.aiphysical.data.model.CatState
 import com.example.aiphysical.ui.theme.PsychTeal
 import com.example.aiphysical.ui.theme.PsychWarning
+import org.jetbrains.compose.resources.painterResource
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  MascotComponent — compile-safe animated cat placeholder
@@ -36,12 +50,40 @@ import com.example.aiphysical.ui.theme.PsychWarning
 //    and keep the outer wrapper unchanged.
 // ══════════════════════════════════════════════════════════════════════════════
 
+enum class MascotAssetVariant {
+    NONE,
+    RACCOON_HAPPY,
+    RACCOON_ENERGETIC,
+    RACCOON_UNEASY,
+    RACCOON_SAD,
+    RACCOON_JOY,
+    RACCOON_PEACE,
+    RACCOON_PROUD,
+    RACCOON_SURPRISED,
+    RACCOON_MANY,
+    RACCOON_WAIT
+}
+
 @Composable
 fun MascotComponent(
     catState: CatState,
     modifier: Modifier = Modifier,
     size: Dp = 100.dp,
+    assetVariant: MascotAssetVariant = MascotAssetVariant.NONE,
 ) {
+    val resolvedAssetVariant = when {
+        assetVariant != MascotAssetVariant.NONE -> assetVariant
+        catState == CatState.IDLE -> MascotAssetVariant.RACCOON_WAIT
+        catState == CatState.OVERWHELMED -> MascotAssetVariant.RACCOON_MANY
+        catState == CatState.STRESS -> MascotAssetVariant.RACCOON_SURPRISED
+        catState == CatState.PROUD -> MascotAssetVariant.RACCOON_PROUD
+        catState == CatState.PEACEFUL -> MascotAssetVariant.RACCOON_PEACE
+        catState == CatState.LAUGHING -> MascotAssetVariant.RACCOON_JOY
+        catState == CatState.TIRED -> MascotAssetVariant.RACCOON_SAD
+        catState == CatState.NERVOUS -> MascotAssetVariant.RACCOON_UNEASY
+        else -> MascotAssetVariant.NONE
+    }
+
     // Gentle breathing animation for the container
     val infiniteTransition = rememberInfiniteTransition(label = "mascot_idle")
     val breathScale by infiniteTransition.animateFloat(
@@ -74,7 +116,7 @@ fun MascotComponent(
 
         // AnimatedContent — transitions between cat emotions
         AnimatedContent(
-            targetState = catState,
+            targetState = resolvedAssetVariant to catState,
             transitionSpec = {
                 (scaleIn(initialScale = 0.7f, animationSpec = tween(280)) +
                  fadeIn(tween(200))) togetherWith
@@ -82,8 +124,70 @@ fun MascotComponent(
                  fadeOut(tween(150)))
             },
             label = "cat_emotion"
-        ) { state ->
-            CatEmojiView(catState = state, size = size)
+        ) { (variant, state) ->
+            when (variant) {
+                MascotAssetVariant.NONE -> CatEmojiView(catState = state, size = size)
+                MascotAssetVariant.RACCOON_HAPPY -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.enot_happy),
+                    contentDescription = "Енот"
+                )
+                MascotAssetVariant.RACCOON_ENERGETIC -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.enegretic_enot),
+                    contentDescription = "Энергичный енот"
+                )
+                MascotAssetVariant.RACCOON_UNEASY -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.uneasy_enot),
+                    contentDescription = "Тревожный енот"
+                )
+                MascotAssetVariant.RACCOON_SAD -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.sad_enot),
+                    contentDescription = "Грустный енот"
+                )
+                MascotAssetVariant.RACCOON_JOY -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.joy_enot),
+                    contentDescription = "Весёлый енот"
+                )
+                MascotAssetVariant.RACCOON_PEACE -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.peace_enot),
+                    contentDescription = "Спокойный енот"
+                )
+                MascotAssetVariant.RACCOON_PROUD -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.proud_enot),
+                    contentDescription = "Гордый енот"
+                )
+                MascotAssetVariant.RACCOON_SURPRISED -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.surprised_enot),
+                    contentDescription = "Удивлённый енот"
+                )
+                MascotAssetVariant.RACCOON_MANY -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.many_enot),
+                    contentDescription = "Перегруженный енот"
+                )
+                MascotAssetVariant.RACCOON_WAIT -> RaccoonAssetView(
+                    catState = state,
+                    size = size,
+                    painter = painterResource(Res.drawable.wait_enot),
+                    contentDescription = "Ждущий енот"
+                )
+            }
         }
     }
 }
@@ -119,6 +223,34 @@ private fun CatEmojiView(catState: CatState, size: Dp) {
             fontWeight = FontWeight.SemiBold,
             textAlign  = TextAlign.Center,
             maxLines   = 1
+        )
+    }
+}
+
+@Composable
+private fun RaccoonAssetView(
+    catState: CatState,
+    size: Dp,
+    painter: androidx.compose.ui.graphics.painter.Painter,
+    contentDescription: String,
+) {
+    val borderColor = catStateGlowColor(catState)
+    val bgColor = catStateBgColor(catState)
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(size / 4))
+            .background(bgColor)
+            .border(1.5.dp, borderColor.copy(0.55f), RoundedCornerShape(size / 4))
+            .padding((size * 0.04f).coerceAtLeast(4.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painter,
+            contentDescription = contentDescription,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
         )
     }
 }
