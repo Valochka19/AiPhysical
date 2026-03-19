@@ -3,13 +3,17 @@ package com.example.aiphysical.presentation.student
 import com.example.aiphysical.data.model.StudentTestUiState
 import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.data.model.CourseProgress
+import com.example.aiphysical.data.model.OrganizationCustomTest
+import com.example.aiphysical.data.model.OrganizationCustomTestSessionState
 import com.example.aiphysical.data.model.OrganizationCourse
+import com.example.aiphysical.data.model.PointsLedgerEntry
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
 
 // ── Navigation tabs ───────────────────────────────────────────────────────────
 enum class StudentTab { Home, Help, Courses, Profile }
+enum class StudentContentSubTab { Courses, Tests }
 
 // ── 5 test types (match DB IDs) ───────────────────────────────────────────────
 enum class StudentTestType(
@@ -43,10 +47,14 @@ data class StudentUiState(
     val currentLanguage: AppLanguage = AppLanguage.RU,
     // ── Added (org-level) courses ─────────────────────────────────────────────
     val addedCourses: List<OrganizationCourse> = emptyList(),
+    val customTests: List<OrganizationCustomTest> = emptyList(),
+    val pointsHistory: List<PointsLedgerEntry> = emptyList(),
     val isLoadingAddedCourses: Boolean = false,
+    val isLoadingCustomTests: Boolean = false,
     val selectedAddedCourse: OrganizationCourse? = null,
     val showAddedCoursesViewer: Boolean = false,
     val showTextCourseViewer: Boolean = false,
+    val selectedContentSubTab: StudentContentSubTab = StudentContentSubTab.Courses,
     // ── AI Chat ───────────────────────────────────────────────────────────────
     val chatMessages: List<ChatMessage> = emptyList(),
     val chatInput: String = "",
@@ -56,4 +64,5 @@ data class StudentUiState(
     // ── Active Student Test ───────────────────────────────────────────────────
     /** Non-null while any student test overlay is open */
     val activeTestState: StudentTestUiState? = null,
+    val activeCustomTestState: OrganizationCustomTestSessionState? = null,
 )

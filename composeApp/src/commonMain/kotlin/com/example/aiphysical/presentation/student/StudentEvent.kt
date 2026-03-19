@@ -2,6 +2,7 @@ package com.example.aiphysical.presentation.student
 
 import com.example.aiphysical.data.model.AnswerType
 import com.example.aiphysical.data.model.BaseCourseCatalogItem
+import com.example.aiphysical.data.model.OrganizationCustomTest
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.auth.AppLanguage
 
@@ -9,6 +10,7 @@ sealed class StudentEvent {
     object LoadData : StudentEvent()
     object Refresh : StudentEvent()
     data class NavigateToTab(val tab: StudentTab) : StudentEvent()
+    data class ChangeContentSubTab(val tab: StudentContentSubTab) : StudentEvent()
     data class StartTest(val testType: StudentTestType) : StudentEvent()
     object GenerateReport : StudentEvent()
     object DismissError : StudentEvent()
@@ -22,6 +24,11 @@ sealed class StudentEvent {
     object CloseSelectedAddedCourse : StudentEvent()
     data class OpenTextCourse(val course: OrganizationCourse) : StudentEvent()
     object CloseTextCourse : StudentEvent()
+    data class OpenOrganizationCustomTest(val test: OrganizationCustomTest) : StudentEvent()
+    data class AnswerOrganizationCustomTestQuestion(val optionId: String) : StudentEvent()
+    object NextOrganizationCustomTestQuestion : StudentEvent()
+    object SubmitOrganizationCustomTest : StudentEvent()
+    object CloseOrganizationCustomTest : StudentEvent()
     // ── AI Chat ───────────────────────────────────────────────────────────────
     object OpenAiChat : StudentEvent()
     object CloseAiChat : StudentEvent()

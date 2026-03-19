@@ -10,6 +10,7 @@ data class UserProfile(
     val latestAiStatus: String = "unknown", // "normal" | "stress" | "critical" | "unknown"
     val stressScore: Float = 0f,         // 0–100
     val courseProgressPercent: Float = 0f, // 0–100
+    val pointsTotal: Int = 0,
     // Extended metrics
     val burnoutScore: Float = 0f,        // 0–100
     val emotionScore: Float = 50f,       // 0–100 (higher = better mood)

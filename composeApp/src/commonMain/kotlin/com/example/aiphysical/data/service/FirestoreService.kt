@@ -10,7 +10,9 @@ sealed class FirestoreResult {
     data class ChatContactsSuccess(val contacts: List<UserProfile>) : FirestoreResult()
     data class TestHistorySuccess(val results: List<TestResult>) : FirestoreResult()
     data class CourseProgressSuccess(val progressList: List<CourseProgress>) : FirestoreResult()
+    data class PointsLedgerSuccess(val entries: List<PointsLedgerEntry>) : FirestoreResult()
     data class OrganizationCoursesSuccess(val courses: List<OrganizationCourse>) : FirestoreResult()
+    data class OrganizationCustomTestsSuccess(val tests: List<OrganizationCustomTest>) : FirestoreResult()
     data class OrganizationTestStatsSuccess(val stats: List<OrganizationTestStats>) : FirestoreResult()
     data class BaseCourseCompletionStatsSuccess(val stats: List<BaseCourseCompletionStats>) : FirestoreResult()
     data class BaseCourseCompletionDetailsSuccess(val details: BaseCourseCompletionDetails) : FirestoreResult()
@@ -58,6 +60,7 @@ interface FirestoreService {
 
     suspend fun getUserTestHistory(uid: String): FirestoreResult
     suspend fun getUserCourseProgress(uid: String): FirestoreResult
+    suspend fun getUserPointsLedger(uid: String): FirestoreResult
 
     // ── Support chat with psychologist ─────────────────────────────────────────
     suspend fun getPsychChatContacts(orgId: String, currentUid: String, currentRole: String): FirestoreResult
@@ -116,6 +119,24 @@ interface FirestoreService {
 
     /** Delete an organization-level course by id */
     suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult
+
+    // ── Organization Custom Tests (added by psychologist) ──────────────────────
+
+    /** Real-time observer on organizations/{orgId}/customTests */
+    fun observeOrganizationCustomTests(orgId: String): Flow<FirestoreResult>
+
+    /** One-shot fetch of custom tests */
+    suspend fun getOrganizationCustomTests(orgId: String): FirestoreResult
+
+    /** Create / publish a new organization-level custom test */
+    suspend fun createOrganizationCustomTest(orgId: String, test: OrganizationCustomTest): FirestoreResult
+
+    /** Save one student submission for a published organization custom test */
+    suspend fun submitOrganizationCustomTest(
+        orgId: String,
+        testId: String,
+        submission: OrganizationCustomTestSubmission
+    ): FirestoreResult
 
     // ── Base platform courses progress ─────────────────────────────────────────
 

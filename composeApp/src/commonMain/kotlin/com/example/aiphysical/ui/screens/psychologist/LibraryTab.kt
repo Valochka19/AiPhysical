@@ -30,6 +30,7 @@ import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
+import com.example.aiphysical.ui.components.OrganizationCustomTestCard
 import com.example.aiphysical.ui.components.OrganizationCourseCard
 import com.example.aiphysical.ui.components.PlatformCourseCard
 import com.example.aiphysical.ui.theme.*
@@ -105,6 +106,14 @@ fun LibraryTab(
             onClick = { vm.onEvent(PsychologistEvent.OpenAddedCourses) }
         )
 
+        PsychActionButton(
+            emoji = "🧪",
+            title = "Загрузить тест",
+            subtitle = "Создать и опубликовать тест для студентов",
+            accentColor = AlertOrange,
+            onClick = { vm.onEvent(PsychologistEvent.OpenAddTestScreen) }
+        )
+
         // ── Inline: Added courses viewer ───────────────────────────────────────
         if (state.showAddedCoursesViewer) {
             PsychAddedCoursesSection(
@@ -113,6 +122,40 @@ fun LibraryTab(
                 onDelete = { vm.onEvent(PsychologistEvent.DeleteAddedCourse(it)) },
                 onClose = { vm.onEvent(PsychologistEvent.CloseAddedCourses) }
             )
+        }
+
+        LibrarySection(title = "ДОБАВЛЕННЫЕ ТЕСТЫ", emoji = "🧪") {
+            if (state.isLoadingCustomTests) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = AlertOrange, strokeWidth = 2.dp)
+                }
+            } else if (state.customTests.isEmpty()) {
+                Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("📝", fontSize = 36.sp)
+                        Text("Пока нет опубликованных тестов", color = TextSecondary, fontSize = 14.sp)
+                    }
+                }
+            } else {
+                state.customTests.forEachIndexed { index, test ->
+                    OrganizationCustomTestCard(
+                        test = test,
+                        onClick = {},
+                        accentColor = AlertOrange,
+                        badgeText = "${test.questions.size} вопрос(ов)",
+                        metaText = test.createdByName.ifBlank { "Опубликовано" },
+                        ctaText = "Опубликован"
+                    )
+                    if (index != state.customTests.lastIndex) {
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+            }
         }
 
         // ── Stats overview ─────────────────────────────────────────────────────

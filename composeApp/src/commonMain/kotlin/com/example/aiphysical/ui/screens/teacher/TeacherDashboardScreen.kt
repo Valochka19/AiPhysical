@@ -44,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -63,6 +64,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.aiphysical.presentation.chat.SupportChatEvent
 import com.example.aiphysical.presentation.chat.SupportChatViewModel
 import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.presentation.student.StudentEffect
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTab
@@ -114,6 +117,14 @@ fun TeacherDashboardScreen(
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val supportState by supportVm.state.collectAsStateWithLifecycle()
+    val organizationMembers by produceState(initialValue = emptyList<UserProfile>(), key1 = orgId) {
+        if (orgId.isBlank()) return@produceState
+        firestoreService.observeOrganizationMembers(orgId).collect { result ->
+            if (result is FirestoreResult.MembersSuccess) {
+                value = result.members.filter { it.role == "user" }
+            }
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -249,6 +260,10 @@ fun TeacherDashboardScreen(
                     )
                     DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
                         title = "Баллы преподавателя",
+                        currentUserName = state.profile.fullName.ifBlank { state.profile.email },
+                        currentPoints = state.profile.pointsTotal,
+                        leaderboard = organizationMembers,
+                        introText = "Баллы студентов начисляются после полного завершения тестов. Здесь можно смотреть рейтинг вашей организации.",
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     )

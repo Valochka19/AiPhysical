@@ -56,4 +56,17 @@ sealed class PsychologistEvent {
     object CloseTextCourseViewer : PsychologistEvent()
     data class OpenTestStats(val testType: StudentTestType) : PsychologistEvent()
     object CloseTestStatsDialog : PsychologistEvent()
+
+    // ── Custom test builder ───────────────────────────────────────────────────
+    object OpenAddTestScreen : PsychologistEvent()
+    object CloseAddTestScreen : PsychologistEvent()
+    object ConfirmCloseAddTestScreen : PsychologistEvent()
+    object DismissCloseAddTestScreen : PsychologistEvent()
+    data class UpdateDraftTestTitle(val value: String) : PsychologistEvent()
+    data class UpdateDraftQuestionText(val value: String) : PsychologistEvent()
+    data class UpdateDraftOption1(val value: String) : PsychologistEvent()
+    data class UpdateDraftOption2(val value: String) : PsychologistEvent()
+    data class UpdateDraftOption3(val value: String) : PsychologistEvent()
+    object AddNextDraftQuestion : PsychologistEvent()
+    object PublishDraftTest : PsychologistEvent()
 }

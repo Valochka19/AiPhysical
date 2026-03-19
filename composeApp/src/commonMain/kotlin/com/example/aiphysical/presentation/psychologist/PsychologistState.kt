@@ -1,6 +1,8 @@
 package com.example.aiphysical.presentation.psychologist
 
 import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCustomTest
+import com.example.aiphysical.data.model.OrganizationCustomTestQuestion
 import com.example.aiphysical.data.model.OrganizationTestStats
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.TestResult
@@ -8,7 +10,7 @@ import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.auth.AppLanguage
 
 enum class PsychologistTab { Overview, Database, Interventions, Library }
-enum class PsychologistScreen { Dashboard, StudentDetail }
+enum class PsychologistScreen { Dashboard, StudentDetail, TestBuilder }
 
 /** Represents a single entry in the home-screen test results feed. */
 data class RecentTestFeedItem(
@@ -100,5 +102,20 @@ data class PsychologistHomeState(
     val showAddedCoursesViewer: Boolean = false,
     val selectedAddedCourse: OrganizationCourse? = null,
     val showTextCourseViewer: Boolean = false,
+
+    // ── Organization custom tests ─────────────────────────────────────────────
+    val customTests: List<OrganizationCustomTest> = emptyList(),
+    val isLoadingCustomTests: Boolean = false,
+
+    // ── Custom test builder ───────────────────────────────────────────────────
+    val currentTestDraftTitle: String = "",
+    val draftQuestions: List<OrganizationCustomTestQuestion> = emptyList(),
+    val currentDraftQuestionText: String = "",
+    val currentDraftOption1: String = "",
+    val currentDraftOption2: String = "",
+    val currentDraftOption3: String = "",
+    val currentDraftQuestionIndex: Int = 1,
+    val isPublishingCustomTest: Boolean = false,
+    val showDiscardCustomTestDialog: Boolean = false,
 )
 

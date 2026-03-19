@@ -96,10 +96,16 @@ fun PsychologistDashboardScreen(
         }
     }
 
-    // Back press: in StudentDetail go back to dashboard
+    // Back press: close nested screens safely
     BackPressHandler(
-        enabled = state.currentScreen == PsychologistScreen.StudentDetail,
-        onBack = { vm.onEvent(PsychologistEvent.BackToDashboard) }
+        enabled = state.currentScreen != PsychologistScreen.Dashboard,
+        onBack = {
+            when (state.currentScreen) {
+                PsychologistScreen.StudentDetail -> vm.onEvent(PsychologistEvent.BackToDashboard)
+                PsychologistScreen.TestBuilder -> vm.onEvent(PsychologistEvent.CloseAddTestScreen)
+                PsychologistScreen.Dashboard -> Unit
+            }
+        }
     )
 
     ModalNavigationDrawer(
@@ -169,6 +175,13 @@ fun PsychologistDashboardScreen(
                     label = "psych_content"
                 ) { (tab, screen) ->
                     when {
+                        screen == PsychologistScreen.TestBuilder -> {
+                            PsychologistCustomTestBuilderScreen(
+                                state = state,
+                                vm = vm,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
                         screen == PsychologistScreen.StudentDetail ||
                         tab == PsychologistTab.Database -> {
                             StudentDatabaseTab(
@@ -247,6 +260,10 @@ fun PsychologistDashboardScreen(
                     )
                     DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
                         title = "Баллы психолога",
+                        currentUserName = state.psychologistName,
+                        currentPoints = state.students.sumOf { it.pointsTotal },
+                        leaderboard = state.students,
+                        introText = "Здесь видно суммарную активность и рейтинг студентов вашей организации по заработанным баллам.",
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         modifier = Modifier
                             .fillMaxSize()

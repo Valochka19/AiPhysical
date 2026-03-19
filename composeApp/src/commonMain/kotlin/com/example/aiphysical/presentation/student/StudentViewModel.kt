@@ -8,6 +8,10 @@ import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.ChatMessage
 import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCustomTest
+import com.example.aiphysical.data.model.OrganizationCustomTestAnswer
+import com.example.aiphysical.data.model.OrganizationCustomTestSessionState
+import com.example.aiphysical.data.model.OrganizationCustomTestSubmission
 import com.example.aiphysical.data.model.StudentTestAnswer
 import com.example.aiphysical.data.model.StudentTestStep
 import com.example.aiphysical.data.model.StudentTestSubmission
@@ -18,6 +22,7 @@ import com.example.aiphysical.data.service.AppAiKnowledge
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
 import com.example.aiphysical.data.service.GeminiService
+import com.example.aiphysical.util.currentTimeMillis
 import com.example.aiphysical.util.createGeminiService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -61,10 +66,12 @@ class StudentViewModel(
     val effects: SharedFlow<StudentEffect> = _effects.asSharedFlow()
 
     private var coursesObserverJob: Job? = null
+    private var customTestsObserverJob: Job? = null
 
     init {
         loadData()
         observeAddedCourses()
+        observeCustomTests()
     }
 
     fun onEvent(event: StudentEvent) {
@@ -72,6 +79,7 @@ class StudentViewModel(
             StudentEvent.LoadData -> loadData()
             StudentEvent.Refresh -> loadData(isRefresh = true)
             is StudentEvent.NavigateToTab -> _state.update { it.copy(selectedTab = event.tab, showAiChat = false) }
+            is StudentEvent.ChangeContentSubTab -> _state.update { it.copy(selectedContentSubTab = event.tab) }
             is StudentEvent.StartTest -> handleStartTest(event.testType)
             StudentEvent.GenerateReport -> handleGenerateReport()
             StudentEvent.DismissError -> _state.update { it.copy(errorMessage = null) }
@@ -89,6 +97,11 @@ class StudentViewModel(
             StudentEvent.CloseTextCourse -> _state.update {
                 it.copy(showTextCourseViewer = false, selectedAddedCourse = null)
             }
+            is StudentEvent.OpenOrganizationCustomTest -> handleOpenOrganizationCustomTest(event.test)
+            is StudentEvent.AnswerOrganizationCustomTestQuestion -> handleAnswerOrganizationCustomTestQuestion(event.optionId)
+            StudentEvent.NextOrganizationCustomTestQuestion -> handleNextOrganizationCustomTestQuestion()
+            StudentEvent.SubmitOrganizationCustomTest -> handleSubmitOrganizationCustomTest()
+            StudentEvent.CloseOrganizationCustomTest -> _state.update { it.copy(activeCustomTestState = null) }
 
             is StudentEvent.SendChatMessage -> handleSendChatMessage(event.message)
             is StudentEvent.UpdateChatInput -> _state.update { it.copy(chatInput = event.text) }
@@ -225,6 +238,10 @@ class StudentViewModel(
             is FirestoreResult.CourseProgressSuccess -> result.progressList
             else -> baseState.courseProgress
         }
+        val pointsHistory = when (val result = firestoreService.getUserPointsLedger(uid)) {
+            is FirestoreResult.PointsLedgerSuccess -> result.entries
+            else -> baseState.pointsHistory
+        }
         val addedCourses = if (orgId.isBlank()) {
             baseState.addedCourses
         } else {
@@ -242,6 +259,7 @@ class StudentViewModel(
                 profile = profile,
                 testHistory = history,
                 courseProgress = progress,
+                pointsHistory = pointsHistory,
                 addedCourses = addedCourses,
                 completedTestIds = completedIds,
                 overallScore = overall
@@ -424,6 +442,7 @@ class StudentViewModel(
             val profileResult = firestoreService.getUserProfile(uid)
             val historyResult = firestoreService.getUserTestHistory(uid)
             val courseResult = firestoreService.getUserCourseProgress(uid)
+            val pointsResult = firestoreService.getUserPointsLedger(uid)
 
             val profile = when (profileResult) {
                 is FirestoreResult.UserProfileSuccess -> profileResult.profile
@@ -444,6 +463,11 @@ class StudentViewModel(
                 else -> emptyList()
             }
 
+            val pointsHistory = when (pointsResult) {
+                is FirestoreResult.PointsLedgerSuccess -> pointsResult.entries
+                else -> emptyList()
+            }
+
             val completedIds = history.map { it.testId }.toSet()
             val overall = computeOverallHealthPercent(profile, completedIds)
 
@@ -454,6 +478,7 @@ class StudentViewModel(
                     profile = profile,
                     testHistory = history,
                     courseProgress = courses,
+                    pointsHistory = pointsHistory,
                     completedTestIds = completedIds,
                     overallScore = overall,
                     errorMessage = null
@@ -472,6 +497,29 @@ class StudentViewModel(
                     when (result) {
                         is FirestoreResult.OrganizationCoursesSuccess ->
                             _state.update { it.copy(addedCourses = result.courses.filter { c -> c.isPublished }) }
+                        else -> Unit
+                    }
+                }
+        }
+    }
+
+    private fun observeCustomTests() {
+        if (orgId.isBlank()) return
+        customTestsObserverJob?.cancel()
+        _state.update { it.copy(isLoadingCustomTests = true) }
+        customTestsObserverJob = viewModelScope.launch {
+            firestoreService.observeOrganizationCustomTests(orgId)
+                .catch { _state.update { state -> state.copy(isLoadingCustomTests = false) } }
+                .collect { result ->
+                    when (result) {
+                        is FirestoreResult.OrganizationCustomTestsSuccess -> _state.update {
+                            it.copy(
+                                customTests = result.tests.filter { test -> test.isPublished },
+                                isLoadingCustomTests = false
+                            )
+                        }
+
+                        is FirestoreResult.Failure -> _state.update { it.copy(isLoadingCustomTests = false) }
                         else -> Unit
                     }
                 }
@@ -499,6 +547,123 @@ class StudentViewModel(
             when (val result = firestoreService.upsertBaseCourseProgress(uid, course)) {
                 is FirestoreResult.Failure -> emit(StudentEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
                 else -> loadData()
+            }
+        }
+    }
+
+    private fun handleOpenOrganizationCustomTest(test: OrganizationCustomTest) {
+        if (test.questions.isEmpty()) {
+            emit(StudentEffect.ShowSnackbar("В этом тесте пока нет вопросов"))
+            return
+        }
+        _state.update {
+            it.copy(
+                selectedContentSubTab = StudentContentSubTab.Tests,
+                activeCustomTestState = OrganizationCustomTestSessionState(test = test)
+            )
+        }
+    }
+
+    private fun handleAnswerOrganizationCustomTestQuestion(optionId: String) {
+        _state.update { state ->
+            state.copy(activeCustomTestState = state.activeCustomTestState?.copy(selectedOptionId = optionId, errorMessage = null))
+        }
+    }
+
+    private fun handleNextOrganizationCustomTestQuestion() {
+        val session = _state.value.activeCustomTestState ?: return
+        val question = session.currentQuestion ?: return
+        val selectedOption = question.options.firstOrNull { it.id == session.selectedOptionId }
+        if (selectedOption == null) {
+            _state.update { state ->
+                state.copy(activeCustomTestState = state.activeCustomTestState?.copy(errorMessage = "Выберите один вариант ответа"))
+            }
+            return
+        }
+        if (session.isLastQuestion) {
+            handleSubmitOrganizationCustomTest()
+            return
+        }
+
+        val answer = OrganizationCustomTestAnswer(
+            questionId = question.id,
+            questionText = question.text,
+            selectedOptionId = selectedOption.id,
+            selectedOptionText = selectedOption.text,
+            order = question.order
+        )
+        val updatedAnswers = session.answers.upsertCustomTestAnswer(answer)
+        val nextQuestion = session.test.questions.getOrNull(session.currentQuestionIndex + 1)
+        val preselectedOptionId = updatedAnswers.firstOrNull { it.order == nextQuestion?.order }?.selectedOptionId
+        _state.update { state ->
+            state.copy(
+                activeCustomTestState = session.copy(
+                    currentQuestionIndex = session.currentQuestionIndex + 1,
+                    selectedOptionId = preselectedOptionId,
+                    answers = updatedAnswers,
+                    errorMessage = null
+                )
+            )
+        }
+    }
+
+    private fun handleSubmitOrganizationCustomTest() {
+        val session = _state.value.activeCustomTestState ?: return
+        val question = session.currentQuestion ?: return
+        val selectedOption = question.options.firstOrNull { it.id == session.selectedOptionId }
+        if (selectedOption == null) {
+            _state.update { state ->
+                state.copy(activeCustomTestState = state.activeCustomTestState?.copy(errorMessage = "Выберите один вариант ответа"))
+            }
+            return
+        }
+
+        val finalAnswers = session.answers.upsertCustomTestAnswer(
+            OrganizationCustomTestAnswer(
+                questionId = question.id,
+                questionText = question.text,
+                selectedOptionId = selectedOption.id,
+                selectedOptionText = selectedOption.text,
+                order = question.order
+            )
+        )
+        _state.update { state ->
+            state.copy(activeCustomTestState = session.copy(answers = finalAnswers, isSubmitting = true, errorMessage = null))
+        }
+
+        viewModelScope.launch {
+            val now = currentTimeMillis()
+            val currentState = _state.value
+            val submission = OrganizationCustomTestSubmission(
+                orgId = orgId,
+                testId = session.test.id,
+                testTitle = session.test.title,
+                studentId = uid,
+                studentName = currentState.profile.fullName.ifBlank {
+                    currentState.profile.email.ifBlank { "Студент" }
+                },
+                submittedAt = now,
+                answers = finalAnswers.sortedBy { it.order }
+            )
+            when (val result = firestoreService.submitOrganizationCustomTest(orgId, session.test.id, submission)) {
+                is FirestoreResult.GenericSuccess -> {
+                    loadData()
+                    _state.update { it.copy(activeCustomTestState = null) }
+                    emit(StudentEffect.ShowSnackbar("Информация отправлена психологу"))
+                }
+
+                is FirestoreResult.Failure -> _state.update { state ->
+                    state.copy(
+                        activeCustomTestState = state.activeCustomTestState?.copy(
+                            isSubmitting = false,
+                            errorMessage = result.message
+                        )
+                    )
+                }
+
+                else -> _state.update { state ->
+                    state.copy(activeCustomTestState = state.activeCustomTestState?.copy(isSubmitting = false))
+                }
             }
         }
     }
@@ -676,6 +841,9 @@ class StudentViewModel(
     private fun emit(effect: StudentEffect) {
         viewModelScope.launch { _effects.emit(effect) }
     }
+
+    private fun List<OrganizationCustomTestAnswer>.upsertCustomTestAnswer(answer: OrganizationCustomTestAnswer): List<OrganizationCustomTestAnswer> =
+        filterNot { it.questionId == answer.questionId } + answer
 
     companion object {
         fun factory(

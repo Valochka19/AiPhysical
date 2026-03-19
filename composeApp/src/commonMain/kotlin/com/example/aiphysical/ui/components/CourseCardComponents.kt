@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCustomTest
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.ui.theme.PsychCritical
 import com.example.aiphysical.ui.theme.PsychTeal
@@ -204,6 +205,101 @@ fun OrganizationCourseCard(
             ) { Text("🗑", fontSize = 14.sp) }
         } else {
             Text("›", color = typeColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun OrganizationCustomTestCard(
+    test: OrganizationCustomTest,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    accentColor: Color = Color(0xFF9D5FF5),
+    badgeText: String? = null,
+    metaText: String = "Тест организации",
+    ctaText: String = "Открыть",
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Brush.verticalGradient(listOf(Color.White.copy(0.09f), Color.White.copy(0.03f))))
+            .border(1.dp, Brush.verticalGradient(listOf(accentColor.copy(0.35f), accentColor.copy(0.08f))), RoundedCornerShape(18.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(52.dp)
+                    .background(Brush.radialGradient(listOf(accentColor.copy(0.40f), accentColor.copy(0.10f))), RoundedCornerShape(14.dp))
+                    .border(1.dp, accentColor.copy(0.4f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🧪", fontSize = 24.sp)
+            }
+
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        test.title,
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (!badgeText.isNullOrBlank()) {
+                        Box(
+                            Modifier
+                                .background(accentColor.copy(0.15f), RoundedCornerShape(8.dp))
+                                .border(1.dp, accentColor.copy(0.35f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(badgeText, color = accentColor, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
+                Text(
+                    metaText,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    if (test.questions.isEmpty()) "Вопросы пока не добавлены" else "${test.questions.size} вопрос(ов) · 3 варианта ответа",
+                    color = TextHint,
+                    fontSize = 11.sp
+                )
+            }
+
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .background(accentColor.copy(0.15f), CircleShape)
+                    .border(1.dp, accentColor.copy(0.40f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("↗", color = accentColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(accentColor.copy(0.14f))
+                .border(1.dp, accentColor.copy(0.28f), RoundedCornerShape(12.dp))
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(ctaText, color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

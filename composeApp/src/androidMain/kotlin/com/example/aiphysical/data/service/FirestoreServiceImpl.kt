@@ -3,6 +3,7 @@ package com.example.aiphysical.data.service
 import com.example.aiphysical.data.model.*
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -12,6 +13,10 @@ import kotlinx.coroutines.tasks.await
 class FirestoreServiceImpl : FirestoreService {
 
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    private companion object {
+        const val TEST_COMPLETION_POINTS = 20
+    }
 
     // ── Existing registration methods ─────────────────────────────────────────
 
@@ -50,6 +55,7 @@ class FirestoreServiceImpl : FirestoreService {
                 "latestAiStatus" to profile.latestAiStatus,
                 "stressScore" to profile.stressScore,
                 "courseProgressPercent" to profile.courseProgressPercent,
+                "pointsTotal" to profile.pointsTotal,
                 "burnoutScore" to profile.burnoutScore,
                 "emotionScore" to profile.emotionScore,
                 "motivationScore" to profile.motivationScore,
@@ -158,6 +164,19 @@ class FirestoreServiceImpl : FirestoreService {
             }
             FirestoreResult.CourseProgressSuccess(progressList)
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка запроса Firestore") }
+    }
+
+    override suspend fun getUserPointsLedger(uid: String): FirestoreResult {
+        return try {
+            val snap = db.collection("users").document(uid)
+                .collection("pointsLedger")
+                .orderBy("awardedAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            FirestoreResult.PointsLedgerSuccess(snap.documents.map { it.toPointsLedgerEntry() })
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки истории баллов")
+        }
     }
 
     override suspend fun getPsychChatContacts(orgId: String, currentUid: String, currentRole: String): FirestoreResult {
@@ -383,6 +402,91 @@ class FirestoreServiceImpl : FirestoreService {
         } catch (e: Exception) { FirestoreResult.Failure(e.localizedMessage ?: "Ошибка удаления курса") }
     }
 
+    override fun observeOrganizationCustomTests(orgId: String): Flow<FirestoreResult> = callbackFlow {
+        val ref = db.collection("organizations")
+            .document(orgId)
+            .collection("customTests")
+            .orderBy("updatedAt", Query.Direction.DESCENDING)
+        val listener = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(FirestoreResult.Failure(error.localizedMessage ?: "Ошибка слушателя тестов"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val tests = snapshot.documents
+                    .map { it.toOrganizationCustomTest() }
+                    .sortedByDescending { it.updatedAt }
+                trySend(FirestoreResult.OrganizationCustomTestsSuccess(tests))
+            }
+        }
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun getOrganizationCustomTests(orgId: String): FirestoreResult {
+        return try {
+            val snap = db.collection("organizations")
+                .document(orgId)
+                .collection("customTests")
+                .orderBy("updatedAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            FirestoreResult.OrganizationCustomTestsSuccess(
+                snap.documents.map { it.toOrganizationCustomTest() }.sortedByDescending { it.updatedAt }
+            )
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка загрузки тестов")
+        }
+    }
+
+    override suspend fun createOrganizationCustomTest(orgId: String, test: OrganizationCustomTest): FirestoreResult {
+        return try {
+            val ref = if (test.id.isBlank()) {
+                db.collection("organizations").document(orgId).collection("customTests").document()
+            } else {
+                db.collection("organizations").document(orgId).collection("customTests").document(test.id)
+            }
+            ref.set(test.copy(id = ref.id, orgId = orgId).toOrganizationCustomTestMap()).await()
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка публикации теста")
+        }
+    }
+
+    override suspend fun submitOrganizationCustomTest(
+        orgId: String,
+        testId: String,
+        submission: OrganizationCustomTestSubmission
+    ): FirestoreResult {
+        return try {
+            val ref = if (submission.id.isBlank()) {
+                db.collection("organizations").document(orgId)
+                    .collection("customTests").document(testId)
+                    .collection("submissions").document()
+            } else {
+                db.collection("organizations").document(orgId)
+                    .collection("customTests").document(testId)
+                    .collection("submissions").document(submission.id)
+            }
+            ref.set(submission.copy(id = ref.id, orgId = orgId, testId = testId).toOrganizationCustomTestSubmissionMap()).await()
+            try {
+                awardPointsIfNeeded(
+                    uid = submission.studentId,
+                    eventKey = "custom_test_completed_$testId",
+                    title = "Кастомный тест пройден",
+                    description = submission.testTitle.ifBlank { "Тест организации" },
+                    points = TEST_COMPLETION_POINTS,
+                    sourceType = "custom_test",
+                    sourceId = testId
+                )
+            } catch (_: Exception) {
+                // Никогда не ломаем отправку результатов теста из-за баллов
+            }
+            FirestoreResult.GenericSuccess
+        } catch (e: Exception) {
+            FirestoreResult.Failure(e.localizedMessage ?: "Ошибка отправки ответов по тесту")
+        }
+    }
+
     override suspend fun upsertBaseCourseProgress(uid: String, course: BaseCourseCatalogItem): FirestoreResult {
         return try {
             val now = System.currentTimeMillis()
@@ -551,6 +655,20 @@ class FirestoreServiceImpl : FirestoreService {
             }
             userRef.set(userUpdate, SetOptions.merge()).await()
 
+            try {
+                awardPointsIfNeeded(
+                    uid = uid,
+                    eventKey = "builtin_test_completed_${submission.definition.testId}",
+                    title = "Платформенный тест пройден",
+                    description = submission.definition.testName,
+                    points = TEST_COMPLETION_POINTS,
+                    sourceType = "builtin_test",
+                    sourceId = submission.definition.testId
+                )
+            } catch (_: Exception) {
+                // Не позволяем геймификации ломать test flow
+            }
+
             FirestoreResult.GenericSuccess
         } catch (e: Exception) {
             FirestoreResult.Failure(e.localizedMessage ?: "Ошибка сохранения результата теста")
@@ -577,6 +695,7 @@ class FirestoreServiceImpl : FirestoreService {
         latestAiStatus = getString("latestAiStatus") ?: "unknown",
         stressScore = (getDouble("stressScore") ?: 0.0).toFloat(),
         courseProgressPercent = (getDouble("courseProgressPercent") ?: 0.0).toFloat(),
+        pointsTotal = ((getDouble("pointsTotal") ?: getLong("pointsTotal")?.toDouble() ?: 0.0)).toInt(),
         burnoutScore = (getDouble("burnoutScore") ?: 0.0).toFloat(),
         emotionScore = (getDouble("emotionScore") ?: 50.0).toFloat(),
         motivationScore = (getDouble("motivationScore") ?: 50.0).toFloat(),
@@ -604,6 +723,21 @@ class FirestoreServiceImpl : FirestoreService {
         isPublished   = getBoolean("isPublished") ?: true
     )
 
+    private fun DocumentSnapshot.toOrganizationCustomTest() = OrganizationCustomTest(
+        id = getString("id") ?: this.id,
+        orgId = getString("orgId") ?: "",
+        title = getString("title") ?: "",
+        description = getString("description") ?: "",
+        questions = getNestedList("questions").mapIndexedNotNull { index, raw ->
+            raw.toOrganizationCustomTestQuestion(index)
+        }.sortedBy { it.order },
+        createdBy = getString("createdBy") ?: "",
+        createdByName = getString("createdByName") ?: "",
+        createdAt = getLong("createdAt") ?: 0L,
+        updatedAt = getLong("updatedAt") ?: 0L,
+        isPublished = getBoolean("isPublished") ?: true
+    )
+
     private fun DocumentSnapshot.toPsychChatThread() = PsychChatThread(
         chatId = getString("chatId") ?: this.id,
         orgId = getString("orgId") ?: "",
@@ -622,6 +756,16 @@ class FirestoreServiceImpl : FirestoreService {
         senderRole = getString("senderRole") ?: "",
         text = getString("text") ?: "",
         createdAt = getLong("createdAt") ?: 0L,
+    )
+
+    private fun DocumentSnapshot.toPointsLedgerEntry() = PointsLedgerEntry(
+        eventKey = getString("eventKey") ?: this.id,
+        title = getString("title") ?: "Начисление баллов",
+        description = getString("description") ?: "",
+        points = ((getDouble("points") ?: getLong("points")?.toDouble() ?: 0.0)).toInt(),
+        awardedAt = getLong("awardedAt") ?: 0L,
+        sourceType = getString("sourceType") ?: "",
+        sourceId = getString("sourceId") ?: ""
     )
 
     private suspend fun loadOrganizationStudents(orgId: String): List<UserProfile> {
@@ -697,4 +841,131 @@ class FirestoreServiceImpl : FirestoreService {
 
     private fun String.normalizedPsychChatRoleAwarePair(role: String): Pair<String, String> =
         this to role.normalizedPsychChatRole()
+
+    private suspend fun awardPointsIfNeeded(
+        uid: String,
+        eventKey: String,
+        title: String,
+        description: String,
+        points: Int,
+        sourceType: String,
+        sourceId: String
+    ) {
+        val userRef = db.collection("users").document(uid)
+        val ledgerRef = userRef.collection("pointsLedger").document(eventKey)
+        val now = System.currentTimeMillis()
+
+        db.runTransaction { transaction ->
+            val existingLedger = transaction.get(ledgerRef)
+            if (existingLedger.exists()) {
+                return@runTransaction Unit
+            }
+            val userSnapshot = transaction.get(userRef)
+            val currentPoints = ((userSnapshot.getDouble("pointsTotal")
+                ?: userSnapshot.getLong("pointsTotal")?.toDouble()
+                ?: 0.0)).toInt()
+
+            transaction.set(
+                ledgerRef,
+                mapOf(
+                    "eventKey" to eventKey,
+                    "title" to title,
+                    "description" to description,
+                    "points" to points,
+                    "awardedAt" to now,
+                    "sourceType" to sourceType,
+                    "sourceId" to sourceId
+                )
+            )
+            transaction.set(
+                userRef,
+                mapOf("pointsTotal" to (currentPoints + points)),
+                SetOptions.merge()
+            )
+            Unit
+        }.await()
+    }
+
+    private fun OrganizationCustomTest.toOrganizationCustomTestMap(): Map<String, Any> = mapOf(
+        "id" to id,
+        "orgId" to orgId,
+        "title" to title,
+        "description" to description,
+        "questions" to questions.sortedBy { it.order }.map { question ->
+            mapOf(
+                "id" to question.id,
+                "order" to question.order,
+                "text" to question.text,
+                "options" to question.options.sortedBy { it.order }.map { option ->
+                    mapOf(
+                        "id" to option.id,
+                        "order" to option.order,
+                        "text" to option.text
+                    )
+                }
+            )
+        },
+        "createdBy" to createdBy,
+        "createdByName" to createdByName,
+        "createdAt" to createdAt,
+        "updatedAt" to updatedAt,
+        "isPublished" to isPublished
+    )
+
+    private fun OrganizationCustomTestSubmission.toOrganizationCustomTestSubmissionMap(): Map<String, Any> = mapOf(
+        "id" to id,
+        "orgId" to orgId,
+        "testId" to testId,
+        "testTitle" to testTitle,
+        "studentId" to studentId,
+        "studentName" to studentName,
+        "submittedAt" to submittedAt,
+        "answers" to answers.sortedBy { it.order }.map { answer ->
+            mapOf(
+                "questionId" to answer.questionId,
+                "questionText" to answer.questionText,
+                "selectedOptionId" to answer.selectedOptionId,
+                "selectedOptionText" to answer.selectedOptionText,
+                "order" to answer.order
+            )
+        }
+    )
+
+    private fun Any?.toOrganizationCustomTestQuestion(index: Int): OrganizationCustomTestQuestion? {
+        val map = this as? Map<*, *> ?: return null
+        val order = map.intValue("order") ?: (index + 1)
+        return OrganizationCustomTestQuestion(
+            id = map.stringValue("id").ifBlank { "q_$order" },
+            order = order,
+            text = map.stringValue("text"),
+            options = map.listValue("options").mapIndexedNotNull { optionIndex, option ->
+                option.toOrganizationCustomTestOption(optionIndex)
+            }.sortedBy { it.order }
+        )
+    }
+
+    private fun Any?.toOrganizationCustomTestOption(index: Int): OrganizationCustomTestOption? {
+        val map = this as? Map<*, *> ?: return null
+        val order = map.intValue("order") ?: (index + 1)
+        return OrganizationCustomTestOption(
+            id = map.stringValue("id").ifBlank { "o_$order" },
+            order = order,
+            text = map.stringValue("text")
+        )
+    }
+
+    private fun DocumentSnapshot.getNestedList(field: String): List<Any?> =
+        (get(field) as? List<*>)?.toList() ?: emptyList()
+
+    private fun Map<*, *>.stringValue(key: String): String = this[key] as? String ?: ""
+
+    private fun Map<*, *>.listValue(key: String): List<Any?> =
+        (this[key] as? List<*>)?.toList() ?: emptyList()
+
+    private fun Map<*, *>.intValue(key: String): Int? = when (val value = this[key]) {
+        is Int -> value
+        is Long -> value.toInt()
+        is Double -> value.toInt()
+        else -> null
+    }
 }

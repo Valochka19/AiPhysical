@@ -90,6 +90,7 @@ fun StudentDashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
     val activeTestState = state.activeTestState
+    val activeCustomTestState = state.activeCustomTestState
 
     // Collect side-effects
     LaunchedEffect(Unit) {
@@ -138,7 +139,7 @@ fun StudentDashboardScreen(
                 }
             },
             bottomBar = {
-                if (!state.showAiChat && activeTestState == null) {
+                if (!state.showAiChat && activeTestState == null && activeCustomTestState == null) {
                     StudentBottomNavBar(
                         selectedTab = state.selectedTab,
                         strings = getStrings(state.currentLanguage),
@@ -224,8 +225,18 @@ fun StudentDashboardScreen(
                     )
                 }
 
+                if (activeCustomTestState != null) {
+                    StudentOrganizationCustomTestScreen(
+                        session = activeCustomTestState,
+                        onClose = { vm.onEvent(StudentEvent.CloseOrganizationCustomTest) },
+                        onOptionSelected = { vm.onEvent(StudentEvent.AnswerOrganizationCustomTestQuestion(it)) },
+                        onNext = { vm.onEvent(StudentEvent.NextOrganizationCustomTestQuestion) },
+                        onSubmit = { vm.onEvent(StudentEvent.SubmitOrganizationCustomTest) }
+                    )
+                }
+
                 // ── Floating AI Chat Button ────────────────────────────────────────
-                if (activeTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
+                if (activeTestState == null && activeCustomTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
                     AiChatFab(
                         hasMessages = state.chatMessages.isNotEmpty(),
                         modifier = Modifier
@@ -251,7 +262,7 @@ fun StudentDashboardScreen(
                     )
                 }
 
-                if (!state.showAiChat && activeTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
+                if (!state.showAiChat && activeTestState == null && activeCustomTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
                     DashboardMenuButton(
                         onClick = { coroutineScope.launch { drawerState.open() } },
                         modifier = Modifier
@@ -274,6 +285,10 @@ fun StudentDashboardScreen(
                     )
                     DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
                         title = "Баллы студента",
+                        currentUserName = state.profile.fullName.ifBlank { state.profile.email },
+                        currentPoints = state.profile.pointsTotal,
+                        pointsHistory = state.pointsHistory,
+                        introText = "Баллы начисляются после полного завершения тестов в интерфейсе студента.",
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     )

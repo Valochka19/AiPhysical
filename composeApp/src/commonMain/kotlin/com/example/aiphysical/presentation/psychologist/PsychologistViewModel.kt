@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.CourseContentType
+import com.example.aiphysical.data.model.OrganizationCustomTest
+import com.example.aiphysical.data.model.OrganizationCustomTestOption
+import com.example.aiphysical.data.model.OrganizationCustomTestQuestion
 import com.example.aiphysical.data.model.OrganizationTestStats
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.UserProfile
@@ -40,10 +43,12 @@ class PsychologistViewModel(
 
     private var studentsObserverJob: Job? = null
     private var coursesObserverJob: Job? = null
+    private var customTestsObserverJob: Job? = null
 
     init {
         loadData()
         observeAddedCourses()
+        observeCustomTests()
     }
 
     fun onEvent(event: PsychologistEvent) {
@@ -151,6 +156,26 @@ class PsychologistViewModel(
             PsychologistEvent.CloseTestStatsDialog -> _state.update {
                 it.copy(showTestStatsDialog = false, selectedTestStats = null)
             }
+
+            PsychologistEvent.OpenAddTestScreen -> _state.update {
+                it.copy(
+                    currentScreen = PsychologistScreen.TestBuilder,
+                    selectedTab = PsychologistTab.Library,
+                    showDiscardCustomTestDialog = false
+                )
+            }
+            PsychologistEvent.CloseAddTestScreen -> handleCloseAddTestScreen()
+            PsychologistEvent.ConfirmCloseAddTestScreen -> resetCustomTestBuilder()
+            PsychologistEvent.DismissCloseAddTestScreen -> _state.update {
+                it.copy(showDiscardCustomTestDialog = false)
+            }
+            is PsychologistEvent.UpdateDraftTestTitle -> _state.update { it.copy(currentTestDraftTitle = event.value) }
+            is PsychologistEvent.UpdateDraftQuestionText -> _state.update { it.copy(currentDraftQuestionText = event.value) }
+            is PsychologistEvent.UpdateDraftOption1 -> _state.update { it.copy(currentDraftOption1 = event.value) }
+            is PsychologistEvent.UpdateDraftOption2 -> _state.update { it.copy(currentDraftOption2 = event.value) }
+            is PsychologistEvent.UpdateDraftOption3 -> _state.update { it.copy(currentDraftOption3 = event.value) }
+            PsychologistEvent.AddNextDraftQuestion -> handleAddNextDraftQuestion()
+            PsychologistEvent.PublishDraftTest -> handlePublishDraftTest()
         }
     }
 
@@ -305,6 +330,31 @@ class PsychologistViewModel(
         }
     }
 
+    private fun observeCustomTests() {
+        if (orgId.isBlank()) return
+        customTestsObserverJob?.cancel()
+        _state.update { it.copy(isLoadingCustomTests = true) }
+        customTestsObserverJob = viewModelScope.launch {
+            firestoreService.observeOrganizationCustomTests(orgId)
+                .catch {
+                    _state.update { state -> state.copy(isLoadingCustomTests = false) }
+                }
+                .collect { result ->
+                    when (result) {
+                        is FirestoreResult.OrganizationCustomTestsSuccess -> _state.update {
+                            it.copy(
+                                customTests = result.tests.filter { test -> test.isPublished },
+                                isLoadingCustomTests = false
+                            )
+                        }
+
+                        is FirestoreResult.Failure -> _state.update { it.copy(isLoadingCustomTests = false) }
+                        else -> Unit
+                    }
+                }
+        }
+    }
+
     private fun handlePublishCourse() {
         val s = _state.value
         // Validation
@@ -389,6 +439,83 @@ class PsychologistViewModel(
         }
     }
 
+    private fun handleCloseAddTestScreen() {
+        if (hasCustomTestDraftData(_state.value)) {
+            _state.update { it.copy(showDiscardCustomTestDialog = true) }
+        } else {
+            resetCustomTestBuilder()
+        }
+    }
+
+    private fun handleAddNextDraftQuestion() {
+        val state = _state.value
+        val validated = state.buildValidatedDraftQuestionOrNull()
+        if (validated == null) {
+            emitEffect(PsychologistEffect.ShowSnackbar("Заполните название, вопрос и все 3 варианта ответа"))
+            return
+        }
+        _state.update {
+            it.copy(
+                draftQuestions = it.draftQuestions + validated,
+                currentDraftQuestionText = "",
+                currentDraftOption1 = "",
+                currentDraftOption2 = "",
+                currentDraftOption3 = "",
+                currentDraftQuestionIndex = validated.order + 1
+            )
+        }
+        emitEffect(PsychologistEffect.TriggerHaptic)
+    }
+
+    private fun handlePublishDraftTest() {
+        val state = _state.value
+        val finalQuestions = when {
+            state.buildValidatedDraftQuestionOrNull() != null -> state.draftQuestions + state.buildValidatedDraftQuestionOrNull()!!
+            state.hasPartialCurrentDraftQuestion() -> {
+                emitEffect(PsychologistEffect.ShowSnackbar("Заполните текущий вопрос полностью или очистите его перед публикацией"))
+                return
+            }
+            state.draftQuestions.isEmpty() -> {
+                emitEffect(PsychologistEffect.ShowSnackbar("Добавьте хотя бы один вопрос"))
+                return
+            }
+            state.currentTestDraftTitle.trim().isBlank() -> {
+                emitEffect(PsychologistEffect.ShowSnackbar("Введите название теста"))
+                return
+            }
+            else -> state.draftQuestions
+        }
+
+        _state.update { it.copy(isPublishingCustomTest = true) }
+        viewModelScope.launch {
+            val now = currentTimeMillis()
+            val test = OrganizationCustomTest(
+                orgId = orgId,
+                title = state.currentTestDraftTitle.trim(),
+                questions = finalQuestions,
+                createdBy = uid,
+                createdByName = state.psychologistName,
+                createdAt = now,
+                updatedAt = now,
+                isPublished = true
+            )
+            when (val result = firestoreService.createOrganizationCustomTest(orgId, test)) {
+                is FirestoreResult.GenericSuccess -> {
+                    emitEffect(PsychologistEffect.ShowSnackbar("✅ Тест опубликован"))
+                    emitEffect(PsychologistEffect.TriggerHaptic)
+                    resetCustomTestBuilder(showSnackbar = false)
+                }
+
+                is FirestoreResult.Failure -> {
+                    _state.update { it.copy(isPublishingCustomTest = false) }
+                    emitEffect(PsychologistEffect.ShowSnackbar("Ошибка: ${result.message}"))
+                }
+
+                else -> _state.update { it.copy(isPublishingCustomTest = false) }
+            }
+        }
+    }
+
     private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
         if (course.courseUrl.isBlank()) {
             emitEffect(PsychologistEffect.ShowSnackbar("Ссылка на курс недоступна"))
@@ -458,6 +585,69 @@ class PsychologistViewModel(
                 else -> _state.update { it.copy(isLoadingTestStats = false) }
             }
         }
+    }
+
+    private fun resetCustomTestBuilder(showSnackbar: Boolean = false) {
+        _state.update {
+            it.copy(
+                currentScreen = PsychologistScreen.Dashboard,
+                selectedTab = PsychologistTab.Library,
+                currentTestDraftTitle = "",
+                draftQuestions = emptyList(),
+                currentDraftQuestionText = "",
+                currentDraftOption1 = "",
+                currentDraftOption2 = "",
+                currentDraftOption3 = "",
+                currentDraftQuestionIndex = 1,
+                isPublishingCustomTest = false,
+                showDiscardCustomTestDialog = false
+            )
+        }
+        if (showSnackbar) {
+            emitEffect(PsychologistEffect.ShowSnackbar("Создание теста отменено"))
+        }
+    }
+
+    private fun hasCustomTestDraftData(state: PsychologistHomeState): Boolean =
+        state.currentTestDraftTitle.isNotBlank() ||
+            state.draftQuestions.isNotEmpty() ||
+            state.currentDraftQuestionText.isNotBlank() ||
+            state.currentDraftOption1.isNotBlank() ||
+            state.currentDraftOption2.isNotBlank() ||
+            state.currentDraftOption3.isNotBlank()
+
+    private fun PsychologistHomeState.hasPartialCurrentDraftQuestion(): Boolean {
+        val question = currentDraftQuestionText.trim()
+        val option1 = currentDraftOption1.trim()
+        val option2 = currentDraftOption2.trim()
+        val option3 = currentDraftOption3.trim()
+        val anyFilled = question.isNotBlank() || option1.isNotBlank() || option2.isNotBlank() || option3.isNotBlank()
+        val allFilled = question.isNotBlank() && option1.isNotBlank() && option2.isNotBlank() && option3.isNotBlank()
+        return anyFilled && !allFilled
+    }
+
+    private fun PsychologistHomeState.buildValidatedDraftQuestionOrNull(): OrganizationCustomTestQuestion? {
+        val title = currentTestDraftTitle.trim()
+        val questionText = currentDraftQuestionText.trim()
+        val options = listOf(
+            currentDraftOption1.trim(),
+            currentDraftOption2.trim(),
+            currentDraftOption3.trim()
+        )
+        if (title.isBlank() || questionText.isBlank() || options.any { it.isBlank() }) return null
+        val order = draftQuestions.size + 1
+        return OrganizationCustomTestQuestion(
+            id = "q_$order",
+            order = order,
+            text = questionText,
+            options = options.mapIndexed { index, option ->
+                OrganizationCustomTestOption(
+                    id = "q_${order}_o_${index + 1}",
+                    order = index + 1,
+                    text = option
+                )
+            }
+        )
     }
 
     // ─── Analytics helpers ────────────────────────────────────────────────────

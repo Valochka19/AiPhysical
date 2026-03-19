@@ -55,7 +55,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.ChatContactPreview
+import com.example.aiphysical.data.model.PointsLedgerEntry
 import com.example.aiphysical.data.model.PsychChatMessage
+import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.chat.SupportChatUiState
 import com.example.aiphysical.ui.theme.AlertOrange
 import com.example.aiphysical.ui.theme.GlassBorder
@@ -127,9 +129,25 @@ fun DashboardMenuButton(
 @Composable
 fun PointsPlaceholderScreen(
     title: String,
+    currentUserName: String = "",
+    currentPoints: Int = 0,
+    pointsHistory: List<PointsLedgerEntry> = emptyList(),
+    leaderboard: List<UserProfile> = emptyList(),
+    introText: String = "Баллы начисляются за полностью пройденные тесты.",
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val levelTitle = when {
+        currentPoints >= 200 -> "Мастер устойчивости"
+        currentPoints >= 100 -> "Уверенный участник"
+        currentPoints >= 40 -> "Активный старт"
+        else -> "Новый уровень"
+    }
+    val nextMilestone = listOf(40, 100, 200, 350).firstOrNull { it > currentPoints }
+    val leaderboardStudents = leaderboard.filter { it.role == "user" }.sortedWith(
+        compareByDescending<UserProfile> { it.pointsTotal }.thenBy { it.fullName.lowercase() }
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -142,7 +160,7 @@ fun PointsPlaceholderScreen(
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        OverlayHeader(title = title, subtitle = "Раздел пока работает как заглушка", onBack = onBack)
+        OverlayHeader(title = title, subtitle = introText, onBack = onBack)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -151,14 +169,108 @@ fun PointsPlaceholderScreen(
                 .border(1.dp, AlertOrange.copy(0.24f), RoundedCornerShape(26.dp))
                 .padding(22.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Баллы", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                if (currentUserName.isNotBlank()) {
+                    Text(currentUserName, color = TextSecondary, fontSize = 13.sp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color.White.copy(0.06f))
+                            .border(1.dp, Color.White.copy(0.10f), RoundedCornerShape(18.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Column {
+                            Text("Всего", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                            Text("$currentPoints", color = AlertOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(levelTitle, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            nextMilestone?.let { "До следующего рубежа: ${it - currentPoints} баллов" } ?: "Максимальный текущий рубеж достигнут",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
                 Text(
-                    "Сюда позже можно добавить рейтинг, достижения, бонусы и историю начислений. Сейчас экран оставлен как аккуратная заглушка.",
+                    "За каждый полностью завершённый тест начисляются баллы. История и рейтинг обновляются без влияния на текущую логику тестов.",
                     color = TextSecondary,
                     fontSize = 14.sp,
                     lineHeight = 21.sp
                 )
+            }
+        }
+
+        if (pointsHistory.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Brush.verticalGradient(listOf(PsychTeal.copy(0.10f), Color.White.copy(0.03f))))
+                    .border(1.dp, PsychTeal.copy(0.22f), RoundedCornerShape(24.dp))
+                    .padding(18.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Последние начисления", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    pointsHistory.take(5).forEachIndexed { index, entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(entry.title.ifBlank { "Тест завершён" }, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(entry.description.ifBlank { "Начисление за прохождение теста" }, color = TextSecondary, fontSize = 12.sp)
+                            }
+                            Text("+${entry.points}", color = PsychTeal, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                        if (index != pointsHistory.take(5).lastIndex) {
+                            HorizontalDivider(color = Color.White.copy(0.08f))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (leaderboardStudents.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Brush.verticalGradient(listOf(VioletGlow.copy(0.12f), Color.White.copy(0.03f))))
+                    .border(1.dp, VioletGlow.copy(0.22f), RoundedCornerShape(24.dp))
+                    .padding(18.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Рейтинг студентов", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    leaderboardStudents.take(8).forEachIndexed { index, profile ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(VioletGlow.copy(0.16f))
+                                    .border(1.dp, VioletGlow.copy(0.30f), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("${index + 1}", color = VioletGlow, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(profile.fullName.ifBlank { profile.email }, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(profile.latestAiStatus.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }, color = TextSecondary, fontSize = 11.sp)
+                            }
+                            Text("${profile.pointsTotal}", color = AlertOrange, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
             }
         }
     }

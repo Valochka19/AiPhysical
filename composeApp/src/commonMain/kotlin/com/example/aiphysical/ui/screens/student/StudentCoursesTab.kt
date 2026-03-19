@@ -22,8 +22,10 @@ import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.presentation.student.StudentEvent
+import com.example.aiphysical.presentation.student.StudentContentSubTab
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.ui.components.OrganizationCustomTestCard
 import com.example.aiphysical.ui.components.OrganizationCourseCard
 import com.example.aiphysical.ui.components.PlatformCourseCard
 import com.example.aiphysical.ui.theme.*
@@ -52,6 +54,24 @@ fun StudentCoursesTab(
             Text("Активные курсы", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
         }
 
+        ContentSubTabSwitcher(
+            selectedTab = state.selectedContentSubTab,
+            onSelected = { vm.onEvent(StudentEvent.ChangeContentSubTab(it)) }
+        )
+
+        when (state.selectedContentSubTab) {
+            StudentContentSubTab.Courses -> StudentCoursesContent(state = state, vm = vm)
+            StudentContentSubTab.Tests -> StudentCustomTestsContent(state = state, vm = vm)
+        }
+    }
+}
+
+@Composable
+private fun StudentCoursesContent(
+    state: StudentUiState,
+    vm: StudentViewModel,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         // Assigned course (from psychologist)
         if (state.profile.assignedCourseName.isNotBlank()) {
             AssignedCourseCard(
@@ -61,7 +81,6 @@ fun StudentCoursesTab(
             )
         }
 
-        // ── Base courses catalogue (5 canonical courses) ──────────────────────
         Text("КАТАЛОГ КУРСОВ", color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
 
         AppCourseCatalog.baseCourses.forEach { item ->
@@ -86,6 +105,98 @@ fun StudentCoursesTab(
                 onCourse = { vm.onEvent(StudentEvent.OpenAddedCourse(it)) },
                 onClose  = { vm.onEvent(StudentEvent.CloseAddedCourses) }
             )
+        }
+    }
+}
+
+@Composable
+private fun StudentCustomTestsContent(
+    state: StudentUiState,
+    vm: StudentViewModel,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("ТЕСТЫ ОТ ПСИХОЛОГА", color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+            Text("Проходите опубликованные тесты вашей организации", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        }
+
+        if (state.isLoadingCustomTests) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF9D5FF5), strokeWidth = 2.dp)
+            }
+        } else if (state.customTests.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.White.copy(0.05f))
+                    .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(18.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("🧪", fontSize = 34.sp)
+                    Text("Психолог пока не опубликовал тесты", color = TextSecondary, fontSize = 14.sp)
+                }
+            }
+        } else {
+            state.customTests.forEachIndexed { index, test ->
+                OrganizationCustomTestCard(
+                    test = test,
+                    onClick = { vm.onEvent(StudentEvent.OpenOrganizationCustomTest(test)) },
+                    accentColor = Color(0xFF9D5FF5),
+                    badgeText = "${test.questions.size} вопрос(ов)",
+                    metaText = "3 варианта ответа на каждый вопрос",
+                    ctaText = "Пройти"
+                )
+                if (index != state.customTests.lastIndex) {
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContentSubTabSwitcher(
+    selectedTab: StudentContentSubTab,
+    onSelected: (StudentContentSubTab) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White.copy(0.05f))
+            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(18.dp))
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(StudentContentSubTab.Courses to "Курсы", StudentContentSubTab.Tests to "Тесты").forEach { (tab, label) ->
+            val selected = selectedTab == tab
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        if (selected) Brush.horizontalGradient(listOf(PsychTeal.copy(0.26f), Color(0xFF9D5FF5).copy(0.22f)))
+                        else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                    )
+                    .border(
+                        1.dp,
+                        if (selected) Color.White.copy(0.12f) else Color.Transparent,
+                        RoundedCornerShape(14.dp)
+                    )
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelected(tab) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(label, color = if (selected) Color.White else TextSecondary, fontSize = 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+            }
         }
     }
 }

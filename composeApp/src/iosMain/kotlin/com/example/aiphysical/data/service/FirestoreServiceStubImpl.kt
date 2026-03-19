@@ -20,6 +20,7 @@ class FirestoreServiceStubImpl : FirestoreService {
     override suspend fun getOrganizationMembers(orgId: String) = FirestoreResult.Failure(msg)
     override suspend fun getUserTestHistory(uid: String) = FirestoreResult.Failure(msg)
     override suspend fun getUserCourseProgress(uid: String) = FirestoreResult.Failure(msg)
+    override suspend fun getUserPointsLedger(uid: String) = FirestoreResult.PointsLedgerSuccess(emptyList())
     override suspend fun getPsychChatContacts(orgId: String, currentUid: String, currentRole: String) = FirestoreResult.Failure(msg)
     override suspend fun updateUserRole(uid: String, newRole: String) = FirestoreResult.Failure(msg)
     override suspend fun updateUserBlockStatus(uid: String, isBlocked: Boolean) = FirestoreResult.Failure(msg)
@@ -64,6 +65,21 @@ class FirestoreServiceStubImpl : FirestoreService {
 
     override suspend fun deleteOrganizationCourse(orgId: String, courseId: String): FirestoreResult =
         FirestoreResult.Failure(msg)
+
+    override fun observeOrganizationCustomTests(orgId: String): Flow<FirestoreResult> =
+        flowOf(FirestoreResult.OrganizationCustomTestsSuccess(emptyList()))
+
+    override suspend fun getOrganizationCustomTests(orgId: String): FirestoreResult =
+        FirestoreResult.OrganizationCustomTestsSuccess(emptyList())
+
+    override suspend fun createOrganizationCustomTest(orgId: String, test: OrganizationCustomTest): FirestoreResult =
+        FirestoreResult.Failure(msg)
+
+    override suspend fun submitOrganizationCustomTest(
+        orgId: String,
+        testId: String,
+        submission: OrganizationCustomTestSubmission
+    ): FirestoreResult = FirestoreResult.Failure(msg)
 
     override suspend fun upsertBaseCourseProgress(uid: String, course: BaseCourseCatalogItem): FirestoreResult =
         FirestoreResult.Failure(msg)
