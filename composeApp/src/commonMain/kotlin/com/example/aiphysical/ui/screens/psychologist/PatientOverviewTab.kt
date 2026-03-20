@@ -1,10 +1,10 @@
 package com.example.aiphysical.ui.screens.psychologist
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -48,104 +48,106 @@ fun PatientOverviewTab(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollState = rememberScrollState()
     val strings = getStrings(state.currentLanguage)
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .padding(top = 24.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // ① AI-Orb header + greeting
-        GlassAiOrbHeader(
-            name = state.psychologistName,
-            climate = state.psychClimate,
-            urgentCount = state.criticalStudents.size + state.stressStudents.size,
-            strings = strings,
-            currentLanguage = state.currentLanguage,
-            onLanguageChange = { vm.onEvent(PsychologistEvent.ChangeLanguage(it)) },
-            onLogout = onLogout
-        )
+        item(key = "header") {
+            GlassAiOrbHeader(
+                name = state.psychologistName,
+                climate = state.psychClimate,
+                urgentCount = state.criticalStudents.size + state.stressStudents.size,
+                strings = strings,
+                currentLanguage = state.currentLanguage,
+                onLanguageChange = { vm.onEvent(PsychologistEvent.ChangeLanguage(it)) },
+                onLogout = onLogout
+            )
+        }
 
         if (state.isLoading) {
-            GlassLoadingSkeleton()
+            item(key = "loading") { GlassLoadingSkeleton() }
         } else {
-            // ② Group Climate Hub (CTA)
-            GroupClimateHubCard(
-                climate = state.psychClimate,
-                language = state.currentLanguage,
-                totalStudents = state.students.size,
-                criticalCount = state.criticalStudents.size,
-                stressCount = state.stressStudents.size,
-                onViewReports = {
-                    vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Database))
-                }
-            )
+            item(key = "climate") {
+                GroupClimateHubCard(
+                    climate = state.psychClimate,
+                    language = state.currentLanguage,
+                    totalStudents = state.students.size,
+                    criticalCount = state.criticalStudents.size,
+                    stressCount = state.stressStudents.size,
+                    onViewReports = {
+                        vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Database))
+                    }
+                )
+            }
 
-            // ③ Radar chart (requires data)
             if (state.students.isNotEmpty()) {
-                GlassRadarCard(
-                    avgBurnout = state.avgBurnout,
-                    avgStress = state.avgStress,
-                    avgAnxiety = state.avgAnxiety,
-                    avgEmotion = state.avgEmotion,
-                    avgMotivation = state.avgMotivation,
-                    language = state.currentLanguage,
-                    climate = state.psychClimate
-                )
-            }
-
-            // ④ Summary glass chips
-            if (state.students.isNotEmpty()) {
-                SummaryGlassChips(
-                    language = state.currentLanguage,
-                    total = state.students.size,
-                    critical = state.criticalStudents.size,
-                    stable = (state.students.size - state.criticalStudents.size - state.stressStudents.size)
-                        .coerceAtLeast(0)
-                )
-            }
-
-            // ⑤ Critical alert zone
-            if (state.criticalStudents.isNotEmpty()) {
-                GlassCriticalAlertZone(
-                    language = state.currentLanguage,
-                    criticalStudents = state.criticalStudents,
-                    onViewStudent = { vm.onEvent(PsychologistEvent.SelectStudent(it)) },
-                    onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(it)) }
-                )
-            }
-
-            // ⑥ Recent test feed
-            if (state.recentTestFeed.isNotEmpty()) {
-                GlassTestResultsFeed(
-                    language = state.currentLanguage,
-                    items = state.recentTestFeed.take(5),
-                    onViewResult = { vm.onEvent(PsychologistEvent.ViewTestResult(it)) },
-                    onViewAll = { vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Database)) }
-                )
-            }
-
-            // ⑦ Pending interventions nudge
-            if (state.pendingRecommendations.isNotEmpty()) {
-                GlassPendingInterventionsCard(
-                    language = state.currentLanguage,
-                    count = state.pendingRecommendations.size,
-                    onClick = { vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Interventions)) }
-                )
-            }
-
-            // ⑧ Empty state
-            if (state.students.isEmpty()) {
-                GlassEmptyState(
-                    message = state.currentLanguage.pick(
-                        "Студенты ещё не зарегистрировались в организации",
-                        "Students have not registered in the organization yet",
-                        "Студенттер әлі ұйымға тіркелмеген"
+                item(key = "radar") {
+                    GlassRadarCard(
+                        avgBurnout = state.avgBurnout,
+                        avgStress = state.avgStress,
+                        avgAnxiety = state.avgAnxiety,
+                        avgEmotion = state.avgEmotion,
+                        avgMotivation = state.avgMotivation,
+                        language = state.currentLanguage,
+                        climate = state.psychClimate
                     )
-                )
+                }
+
+                item(key = "summary") {
+                    SummaryGlassChips(
+                        language = state.currentLanguage,
+                        total = state.students.size,
+                        critical = state.criticalStudents.size,
+                        stable = (state.students.size - state.criticalStudents.size - state.stressStudents.size)
+                            .coerceAtLeast(0)
+                    )
+                }
+            }
+
+            if (state.criticalStudents.isNotEmpty()) {
+                item(key = "critical") {
+                    GlassCriticalAlertZone(
+                        language = state.currentLanguage,
+                        criticalStudents = state.criticalStudents,
+                        onViewStudent = { vm.onEvent(PsychologistEvent.SelectStudent(it)) },
+                        onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(it)) }
+                    )
+                }
+            }
+
+            if (state.recentTestFeed.isNotEmpty()) {
+                item(key = "recent_feed") {
+                    GlassTestResultsFeed(
+                        language = state.currentLanguage,
+                        items = state.recentTestFeed.take(5),
+                        onViewResult = { vm.onEvent(PsychologistEvent.ViewTestResult(it)) },
+                        onViewAll = { vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Database)) }
+                    )
+                }
+            }
+
+            if (state.pendingRecommendations.isNotEmpty()) {
+                item(key = "pending") {
+                    GlassPendingInterventionsCard(
+                        language = state.currentLanguage,
+                        count = state.pendingRecommendations.size,
+                        onClick = { vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Interventions)) }
+                    )
+                }
+            }
+
+            if (state.students.isEmpty()) {
+                item(key = "empty") {
+                    GlassEmptyState(
+                        message = state.currentLanguage.pick(
+                            "Студенты ещё не зарегистрировались в организации",
+                            "Students have not registered in the organization yet",
+                            "Студенттер әлі ұйымға тіркелмеген"
+                        )
+                    )
+                }
             }
         }
     }
@@ -168,23 +170,19 @@ private fun GlassAiOrbHeader(
 ) {
     val firstName = name.split(" ").firstOrNull() ?: name
     val orbColor = climateAccentColor(climate)
-
-    val infiniteTransition = rememberInfiniteTransition(label = "orb_anim")
-    val orbGlowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f, targetValue = 0.65f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "orb_glow"
-    )
-    val orbRotation by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(7000, easing = LinearEasing), RepeatMode.Restart),
-        label = "orb_rotation"
-    )
-    val innerSweep by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(4500, easing = LinearEasing), RepeatMode.Restart),
-        label = "inner_sweep"
-    )
+    val orbGlowAlpha = when (climate) {
+        "critical" -> 0.58f
+        "warning" -> 0.46f
+        "good" -> 0.32f
+        else -> 0.28f
+    }
+    val orbRotation = when (climate) {
+        "critical" -> 32f
+        "warning" -> 18f
+        "good" -> 10f
+        else -> 6f
+    }
+    val innerRotation = -orbRotation * 0.55f - 18f
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -217,7 +215,7 @@ private fun GlassAiOrbHeader(
                 )
             }
             // Layer 3: counter-rotating thin ring
-            Canvas(Modifier.size(54.dp).graphicsLayer { rotationZ = -innerSweep * 0.6f }) {
+            Canvas(Modifier.size(54.dp).graphicsLayer { rotationZ = innerRotation }) {
                 drawArc(
                     brush = Brush.sweepGradient(
                         listOf(Color.White.copy(0.5f), Color.White.copy(0.15f), Color.Transparent)
@@ -313,13 +311,12 @@ private fun GroupClimateHubCard(
 ) {
     val accentColor = climateAccentColor(climate)
     val statusIcon  = when (climate) { "critical" -> "⚠️"; "warning" -> "📊"; "good" -> "✅"; else -> "🔍" }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "hub_glow")
-    val borderPulse by infiniteTransition.animateFloat(
-        initialValue = 0.25f, targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "hub_border"
-    )
+    val borderAlpha = when (climate) {
+        "critical" -> 0.62f
+        "warning" -> 0.48f
+        "good" -> 0.34f
+        else -> 0.28f
+    }
 
     Column(
         modifier = Modifier
@@ -330,7 +327,7 @@ private fun GroupClimateHubCard(
             .border(
                 1.dp,
                 Brush.linearGradient(
-                    listOf(accentColor.copy(borderPulse), Color.White.copy(0.12f), accentColor.copy(borderPulse * 0.2f))
+                    listOf(accentColor.copy(borderAlpha), Color.White.copy(0.12f), accentColor.copy(borderAlpha * 0.2f))
                 ),
                 RoundedCornerShape(24.dp)
             )
@@ -677,12 +674,11 @@ private fun GlassCriticalAlertZone(
     onViewStudent: (UserProfile) -> Unit,
     onRecommend: (UserProfile) -> Unit,
 ) {
-    val pulse = rememberInfiniteTransition(label = "crit_pulse")
-    val borderAlpha by pulse.animateFloat(
-        initialValue = 0.40f, targetValue = 0.90f,
-        animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "crit_alpha"
-    )
+    val borderAlpha = when {
+        criticalStudents.size >= 5 -> 0.82f
+        criticalStudents.size >= 3 -> 0.72f
+        else -> 0.62f
+    }
 
     Column(
         modifier = Modifier
@@ -735,7 +731,6 @@ private fun GlassCriticalStudentCard(language: AppLanguage, student: UserProfile
             .background(Color.White.copy(0.05f))
             .border(1.dp, PsychCritical.copy(0.26f), RoundedCornerShape(14.dp))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { expanded = !expanded }
-            .animateContentSize(animationSpec = tween(300))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {

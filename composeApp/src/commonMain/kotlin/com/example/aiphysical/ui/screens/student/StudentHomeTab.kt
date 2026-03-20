@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -54,60 +55,61 @@ fun StudentHomeTab(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .padding(top = 24.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        // ① Greeting header
-        StudentGreetingHeader(
-            name = state.profile.fullName,
-            status = state.profile.latestAiStatus,
-            language = state.currentLanguage,
-            onLogout = onLogout
-        )
-
-        if (state.isLoading) {
-            StudentShimmerSkeleton()
-        } else {
-            // ② Test Carousel ("Stories" style)
-            TestCarouselSection(
-                language = state.currentLanguage,
-                completedIds = state.completedTestIds,
-                onTestClick = { vm.onEvent(StudentEvent.StartTest(it)) }
-            )
-
-            // ③ Overall health indicator
-            OverallHealthCard(
-                score = state.overallScore,
+        item(key = "header") {
+            StudentGreetingHeader(
+                name = state.profile.fullName,
                 status = state.profile.latestAiStatus,
                 language = state.currentLanguage,
-                profile = state.profile,
-                completedIds = state.completedTestIds,
-                onGenerateReport = { vm.onEvent(StudentEvent.GenerateReport) }
+                onLogout = onLogout
             )
+        }
 
-            // ④ Psychologist recommendation (only if present)
-            if (state.profile.psychComment.isNotBlank()) {
-                PsychologistMessageCard(
-                    comment  = state.profile.psychComment,
-                    priority = state.profile.psychPriority,
+        if (state.isLoading) {
+            item(key = "loading") { StudentShimmerSkeleton() }
+        } else {
+            item(key = "tests") {
+                TestCarouselSection(
                     language = state.currentLanguage,
-                    courseName = state.profile.assignedCourseName,
-                    onCoursesClick = { vm.onEvent(StudentEvent.NavigateToTab(com.example.aiphysical.presentation.student.StudentTab.Courses)) }
+                    completedIds = state.completedTestIds,
+                    onTestClick = { vm.onEvent(StudentEvent.StartTest(it)) }
                 )
             }
 
-            // ⑤ AI course recommendations
-            AiCourseRecommendationsSection(
-                language = state.currentLanguage,
-                assignedCourseName = state.profile.assignedCourseName,
-                onViewCourses = { vm.onEvent(StudentEvent.NavigateToTab(com.example.aiphysical.presentation.student.StudentTab.Courses)) }
-            )
+            item(key = "health") {
+                OverallHealthCard(
+                    score = state.overallScore,
+                    status = state.profile.latestAiStatus,
+                    language = state.currentLanguage,
+                    profile = state.profile,
+                    completedIds = state.completedTestIds,
+                    onGenerateReport = { vm.onEvent(StudentEvent.GenerateReport) }
+                )
+            }
+
+            if (state.profile.psychComment.isNotBlank()) {
+                item(key = "psychologist") {
+                    PsychologistMessageCard(
+                        comment = state.profile.psychComment,
+                        priority = state.profile.psychPriority,
+                        language = state.currentLanguage,
+                        courseName = state.profile.assignedCourseName,
+                        onCoursesClick = { vm.onEvent(StudentEvent.NavigateToTab(com.example.aiphysical.presentation.student.StudentTab.Courses)) }
+                    )
+                }
+            }
+
+            item(key = "courses") {
+                AiCourseRecommendationsSection(
+                    language = state.currentLanguage,
+                    assignedCourseName = state.profile.assignedCourseName,
+                    onViewCourses = { vm.onEvent(StudentEvent.NavigateToTab(com.example.aiphysical.presentation.student.StudentTab.Courses)) }
+                )
+            }
         }
     }
 }

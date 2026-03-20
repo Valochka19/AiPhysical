@@ -124,17 +124,8 @@ private fun FloatingDirectorHeader(
     onLanguageChange: (com.example.aiphysical.presentation.auth.AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "title_glow")
-    val glowRadius by infiniteTransition.animateFloat(
-        initialValue = 80f, targetValue = 150f,
-        animationSpec = infiniteRepeatable(tween(3000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "glow_r"
-    )
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.15f, targetValue = 0.32f,
-        animationSpec = infiniteRepeatable(tween(3000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "glow_a"
-    )
+    val glowRadius = 118f
+    val glowAlpha = 0.24f
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Action row — Language + Logout

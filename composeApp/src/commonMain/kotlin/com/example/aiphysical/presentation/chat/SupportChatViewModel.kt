@@ -38,10 +38,7 @@ class SupportChatViewModel(
     private var threadsJob: Job? = null
     private var messagesJob: Job? = null
     private var threadCache: Map<String, com.example.aiphysical.data.model.PsychChatThread> = emptyMap()
-
-    init {
-        reload()
-    }
+    private var isActive: Boolean = false
 
     fun onEvent(event: SupportChatEvent) {
         when (event) {
@@ -67,10 +64,36 @@ class SupportChatViewModel(
         }
     }
 
+    fun setActive(active: Boolean) {
+        if (isActive == active) return
+        isActive = active
+
+        if (!active) {
+            stopObserving()
+            _state.update {
+                it.copy(
+                    isLoadingContacts = false,
+                    isLoadingMessages = false,
+                    isSending = false,
+                    errorMessage = null
+                )
+            }
+            return
+        }
+
+        if (_state.value.currentUserId.isBlank()) {
+            reload()
+            return
+        }
+
+        _state.update { it.copy(errorMessage = null) }
+        observeThreads()
+        resumeSelectedConversation()
+    }
+
     private fun reload() {
         _state.update { it.copy(isLoadingContacts = true, errorMessage = null) }
-        messagesJob?.cancel()
-        threadsJob?.cancel()
+        stopObserving()
         viewModelScope.launch {
             val profileResult = firestoreService.getUserProfile(uid)
             val profile = (profileResult as? FirestoreResult.UserProfileSuccess)?.profile
@@ -110,11 +133,15 @@ class SupportChatViewModel(
                 )
             }
             rebuildContacts()
-            observeThreads()
+            if (isActive) {
+                observeThreads()
+                resumeSelectedConversation()
+            }
         }
     }
 
     private fun observeThreads() {
+        if (!isActive) return
         threadsJob?.cancel()
         threadsJob = viewModelScope.launch {
             firestoreService.observePsychChatThreads(orgId, uid)
@@ -130,6 +157,13 @@ class SupportChatViewModel(
                     }
                 }
         }
+    }
+
+    private fun stopObserving() {
+        threadsJob?.cancel()
+        threadsJob = null
+        messagesJob?.cancel()
+        messagesJob = null
     }
 
     private fun rebuildContacts() {
@@ -155,11 +189,16 @@ class SupportChatViewModel(
                     .thenBy { it.fullName.lowercase() }
             )
 
-        val selectedUid = _state.value.selectedContact?.uid
+        val currentState = _state.value
+        val selectedUid = currentState.selectedContact?.uid
+        val resolvedSelected = mergedContacts.firstOrNull { it.uid == selectedUid } ?: currentState.selectedContact
+        if (currentState.contacts == mergedContacts && currentState.selectedContact == resolvedSelected) {
+            return
+        }
         _state.update { state ->
             state.copy(
                 contacts = mergedContacts,
-                selectedContact = mergedContacts.firstOrNull { it.uid == selectedUid } ?: state.selectedContact
+                selectedContact = resolvedSelected
             )
         }
     }
@@ -170,7 +209,9 @@ class SupportChatViewModel(
             return
         }
         val chatId = buildPsychChatId(orgId, uid, contact.uid)
-        messagesJob?.cancel()
+        if (_state.value.activeChatId == chatId && _state.value.selectedContact?.uid == contact.uid) {
+            return
+        }
         _state.update {
             it.copy(
                 selectedContact = contact.copy(chatId = chatId),
@@ -181,22 +222,44 @@ class SupportChatViewModel(
                 errorMessage = null
             )
         }
+        observeMessages(chatId, showLoading = true)
+    }
+
+    private fun observeMessages(chatId: String, showLoading: Boolean) {
+        if (!isActive) return
+        messagesJob?.cancel()
+        if (showLoading) {
+            _state.update { it.copy(isLoadingMessages = true) }
+        }
         messagesJob = viewModelScope.launch {
             firestoreService.observePsychChatMessages(chatId)
                 .catch { error -> _state.update { it.copy(isLoadingMessages = false, errorMessage = error.message) } }
                 .collect { result ->
                     when (result) {
-                        is FirestoreResult.PsychChatMessagesSuccess -> _state.update {
-                            it.copy(
-                                messages = result.messages.sortedBy { message -> message.createdAt },
-                                isLoadingMessages = false
-                            )
+                        is FirestoreResult.PsychChatMessagesSuccess -> {
+                            val sortedMessages = result.messages.sortedBy { message -> message.createdAt }
+                            _state.update {
+                                if (it.messages == sortedMessages && !it.isLoadingMessages) {
+                                    it
+                                } else {
+                                    it.copy(
+                                        messages = sortedMessages,
+                                        isLoadingMessages = false
+                                    )
+                                }
+                            }
                         }
                         is FirestoreResult.Failure -> _state.update { it.copy(isLoadingMessages = false, errorMessage = result.message) }
                         else -> Unit
                     }
                 }
         }
+    }
+
+    private fun resumeSelectedConversation() {
+        val chatId = _state.value.activeChatId
+        if (chatId.isBlank()) return
+        observeMessages(chatId, showLoading = _state.value.messages.isEmpty())
     }
 
     private fun sendMessage() {
@@ -252,8 +315,7 @@ class SupportChatViewModel(
     }
 
     override fun onCleared() {
-        threadsJob?.cancel()
-        messagesJob?.cancel()
+        stopObserving()
         super.onCleared()
     }
 

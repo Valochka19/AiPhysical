@@ -3,6 +3,7 @@ package com.example.aiphysical.ui.screens.student
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -31,67 +32,75 @@ fun StudentHelpTab(
     modifier: Modifier = Modifier,
 ) {
     val language = state.currentLanguage
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 28.dp, bottom = 36.dp),
+    val helpOptions = listOf(
+        Triple("📝", language.pick("Написать запрос", "Write a request", "Сұраныс жазу"), language.pick("Опиши своё состояние психологу", "Describe your condition to the psychologist", "Жағдайыңызды психологқа сипаттаңыз")),
+        Triple("📅", language.pick("Записаться на сессию", "Book a session", "Сессияға жазылу"), language.pick("Онлайн или офлайн встреча", "Online or offline meeting", "Онлайн немесе офлайн кездесу")),
+        Triple("🆘", language.pick("Срочная поддержка", "Urgent support", "Шұғыл қолдау"), language.pick("Нужна немедленная помощь", "Immediate help is needed", "Дереу көмек қажет")),
+    )
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 28.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Header
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        item(key = "header") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    language.pick("ЦЕНТР ПОМОЩИ", "HELP CENTER", "КӨМЕК ОРТАЛЫҒЫ"),
+                    color = TextHint,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.8.sp
+                )
+                Text(
+                    language.pick("Обратиться к психологу", "Contact a psychologist", "Психологқа жүгіну"),
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    language.pick(
+                        "Ты можешь обратиться к психологу своей организации напрямую",
+                        "You can directly contact your organization's psychologist",
+                        "Ұйымыңыздың психологына тікелей жүгіне аласыз"
+                    ),
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 20.sp
+                )
+            }
+        }
+
+        item(key = "contact") {
+            PsychologistContactCard(language = language, onOpenPsychologistChat = onOpenPsychologistChat)
+        }
+
+        item(key = "divider_1") {
+            HorizontalDivider(color = Color.White.copy(0.08f))
+        }
+
+        item(key = "quick_help_title") {
             Text(
-                language.pick("ЦЕНТР ПОМОЩИ", "HELP CENTER", "КӨМЕК ОРТАЛЫҒЫ"),
+                language.pick("БЫСТРАЯ ПОМОЩЬ", "QUICK HELP", "ЖЕДЕЛ КӨМЕК"),
                 color = TextHint,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.8.sp
             )
-            Text(
-                language.pick("Обратиться к психологу", "Contact a psychologist", "Психологқа жүгіну"),
-                color = TextPrimary,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Text(
-                language.pick(
-                    "Ты можешь обратиться к психологу своей организации напрямую",
-                    "You can directly contact your organization's psychologist",
-                    "Ұйымыңыздың психологына тікелей жүгіне аласыз"
-                ),
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 20.sp
-            )
         }
 
-        // Psychologist contact card
-        PsychologistContactCard(language = language, onOpenPsychologistChat = onOpenPsychologistChat)
-
-        HorizontalDivider(color = Color.White.copy(0.08f))
-
-        // Quick help options
-        Text(
-            language.pick("БЫСТРАЯ ПОМОЩЬ", "QUICK HELP", "ЖЕДЕЛ КӨМЕК"),
-            color = TextHint,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.8.sp
-        )
-
-        listOf(
-            Triple("📝", language.pick("Написать запрос", "Write a request", "Сұраныс жазу"),        language.pick("Опиши своё состояние психологу", "Describe your condition to the psychologist", "Жағдайыңызды психологқа сипаттаңыз")),
-            Triple("📅", language.pick("Записаться на сессию", "Book a session", "Сессияға жазылу"),   language.pick("Онлайн или офлайн встреча", "Online or offline meeting", "Онлайн немесе офлайн кездесу")),
-            Triple("🆘", language.pick("Срочная поддержка", "Urgent support", "Шұғыл қолдау"),      language.pick("Нужна немедленная помощь", "Immediate help is needed", "Дереу көмек қажет")),
-        ).forEach { (emoji, title, desc) ->
+        items(helpOptions.size, key = { index -> helpOptions[index].first + helpOptions[index].second }) { index ->
+            val (emoji, title, desc) = helpOptions[index]
             HelpOptionCard(emoji = emoji, title = title, description = desc)
         }
 
-        HorizontalDivider(color = Color.White.copy(0.08f))
+        item(key = "divider_2") {
+            HorizontalDivider(color = Color.White.copy(0.08f))
+        }
 
-        // Crisis line
-        CrisisResourceCard(language = language)
+        item(key = "crisis") {
+            CrisisResourceCard(language = language)
+        }
     }
 }
 

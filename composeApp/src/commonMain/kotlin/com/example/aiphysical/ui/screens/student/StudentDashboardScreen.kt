@@ -122,6 +122,10 @@ fun StudentDashboardScreen(
         supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
     }
 
+    LaunchedEffect(drawerOverlay) {
+        supportVm.setActive(drawerOverlay == DashboardOverlayDestination.Chat)
+    }
+
     LaunchedEffect(state.currentLanguage) {
         if (state.currentLanguage != currentLanguage) {
             onLanguageChange(state.currentLanguage)
@@ -207,12 +211,10 @@ fun StudentDashboardScreen(
                         )
                 )
 
-                // Main content — animated tab transitions
-                AnimatedContent(
+                // Main content — lightweight crossfade to avoid heavy tab re-measurements
+                Crossfade(
                     targetState = state.selectedTab,
-                    transitionSpec = {
-                        fadeIn(tween(160)) togetherWith fadeOut(tween(120))
-                    },
+                    animationSpec = tween(140),
                     label = "student_tab"
                 ) { tab ->
                     when (tab) {
@@ -631,17 +633,6 @@ private fun AiChatFab(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "fab_glow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.45f,
-        targetValue  = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation  = tween(1600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "fab_alpha"
-    )
-
     Box(
         modifier = modifier.size(64.dp),
         contentAlignment = Alignment.Center
@@ -652,7 +643,7 @@ private fun AiChatFab(
                 .size(64.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFF9D5FF5).copy(glowAlpha * 0.35f), Color.Transparent)
+                        listOf(Color(0xFF9D5FF5).copy(alpha = 0.22f), Color.Transparent)
                     ),
                     CircleShape
                 )

@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -43,29 +44,31 @@ fun StudentCoursesTab(
     modifier: Modifier = Modifier,
 ) {
     val language = state.currentLanguage
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 28.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 28.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Header
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(language.pick("КУРСЫ", "COURSES", "КУРСТАР"), color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
-            Text(language.pick("Активные курсы", "Active courses", "Белсенді курстар"), color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+        item(key = "header") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(language.pick("КУРСЫ", "COURSES", "КУРСТАР"), color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+                Text(language.pick("Активные курсы", "Active courses", "Белсенді курстар"), color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+            }
         }
 
-        ContentSubTabSwitcher(
-            language = language,
-            selectedTab = state.selectedContentSubTab,
-            onSelected = { vm.onEvent(StudentEvent.ChangeContentSubTab(it)) }
-        )
+        item(key = "switcher") {
+            ContentSubTabSwitcher(
+                language = language,
+                selectedTab = state.selectedContentSubTab,
+                onSelected = { vm.onEvent(StudentEvent.ChangeContentSubTab(it)) }
+            )
+        }
 
-        when (state.selectedContentSubTab) {
-            StudentContentSubTab.Courses -> StudentCoursesContent(state = state, vm = vm, language = language)
-            StudentContentSubTab.Tests -> StudentCustomTestsContent(state = state, vm = vm, language = language)
+        item(key = "content") {
+            when (state.selectedContentSubTab) {
+                StudentContentSubTab.Courses -> StudentCoursesContent(state = state, vm = vm, language = language)
+                StudentContentSubTab.Tests -> StudentCustomTestsContent(state = state, vm = vm, language = language)
+            }
         }
     }
 }

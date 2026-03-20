@@ -110,24 +110,16 @@ fun DirectorDashboardScreen(
         }
     ) { innerPadding ->
         DirectorBackground {
-            AnimatedContent(
+            Crossfade(
                 targetState = state.currentScreen,
-                transitionSpec = {
-                    val forward = targetState == DirectorPanelScreen.MemberDetail
-                    (fadeIn(tween(350)) + slideInHorizontally(tween(350)) { if (forward) it / 4 else -it / 4 }) togetherWith
-                    (fadeOut(tween(250)) + slideOutHorizontally(tween(250)) { if (forward) -it / 4 else it / 4 })
-                },
+                animationSpec = tween(170),
                 label = "director_screen_nav"
             ) { screen ->
                 when (screen) {
                     DirectorPanelScreen.Dashboard -> {
-                        AnimatedContent(
+                        Crossfade(
                             targetState = state.selectedTab,
-                            transitionSpec = {
-                                val goRight = targetState.ordinal > initialState.ordinal
-                                (slideInHorizontally(tween(280)) { if (goRight) it / 3 else -it / 3 } + fadeIn(tween(280))) togetherWith
-                                (slideOutHorizontally(tween(200)) { if (goRight) -it / 3 else it / 3 } + fadeOut(tween(200)))
-                            },
+                            animationSpec = tween(140),
                             label = "director_tab_nav"
                         ) { tab ->
                             when (tab) {

@@ -3,6 +3,7 @@ package com.example.aiphysical.ui.screens.student
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -36,119 +37,124 @@ fun StudentProfileTab(
 ) {
     val strings = getStrings(state.currentLanguage)
     val profile = state.profile
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 28.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 28.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // ── Avatar + Name ───────────────────────────────────────────────────────
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .background(
-                        Brush.radialGradient(listOf(Color(0xFF8A2BE2).copy(0.55f), Color(0xFF8A2BE2).copy(0.15f))),
-                        CircleShape
-                    )
-                    .border(2.dp, Brush.verticalGradient(listOf(Color(0xFF9D5FF5).copy(0.9f), Color(0xFF9D5FF5).copy(0.3f))), CircleShape),
-                contentAlignment = Alignment.Center
+        item(key = "header") {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    profile.fullName.take(1).uppercase().ifBlank { "?" },
-                    color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold
-                )
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(profile.fullName, color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
-                Text(profile.email, color = TextSecondary, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                val statusColor = statusToColor(profile.latestAiStatus)
-                val statusLabel = when (profile.latestAiStatus) {
-                    "critical" -> strings.statusCriticalFull
-                    "stress"   -> strings.statusStressFull
-                    "normal"   -> strings.statusNormalFull
-                    else       -> strings.statusNoData
-                }
-                Box(
-                    Modifier
-                        .background(statusColor.copy(0.15f), RoundedCornerShape(20.dp))
-                        .border(1.dp, statusColor.copy(0.4f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 14.dp, vertical = 5.dp)
-                ) {
-                    Text(statusLabel, color = statusColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-
-        // ── Language Switcher ─────────────────────────────────────────────────
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(strings.language, color = TextHint, fontSize = 11.sp, modifier = Modifier.weight(1f))
-            listOf(AppLanguage.RU, AppLanguage.EN, AppLanguage.KZ).forEach { lang ->
-                val isSelected = state.currentLanguage == lang
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) PsychTeal.copy(0.20f) else Color.White.copy(0.05f))
-                        .border(
-                            1.dp,
-                            if (isSelected) PsychTeal.copy(0.60f) else Color.White.copy(0.12f),
-                            RoundedCornerShape(10.dp)
+                        .size(90.dp)
+                        .background(
+                            Brush.radialGradient(listOf(Color(0xFF8A2BE2).copy(0.55f), Color(0xFF8A2BE2).copy(0.15f))),
+                            CircleShape
                         )
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onLanguageChange(lang) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .border(2.dp, Brush.verticalGradient(listOf(Color(0xFF9D5FF5).copy(0.9f), Color(0xFF9D5FF5).copy(0.3f))), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        lang.code.uppercase(),
-                        color = if (isSelected) PsychTeal else TextHint,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal
+                        profile.fullName.take(1).uppercase().ifBlank { "?" },
+                        color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold
                     )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(profile.fullName, color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                    Text(profile.email, color = TextSecondary, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                    val statusColor = statusToColor(profile.latestAiStatus)
+                    val statusLabel = when (profile.latestAiStatus) {
+                        "critical" -> strings.statusCriticalFull
+                        "stress"   -> strings.statusStressFull
+                        "normal"   -> strings.statusNormalFull
+                        else       -> strings.statusNoData
+                    }
+                    Box(
+                        Modifier
+                            .background(statusColor.copy(0.15f), RoundedCornerShape(20.dp))
+                            .border(1.dp, statusColor.copy(0.4f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 14.dp, vertical = 5.dp)
+                    ) {
+                        Text(statusLabel, color = statusColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
 
-        // ── Info cards ─────────────────────────────────────────────────────────
-        ProfileInfoSection(profile = profile, testCount = state.testHistory.size, strings = strings, language = state.currentLanguage)
-
-        // ── Test history preview ──────────────────────────────────────────────
-        if (state.testHistory.isNotEmpty()) {
-            TestHistorySection(
-                history = state.testHistory.sortedByDescending { it.dateMillis }.take(5),
-                strings = strings,
-                language = state.currentLanguage
-            )
+        item(key = "language") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(strings.language, color = TextHint, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                listOf(AppLanguage.RU, AppLanguage.EN, AppLanguage.KZ).forEach { lang ->
+                    val isSelected = state.currentLanguage == lang
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSelected) PsychTeal.copy(0.20f) else Color.White.copy(0.05f))
+                            .border(
+                                1.dp,
+                                if (isSelected) PsychTeal.copy(0.60f) else Color.White.copy(0.12f),
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onLanguageChange(lang) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            lang.code.uppercase(),
+                            color = if (isSelected) PsychTeal else TextHint,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
         }
 
-        HorizontalDivider(color = Color.White.copy(0.08f))
+        item(key = "info") {
+            ProfileInfoSection(profile = profile, testCount = state.testHistory.size, strings = strings, language = state.currentLanguage)
+        }
 
-        // ── About app section ──────────────────────────────────────────────────
-        AboutAppCard(strings = strings)
+        if (state.testHistory.isNotEmpty()) {
+            item(key = "history") {
+                TestHistorySection(
+                    history = state.testHistory.sortedByDescending { it.dateMillis }.take(5),
+                    strings = strings,
+                    language = state.currentLanguage
+                )
+            }
+        }
 
-        // ── Logout ─────────────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(PsychCritical.copy(0.12f))
-                .border(1.dp, Brush.verticalGradient(listOf(PsychCritical.copy(0.5f), PsychCritical.copy(0.15f))), RoundedCornerShape(16.dp))
-                .clickable { onLogout() }
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("🚪", fontSize = 18.sp)
-                Text(strings.profileLogout, color = PsychCritical, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        item(key = "divider") {
+            HorizontalDivider(color = Color.White.copy(0.08f))
+        }
+
+        item(key = "about") {
+            AboutAppCard(strings = strings)
+        }
+
+        item(key = "logout") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(PsychCritical.copy(0.12f))
+                    .border(1.dp, Brush.verticalGradient(listOf(PsychCritical.copy(0.5f), PsychCritical.copy(0.15f))), RoundedCornerShape(16.dp))
+                    .clickable { onLogout() }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🚪", fontSize = 18.sp)
+                    Text(strings.profileLogout, color = PsychCritical, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

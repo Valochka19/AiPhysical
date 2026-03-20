@@ -3,6 +3,7 @@ package com.example.aiphysical.ui.screens.psychologist
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -46,138 +47,148 @@ fun LibraryTab(
     modifier: Modifier = Modifier,
 ) {
     val language = state.currentLanguage
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 100.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // ── Header ─────────────────────────────────────────────────────────────
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(language.pick("Библиотека", "Library", "Кітапхана"), color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-            Text(language.pick("Тесты и курсы платформы KASU", "KASU platform tests and courses", "KASU платформасының тесттері мен курстары"), color = TextSecondary, fontSize = 13.sp)
-        }
-
-        // ── Psychologist profile info ──────────────────────────────────────────
-        PsychProfileCard(state = state, language = language)
-
-        // ── Tests Section ──────────────────────────────────────────────────────
-        LibrarySection(title = language.pick("5 ОБЯЗАТЕЛЬНЫХ ТЕСТОВ", "5 REQUIRED TESTS", "5 МІНДЕТТІ ТЕСТ"), emoji = "📋") {
-            AppStudentTestCatalog.items.forEachIndexed { index, item ->
-                val stats = state.testStats.firstOrNull { it.testType == item.type }
-                PsychologistTestLibraryCard(
-                    index = index + 1,
-                    emoji = item.emoji,
-                    name = item.displayTitle(language),
-                    description = item.displayDescription(language),
-                    stats = stats,
-                    language = language,
-                    isLoadingStats = state.isLoadingTestStats && state.selectedTestStats?.testType == item.type,
-                    onStatsClick = { vm.onEvent(PsychologistEvent.OpenTestStats(item.type)) },
-                    isLast = index == AppStudentTestCatalog.items.lastIndex
-                )
+        item(key = "header") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(language.pick("Библиотека", "Library", "Кітапхана"), color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                Text(language.pick("Тесты и курсы платформы KASU", "KASU platform tests and courses", "KASU платформасының тесттері мен курстары"), color = TextSecondary, fontSize = 13.sp)
             }
         }
 
-        // ── Base Courses Section (from shared catalog) ─────────────────────────
-        LibrarySection(title = language.pick("5 БАЗОВЫХ КУРСОВ", "5 BASE COURSES", "5 НЕГІЗГІ КУРС"), emoji = "📚") {
-            AppCourseCatalog.baseCourses.forEach { item ->
-                val assignedCount = state.students.count { it.assignedCourseId == item.id }
-                PlatformCourseCard(
-                    course = item,
-                    language = language,
-                    badgeText = if (assignedCount > 0) {
-                        language.pick("$assignedCount назн.", "$assignedCount assigned", "$assignedCount тағайындалды")
-                    } else null,
-                    onClick = { vm.onEvent(PsychologistEvent.OpenBaseCourse(item)) }
-                )
+        item(key = "profile") {
+            PsychProfileCard(state = state, language = language)
+        }
+
+        item(key = "tests") {
+            LibrarySection(title = language.pick("5 ОБЯЗАТЕЛЬНЫХ ТЕСТОВ", "5 REQUIRED TESTS", "5 МІНДЕТТІ ТЕСТ"), emoji = "📋") {
+                AppStudentTestCatalog.items.forEachIndexed { index, item ->
+                    val stats = state.testStats.firstOrNull { it.testType == item.type }
+                    PsychologistTestLibraryCard(
+                        index = index + 1,
+                        emoji = item.emoji,
+                        name = item.displayTitle(language),
+                        description = item.displayDescription(language),
+                        stats = stats,
+                        language = language,
+                        isLoadingStats = state.isLoadingTestStats && state.selectedTestStats?.testType == item.type,
+                        onStatsClick = { vm.onEvent(PsychologistEvent.OpenTestStats(item.type)) },
+                        isLast = index == AppStudentTestCatalog.items.lastIndex
+                    )
+                }
             }
         }
 
-        // ── Action buttons ─────────────────────────────────────────────────────
-        PsychActionButton(
-            emoji = "➕",
-            title = language.pick("Добавление курса", "Add course", "Курс қосу"),
-            subtitle = language.pick("Создать и опубликовать новый курс", "Create and publish a new course", "Жаңа курсты жасап, жариялау"),
-            accentColor = PsychTeal,
-            onClick = { vm.onEvent(PsychologistEvent.OpenAddCourseSheet) }
-        )
+        item(key = "base_courses") {
+            LibrarySection(title = language.pick("5 БАЗОВЫХ КУРСОВ", "5 BASE COURSES", "5 НЕГІЗГІ КУРС"), emoji = "📚") {
+                AppCourseCatalog.baseCourses.forEach { item ->
+                    val assignedCount = state.students.count { it.assignedCourseId == item.id }
+                    PlatformCourseCard(
+                        course = item,
+                        language = language,
+                        badgeText = if (assignedCount > 0) {
+                            language.pick("$assignedCount назн.", "$assignedCount assigned", "$assignedCount тағайындалды")
+                        } else null,
+                        onClick = { vm.onEvent(PsychologistEvent.OpenBaseCourse(item)) }
+                    )
+                }
+            }
+        }
 
-        PsychActionButton(
-            emoji = "📂",
-            title = language.pick("Добавленные курсы", "Added courses", "Қосылған курстар"),
-            subtitle = if (state.addedCourses.isEmpty()) {
-                language.pick("Курсов пока нет", "No courses yet", "Әзірге курстар жоқ")
-            } else {
-                language.pick(
-                    "${state.addedCourses.size} курс(ов) опубликовано",
-                    "${state.addedCourses.size} course(s) published",
-                    "${state.addedCourses.size} курс жарияланды"
-                )
-            },
-            accentColor = NeonViolet,
-            badge = if (state.addedCourses.isNotEmpty()) state.addedCourses.size.toString() else null,
-            onClick = { vm.onEvent(PsychologistEvent.OpenAddedCourses) }
-        )
-
-        PsychActionButton(
-            emoji = "🧪",
-            title = language.pick("Загрузить тест", "Publish test", "Тест жүктеу"),
-            subtitle = language.pick("Создать и опубликовать тест для студентов", "Create and publish a test for students", "Студенттерге арналған тест жасап, жариялау"),
-            accentColor = AlertOrange,
-            onClick = { vm.onEvent(PsychologistEvent.OpenAddTestScreen) }
-        )
-
-        // ── Inline: Added courses viewer ───────────────────────────────────────
-        if (state.showAddedCoursesViewer) {
-            PsychAddedCoursesSection(
-                language = language,
-                courses = state.addedCourses,
-                onCourse = { vm.onEvent(PsychologistEvent.OpenAddedCourse(it)) },
-                onDelete = { vm.onEvent(PsychologistEvent.DeleteAddedCourse(it)) },
-                onClose = { vm.onEvent(PsychologistEvent.CloseAddedCourses) }
+        item(key = "action_add_course") {
+            PsychActionButton(
+                emoji = "➕",
+                title = language.pick("Добавление курса", "Add course", "Курс қосу"),
+                subtitle = language.pick("Создать и опубликовать новый курс", "Create and publish a new course", "Жаңа курсты жасап, жариялау"),
+                accentColor = PsychTeal,
+                onClick = { vm.onEvent(PsychologistEvent.OpenAddCourseSheet) }
             )
         }
 
-        LibrarySection(title = language.pick("ДОБАВЛЕННЫЕ ТЕСТЫ", "ADDED TESTS", "ҚОСЫЛҒАН ТЕСТТЕР"), emoji = "🧪") {
-            if (state.isLoadingCustomTests) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = AlertOrange, strokeWidth = 2.dp)
-                }
-            } else if (state.customTests.isEmpty()) {
-                Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("📝", fontSize = 36.sp)
-                        Text(language.pick("Пока нет опубликованных тестов", "No published tests yet", "Әзірге жарияланған тесттер жоқ"), color = TextSecondary, fontSize = 14.sp)
-                    }
-                }
-            } else {
-                state.customTests.forEachIndexed { index, test ->
-                    OrganizationCustomTestCard(
-                        test = test,
-                        language = language,
-                        onClick = {},
-                        accentColor = AlertOrange,
-                        badgeText = language.pick("${test.questions.size} вопрос(ов)", "${test.questions.size} question(s)", "${test.questions.size} сұрақ"),
-                        metaText = test.createdByName.ifBlank { language.pick("Опубликовано", "Published", "Жарияланған") },
-                        ctaText = language.pick("Опубликован", "Published", "Жарияланды")
+        item(key = "action_added_courses") {
+            PsychActionButton(
+                emoji = "📂",
+                title = language.pick("Добавленные курсы", "Added courses", "Қосылған курстар"),
+                subtitle = if (state.addedCourses.isEmpty()) {
+                    language.pick("Курсов пока нет", "No courses yet", "Әзірге курстар жоқ")
+                } else {
+                    language.pick(
+                        "${state.addedCourses.size} курс(ов) опубликовано",
+                        "${state.addedCourses.size} course(s) published",
+                        "${state.addedCourses.size} курс жарияланды"
                     )
-                    if (index != state.customTests.lastIndex) {
-                        Spacer(Modifier.height(12.dp))
+                },
+                accentColor = NeonViolet,
+                badge = if (state.addedCourses.isNotEmpty()) state.addedCourses.size.toString() else null,
+                onClick = { vm.onEvent(PsychologistEvent.OpenAddedCourses) }
+            )
+        }
+
+        item(key = "action_publish_test") {
+            PsychActionButton(
+                emoji = "🧪",
+                title = language.pick("Загрузить тест", "Publish test", "Тест жүктеу"),
+                subtitle = language.pick("Создать и опубликовать тест для студентов", "Create and publish a test for students", "Студенттерге арналған тест жасап, жариялау"),
+                accentColor = AlertOrange,
+                onClick = { vm.onEvent(PsychologistEvent.OpenAddTestScreen) }
+            )
+        }
+
+        if (state.showAddedCoursesViewer) {
+            item(key = "added_courses_viewer") {
+                PsychAddedCoursesSection(
+                    language = language,
+                    courses = state.addedCourses,
+                    onCourse = { vm.onEvent(PsychologistEvent.OpenAddedCourse(it)) },
+                    onDelete = { vm.onEvent(PsychologistEvent.DeleteAddedCourse(it)) },
+                    onClose = { vm.onEvent(PsychologistEvent.CloseAddedCourses) }
+                )
+            }
+        }
+
+        item(key = "custom_tests") {
+            LibrarySection(title = language.pick("ДОБАВЛЕННЫЕ ТЕСТЫ", "ADDED TESTS", "ҚОСЫЛҒАН ТЕСТТЕР"), emoji = "🧪") {
+                if (state.isLoadingCustomTests) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = AlertOrange, strokeWidth = 2.dp)
+                    }
+                } else if (state.customTests.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("📝", fontSize = 36.sp)
+                            Text(language.pick("Пока нет опубликованных тестов", "No published tests yet", "Әзірге жарияланған тесттер жоқ"), color = TextSecondary, fontSize = 14.sp)
+                        }
+                    }
+                } else {
+                    state.customTests.forEachIndexed { index, test ->
+                        OrganizationCustomTestCard(
+                            test = test,
+                            language = language,
+                            onClick = {},
+                            accentColor = AlertOrange,
+                            badgeText = language.pick("${test.questions.size} вопрос(ов)", "${test.questions.size} question(s)", "${test.questions.size} сұрақ"),
+                            metaText = test.createdByName.ifBlank { language.pick("Опубликовано", "Published", "Жарияланған") },
+                            ctaText = language.pick("Опубликован", "Published", "Жарияланды")
+                        )
+                        if (index != state.customTests.lastIndex) {
+                            Spacer(Modifier.height(12.dp))
+                        }
                     }
                 }
             }
         }
 
-        // ── Stats overview ─────────────────────────────────────────────────────
-        LibraryStatsCard(state = state, language = language)
+        item(key = "stats") {
+            LibraryStatsCard(state = state, language = language)
+        }
     }
 
     // ── Add Course Sheet (dialog) ──────────────────────────────────────────────

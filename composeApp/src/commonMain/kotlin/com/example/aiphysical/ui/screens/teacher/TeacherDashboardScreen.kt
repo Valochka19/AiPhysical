@@ -2,7 +2,7 @@
 
 package com.example.aiphysical.ui.screens.teacher
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,10 +28,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
@@ -119,8 +121,13 @@ fun TeacherDashboardScreen(
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val supportState by supportVm.state.collectAsStateWithLifecycle()
-    val organizationMembers by produceState(initialValue = emptyList<UserProfile>(), key1 = orgId) {
-        if (orgId.isBlank()) return@produceState
+    var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
+    val organizationMembers by produceState(
+        initialValue = emptyList<UserProfile>(),
+        key1 = orgId,
+        key2 = drawerOverlay
+    ) {
+        if (orgId.isBlank() || drawerOverlay != DashboardOverlayDestination.Points) return@produceState
         firestoreService.observeOrganizationMembers(orgId).collect { result ->
             if (result is FirestoreResult.MembersSuccess) {
                 value = result.members.filter { it.role == "user" }
@@ -131,7 +138,6 @@ fun TeacherDashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
-    var drawerOverlay by remember { mutableStateOf(DashboardOverlayDestination.None) }
 
     LaunchedEffect(Unit) {
         vm.effects.collectLatest { effect ->
@@ -158,6 +164,10 @@ fun TeacherDashboardScreen(
     LaunchedEffect(currentLanguage) {
         vm.onEvent(StudentEvent.ChangeLanguage(currentLanguage))
         supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
+    }
+
+    LaunchedEffect(drawerOverlay) {
+        supportVm.setActive(drawerOverlay == DashboardOverlayDestination.Chat)
     }
 
     LaunchedEffect(state.currentLanguage) {
@@ -213,9 +223,9 @@ fun TeacherDashboardScreen(
             }
         ) { innerPadding ->
             TeacherBackground {
-                AnimatedContent(
+                Crossfade(
                     targetState = state.selectedTab,
-                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                    animationSpec = tween(140),
                     label = "teacher_tab"
                 ) { tab ->
                     when (tab) {
@@ -353,61 +363,69 @@ private fun TeacherHomeTab(
     val strings = getStrings(state.currentLanguage)
     val testCards = teacherTestCardTitles(state.currentLanguage)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 24.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        TeacherHeroCard(
-            state = state,
-            strings = strings,
-            onOpenHelp = onOpenHelp,
-            onLogout = onLogout
-        )
-
-        TeacherQuickStats(state = state, strings = strings)
-
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                text = strings.teacherTestsTitle,
-                color = TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
+        item(key = "hero") {
+            TeacherHeroCard(
+                state = state,
+                strings = strings,
+                onOpenHelp = onOpenHelp,
+                onLogout = onLogout
             )
-            Text(
-                text = strings.teacherTestsSoon,
-                color = TextSecondary,
-                fontSize = 13.sp,
-                lineHeight = 18.sp
-            )
-            testCards.forEach { (emoji, title) ->
-                TeacherPlaceholderCard(
-                    emoji = emoji,
-                    title = title,
-                    subtitle = strings.teacherTestsSoon,
-                    onClick = onShowTeacherTestsStub
+        }
+
+        item(key = "stats") {
+            TeacherQuickStats(state = state, strings = strings)
+        }
+
+        item(key = "tests_header") {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = strings.teacherTestsTitle,
+                    color = TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = strings.teacherTestsSoon,
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
                 )
             }
         }
 
-        TeacherActionCard(
-            emoji = "📚",
-            title = strings.tabCourses,
-            subtitle = strings.teacherDashboardSubtitle,
-            accent = PsychTeal,
-            onClick = onOpenCourses
-        )
+        items(items = testCards, key = { it.second }) { (emoji, title) ->
+            TeacherPlaceholderCard(
+                emoji = emoji,
+                title = title,
+                subtitle = strings.teacherTestsSoon,
+                onClick = onShowTeacherTestsStub
+            )
+        }
 
-        TeacherActionCard(
-            emoji = "🧠",
-            title = strings.teacherHelpTitle,
-            subtitle = strings.teacherHelpText,
-            accent = AlertOrange,
-            onClick = onOpenHelp
-        )
+        item(key = "courses") {
+            TeacherActionCard(
+                emoji = "📚",
+                title = strings.tabCourses,
+                subtitle = strings.teacherDashboardSubtitle,
+                accent = PsychTeal,
+                onClick = onOpenCourses
+            )
+        }
+
+        item(key = "help") {
+            TeacherActionCard(
+                emoji = "🧠",
+                title = strings.teacherHelpTitle,
+                subtitle = strings.teacherHelpText,
+                accent = AlertOrange,
+                onClick = onOpenHelp
+            )
+        }
     }
 }
 
@@ -624,36 +642,39 @@ private fun TeacherHelpTab(
 ) {
     val strings = getStrings(state.currentLanguage)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 28.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 28.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Text(strings.teacherHelpTitle, color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-        Text(strings.teacherHelpText, color = TextSecondary, fontSize = 14.sp, lineHeight = 20.sp)
-
-        TeacherActionCard(
-            emoji = "🧠",
-            title = strings.contactPsychologist,
-            subtitle = if (state.profile.psychComment.isNotBlank()) state.profile.psychComment else strings.teacherHelpText,
-            accent = PsychTeal,
-            onClick = onOpenPsychologistChat
-        )
-
-        TeacherActionCard(
-            emoji = "📞",
-            title = "150",
-            subtitle = when (state.currentLanguage) {
-                AppLanguage.RU -> "Экстренная психологическая помощь"
-                AppLanguage.EN -> "Emergency psychological support"
-                AppLanguage.KZ -> "Шұғыл психологиялық көмек"
-            },
-            accent = AlertOrange,
-            onClick = {}
-        )
+        item(key = "header") {
+            Text(strings.teacherHelpTitle, color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        item(key = "subtitle") {
+            Text(strings.teacherHelpText, color = TextSecondary, fontSize = 14.sp, lineHeight = 20.sp)
+        }
+        item(key = "psychologist") {
+            TeacherActionCard(
+                emoji = "🧠",
+                title = strings.contactPsychologist,
+                subtitle = if (state.profile.psychComment.isNotBlank()) state.profile.psychComment else strings.teacherHelpText,
+                accent = PsychTeal,
+                onClick = onOpenPsychologistChat
+            )
+        }
+        item(key = "emergency") {
+            TeacherActionCard(
+                emoji = "📞",
+                title = "150",
+                subtitle = when (state.currentLanguage) {
+                    AppLanguage.RU -> "Экстренная психологическая помощь"
+                    AppLanguage.EN -> "Emergency psychological support"
+                    AppLanguage.KZ -> "Шұғыл психологиялық көмек"
+                },
+                accent = AlertOrange,
+                onClick = {}
+            )
+        }
     }
 }
 
@@ -666,80 +687,85 @@ private fun TeacherProfileTab(
 ) {
     val strings = getStrings(state.currentLanguage)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 28.dp, bottom = 36.dp),
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 28.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(92.dp)
-                    .background(Brush.radialGradient(listOf(AlertOrange.copy(0.5f), AlertOrange.copy(0.12f))), CircleShape)
-                    .border(2.dp, AlertOrange.copy(0.55f), CircleShape),
-                contentAlignment = Alignment.Center
+        item(key = "profile_header") {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("🧑‍🏫", fontSize = 34.sp)
-            }
-            Text(state.profile.fullName, color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
-            Text(state.profile.email, color = TextSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(strings.language, color = TextHint, fontSize = 11.sp, modifier = Modifier.weight(1f))
-            listOf(AppLanguage.RU, AppLanguage.EN, AppLanguage.KZ).forEach { lang ->
-                val isSelected = state.currentLanguage == lang
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) AlertOrange.copy(0.20f) else Color.White.copy(0.05f))
-                        .border(1.dp, if (isSelected) AlertOrange.copy(0.60f) else Color.White.copy(0.12f), RoundedCornerShape(10.dp))
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onLanguageChange(lang) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .size(92.dp)
+                        .background(Brush.radialGradient(listOf(AlertOrange.copy(0.5f), AlertOrange.copy(0.12f))), CircleShape)
+                        .border(2.dp, AlertOrange.copy(0.55f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(lang.code.uppercase(), color = if (isSelected) AlertOrange else TextHint, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal)
+                    Text("🧑‍🏫", fontSize = 34.sp)
+                }
+                Text(state.profile.fullName, color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                Text(state.profile.email, color = TextSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
+            }
+        }
+
+        item(key = "language") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(strings.language, color = TextHint, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                listOf(AppLanguage.RU, AppLanguage.EN, AppLanguage.KZ).forEach { lang ->
+                    val isSelected = state.currentLanguage == lang
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSelected) AlertOrange.copy(0.20f) else Color.White.copy(0.05f))
+                            .border(1.dp, if (isSelected) AlertOrange.copy(0.60f) else Color.White.copy(0.12f), RoundedCornerShape(10.dp))
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onLanguageChange(lang) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(lang.code.uppercase(), color = if (isSelected) AlertOrange else TextHint, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal)
+                    }
                 }
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Brush.verticalGradient(listOf(Color.White.copy(0.08f), Color.White.copy(0.03f))))
-                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            TeacherProfileRow("🎭", strings.profileRole, strings.roleTeacherShort)
-            TeacherProfileRow("🏫", strings.profileGroup, strings.filterStaff)
-            TeacherProfileRow("📚", strings.profileCourseProgress, "${state.profile.courseProgressPercent.toInt()}%")
-            TeacherProfileRow("🧠", strings.teacherHelpTitle, if (state.profile.psychComment.isNotBlank()) strings.statusNormal else strings.statusNoData)
+        item(key = "info") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Brush.verticalGradient(listOf(Color.White.copy(0.08f), Color.White.copy(0.03f))))
+                    .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TeacherProfileRow("🎭", strings.profileRole, strings.roleTeacherShort)
+                TeacherProfileRow("🏫", strings.profileGroup, strings.filterStaff)
+                TeacherProfileRow("📚", strings.profileCourseProgress, "${state.profile.courseProgressPercent.toInt()}%")
+                TeacherProfileRow("🧠", strings.teacherHelpTitle, if (state.profile.psychComment.isNotBlank()) strings.statusNormal else strings.statusNoData)
+            }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(AlertOrange.copy(0.12f))
-                .border(1.dp, AlertOrange.copy(0.35f), RoundedCornerShape(16.dp))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onLogout)
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("🚪 ${strings.profileLogout}", color = AlertOrange, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        item(key = "logout") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(AlertOrange.copy(0.12f))
+                    .border(1.dp, AlertOrange.copy(0.35f), RoundedCornerShape(16.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onLogout)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🚪 ${strings.profileLogout}", color = AlertOrange, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

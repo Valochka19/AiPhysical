@@ -111,6 +111,10 @@ fun PsychologistDashboardScreen(
         supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
     }
 
+    LaunchedEffect(drawerOverlay) {
+        supportVm.setActive(drawerOverlay == DashboardOverlayDestination.Chat)
+    }
+
     LaunchedEffect(state.currentLanguage) {
         if (state.currentLanguage != currentLanguage) {
             onLanguageChange(state.currentLanguage)
@@ -185,15 +189,9 @@ fun PsychologistDashboardScreen(
                     .fillMaxSize()
                     .background(PsychBackground)
             ) {
-                AnimatedContent(
+                Crossfade(
                     targetState = state.selectedTab to state.currentScreen,
-                    transitionSpec = {
-                        val isForward = targetState.first.ordinal >= initialState.first.ordinal
-                        (slideInHorizontally(tween(280)) { if (isForward) it / 4 else -it / 4 } +
-                         fadeIn(tween(280))) togetherWith
-                        (slideOutHorizontally(tween(220)) { if (isForward) -it / 4 else it / 4 } +
-                         fadeOut(tween(220)))
-                    },
+                    animationSpec = tween(160),
                     label = "psych_content"
                 ) { (tab, screen) ->
                     when {

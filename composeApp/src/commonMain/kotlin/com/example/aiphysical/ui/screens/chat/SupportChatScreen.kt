@@ -182,7 +182,7 @@ fun PointsPlaceholderScreen(
         compareByDescending<UserProfile> { it.pointsTotal }.thenBy { it.fullName.lowercase() }
     )
 
-    Column(
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(
@@ -190,111 +190,118 @@ fun PointsPlaceholderScreen(
                     listOf(Color(0xFF0A0914), Color(0xFF14121F), Color(0xFF0C0A16))
                 )
             )
-            .statusBarsPadding()
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(start = 18.dp, top = 16.dp, end = 18.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        OverlayHeader(title = title, subtitle = resolvedIntroText, language = language, onBack = onBack)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(26.dp))
-                .background(Brush.verticalGradient(listOf(AlertOrange.copy(0.12f), Color.White.copy(0.03f))))
-                .border(1.dp, AlertOrange.copy(0.24f), RoundedCornerShape(26.dp))
-                .padding(22.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(language.pick("Баллы", "Points", "Ұпайлар"), color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                if (currentUserName.isNotBlank()) {
-                    Text(currentUserName, color = TextSecondary, fontSize = 13.sp)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color.White.copy(0.06f))
-                            .border(1.dp, Color.White.copy(0.10f), RoundedCornerShape(18.dp))
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                    ) {
-                        Column {
-                                    Text(language.pick("Всего", "Total", "Барлығы"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                            Text("$currentPoints", color = AlertOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+        item(key = "header") {
+            OverlayHeader(title = title, subtitle = resolvedIntroText, language = language, onBack = onBack)
+        }
+
+        item(key = "summary") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(Brush.verticalGradient(listOf(AlertOrange.copy(0.12f), Color.White.copy(0.03f))))
+                    .border(1.dp, AlertOrange.copy(0.24f), RoundedCornerShape(26.dp))
+                    .padding(22.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(language.pick("Баллы", "Points", "Ұпайлар"), color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                    if (currentUserName.isNotBlank()) {
+                        Text(currentUserName, color = TextSecondary, fontSize = 13.sp)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color.White.copy(0.06f))
+                                .border(1.dp, Color.White.copy(0.10f), RoundedCornerShape(18.dp))
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Column {
+                                Text(language.pick("Всего", "Total", "Барлығы"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                                Text("$currentPoints", color = AlertOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(levelTitle, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                nextMilestone?.let {
+                                    language.pick(
+                                        "До следующего рубежа: ${it - currentPoints} баллов",
+                                        "To the next milestone: ${it - currentPoints} points",
+                                        "Келесі межеге дейін: ${it - currentPoints} ұпай"
+                                    )
+                                } ?: language.pick(
+                                    "Максимальный текущий рубеж достигнут",
+                                    "The current maximum milestone has been reached",
+                                    "Қазіргі ең жоғары межеге жеттіңіз"
+                                ),
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
                         }
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(levelTitle, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                                    nextMilestone?.let {
-                                        language.pick(
-                                            "До следующего рубежа: ${it - currentPoints} баллов",
-                                            "To the next milestone: ${it - currentPoints} points",
-                                            "Келесі межеге дейін: ${it - currentPoints} ұпай"
-                                        )
-                                    } ?: language.pick(
-                                        "Максимальный текущий рубеж достигнут",
-                                        "The current maximum milestone has been reached",
-                                        "Қазіргі ең жоғары межеге жеттіңіз"
-                                    ),
-                            color = TextSecondary,
-                            fontSize = 12.sp
-                        )
-                    }
+                    Text(
+                        language.pick(
+                            "За каждый полностью завершённый тест начисляются баллы. История и рейтинг обновляются без влияния на текущую логику тестов.",
+                            "Each fully completed test awards points. History and ranking update without affecting the current test logic.",
+                            "Әр толық аяқталған тест үшін ұпай беріледі. Тарих пен рейтинг тесттердің ағымдағы логикасына әсер етпей жаңарып отырады."
+                        ),
+                        color = TextSecondary,
+                        fontSize = 14.sp,
+                        lineHeight = 21.sp
+                    )
                 }
-                Text(
-                            language.pick(
-                                "За каждый полностью завершённый тест начисляются баллы. История и рейтинг обновляются без влияния на текущую логику тестов.",
-                                "Each fully completed test awards points. History and ranking update without affecting the current test logic.",
-                                "Әр толық аяқталған тест үшін ұпай беріледі. Тарих пен рейтинг тесттердің ағымдағы логикасына әсер етпей жаңарып отырады."
-                            ),
-                    color = TextSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp
-                )
             }
         }
 
         if (pointsHistory.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.verticalGradient(listOf(PsychTeal.copy(0.10f), Color.White.copy(0.03f))))
-                    .border(1.dp, PsychTeal.copy(0.22f), RoundedCornerShape(24.dp))
-                    .padding(18.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(language.pick("Последние начисления", "Recent awards", "Соңғы есептелген ұпайлар"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                    pointsHistory.take(5).forEachIndexed { index, entry ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(
-                                    entry.title.ifBlank {
-                                        language.pick("Тест завершён", "Test completed", "Тест аяқталды")
-                                    },
-                                    color = TextPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    entry.description.ifBlank {
-                                        language.pick(
-                                            "Начисление за прохождение теста",
-                                            "Points awarded for completing a test",
-                                            "Тесттен өткені үшін ұпай берілді"
-                                        )
-                                    },
-                                    color = TextSecondary,
-                                    fontSize = 12.sp
-                                )
+            item(key = "history") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Brush.verticalGradient(listOf(PsychTeal.copy(0.10f), Color.White.copy(0.03f))))
+                        .border(1.dp, PsychTeal.copy(0.22f), RoundedCornerShape(24.dp))
+                        .padding(18.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(language.pick("Последние начисления", "Recent awards", "Соңғы есептелген ұпайлар"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                        pointsHistory.take(5).forEachIndexed { index, entry ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        entry.title.ifBlank {
+                                            language.pick("Тест завершён", "Test completed", "Тест аяқталды")
+                                        },
+                                        color = TextPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        entry.description.ifBlank {
+                                            language.pick(
+                                                "Начисление за прохождение теста",
+                                                "Points awarded for completing a test",
+                                                "Тесттен өткені үшін ұпай берілді"
+                                            )
+                                        },
+                                        color = TextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Text("+${entry.points}", color = PsychTeal, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                             }
-                            Text("+${entry.points}", color = PsychTeal, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                        }
-                        if (index != pointsHistory.take(5).lastIndex) {
-                            HorizontalDivider(color = Color.White.copy(0.08f))
+                            if (index != pointsHistory.take(5).lastIndex) {
+                                HorizontalDivider(color = Color.White.copy(0.08f))
+                            }
                         }
                     }
                 }
@@ -302,37 +309,39 @@ fun PointsPlaceholderScreen(
         }
 
         if (leaderboardStudents.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.verticalGradient(listOf(VioletGlow.copy(0.12f), Color.White.copy(0.03f))))
-                    .border(1.dp, VioletGlow.copy(0.22f), RoundedCornerShape(24.dp))
-                    .padding(18.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(language.pick("Рейтинг студентов", "Student ranking", "Студенттер рейтингі"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                    leaderboardStudents.take(8).forEachIndexed { index, profile ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(VioletGlow.copy(0.16f))
-                                    .border(1.dp, VioletGlow.copy(0.30f), RoundedCornerShape(10.dp)),
-                                contentAlignment = Alignment.Center
+            item(key = "leaderboard") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Brush.verticalGradient(listOf(VioletGlow.copy(0.12f), Color.White.copy(0.03f))))
+                        .border(1.dp, VioletGlow.copy(0.22f), RoundedCornerShape(24.dp))
+                        .padding(18.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(language.pick("Рейтинг студентов", "Student ranking", "Студенттер рейтингі"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                        leaderboardStudents.take(8).forEachIndexed { index, profile ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text("${index + 1}", color = VioletGlow, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(VioletGlow.copy(0.16f))
+                                        .border(1.dp, VioletGlow.copy(0.30f), RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("${index + 1}", color = VioletGlow, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                                }
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(profile.fullName.ifBlank { profile.email }, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(profile.latestAiStatus.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }, color = TextSecondary, fontSize = 11.sp)
+                                }
+                                Text("${profile.pointsTotal}", color = AlertOrange, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                             }
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(profile.fullName.ifBlank { profile.email }, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                Text(profile.latestAiStatus.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }, color = TextSecondary, fontSize = 11.sp)
-                            }
-                            Text("${profile.pointsTotal}", color = AlertOrange, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }
@@ -355,9 +364,9 @@ fun SupportChatScreen(
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(state.messages.size, state.selectedContact?.uid) {
+    LaunchedEffect(state.messages.lastOrNull()?.messageId, state.selectedContact?.uid) {
         if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.lastIndex)
+            listState.scrollToItem(state.messages.lastIndex)
         }
     }
 

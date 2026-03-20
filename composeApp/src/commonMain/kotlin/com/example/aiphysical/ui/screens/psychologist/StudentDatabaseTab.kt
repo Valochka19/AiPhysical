@@ -211,19 +211,12 @@ private fun PsychAnalyticsListView(
 
 @Composable
 private fun PsychGlassFilterChip(label: String, isActive: Boolean, onClick: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pchip_$label")
-    val glowAlpha by if (isActive) infiniteTransition.animateFloat(
-        initialValue = 0.6f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "pchip_glow"
-    ) else remember { mutableStateOf(0f) }
-
     Box(
         modifier = Modifier
             .then(
                 if (isActive) Modifier.drawBehind {
                     drawRoundRect(
-                        PsychTeal.copy(alpha = 0.20f * glowAlpha),
+                        PsychTeal.copy(alpha = 0.16f),
                         cornerRadius = CornerRadius(24.dp.toPx())
                     )
                 } else Modifier
@@ -332,7 +325,6 @@ private fun PsychExpandableMemberCard(
                     Brush.linearGradient(listOf(Color.White.copy(0.14f), Color.White.copy(0.04f))),
                 RoundedCornerShape(20.dp)
             )
-            .animateContentSize(animationSpec = tween(300))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
