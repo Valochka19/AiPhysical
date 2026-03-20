@@ -44,6 +44,7 @@ fun DirectorDashboardScreen(
     orgId: String,
     uid: String,
     initialLanguage: com.example.aiphysical.presentation.auth.AppLanguage,
+    onLanguageChange: (com.example.aiphysical.presentation.auth.AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
     val vm: DirectorDashboardViewModel = viewModel(
@@ -58,6 +59,11 @@ fun DirectorDashboardScreen(
 
     // Sync initial language
     LaunchedEffect(initialLanguage) { vm.onEvent(DirectorEvent.ChangeLanguage(initialLanguage)) }
+    LaunchedEffect(state.currentLanguage) {
+        if (state.currentLanguage != initialLanguage) {
+            onLanguageChange(state.currentLanguage)
+        }
+    }
 
     // Collect side effects (MVI Effects pattern)
     LaunchedEffect(Unit) {

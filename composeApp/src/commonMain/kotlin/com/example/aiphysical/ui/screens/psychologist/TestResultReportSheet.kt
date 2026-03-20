@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.psychologist.RecentTestFeedItem
 import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
@@ -31,6 +33,7 @@ import com.example.aiphysical.ui.theme.*
 @Composable
 fun TestResultReportSheet(
     item: RecentTestFeedItem,
+    language: AppLanguage = AppLanguage.RU,
     onDismiss: () -> Unit,
 ) {
     Dialog(
@@ -79,10 +82,10 @@ fun TestResultReportSheet(
 
                 // ── Sheet header ──────────────────────────────────────────────
                 val (statusColor, statusLabel) = when (item.studentStatus) {
-                    "critical" -> PsychCritical to "Критично"
-                    "stress"   -> PsychWarning  to "Стресс"
-                    "normal"   -> PsychTeal     to "Норма"
-                    else       -> TextHint      to "Неизвестно"
+                    "critical" -> PsychCritical to language.pick("Критично", "Critical", "Критикалық")
+                    "stress"   -> PsychWarning  to language.pick("Стресс", "Stress", "Стресс")
+                    "normal"   -> PsychTeal     to language.pick("Норма", "Normal", "Қалыпты")
+                    else        -> TextHint      to language.pick("Неизвестно", "Unknown", "Белгісіз")
                 }
 
                 Row(
@@ -90,9 +93,9 @@ fun TestResultReportSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Отчёт по тесту", color = TextSecondary, fontSize = 13.sp)
+                        Text(language.pick("Отчёт по тесту", "Test report", "Тест есебі"), color = TextSecondary, fontSize = 13.sp)
                         Text(
-                            "Психологическая оценка",
+                            language.pick("Психологическая оценка", "Psychological assessment", "Психологиялық бағалау"),
                             color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold
                         )
                     }
@@ -130,7 +133,7 @@ fun TestResultReportSheet(
                     }
                     Column {
                         Text(item.studentName, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Студент", color = TextSecondary, fontSize = 12.sp)
+                        Text(language.pick("Студент", "Student", "Студент"), color = TextSecondary, fontSize = 12.sp)
                     }
                 }
 
@@ -138,19 +141,19 @@ fun TestResultReportSheet(
 
                 // ── Metrics gauges ────────────────────────────────────────────
                 Text(
-                    "ПОКАЗАТЕЛИ",
+                    language.pick("ПОКАЗАТЕЛИ", "METRICS", "КӨРСЕТКІШТЕР"),
                     color = TextHint, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp
                 )
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    ReportGauge("Выгорание", item.burnoutScore, MetricBurnout)
-                    ReportGauge("Стресс", item.stressScore, MetricStress)
-                    ReportGauge("Тревога", item.anxietyScore, MetricAnxiety)
+                    ReportGauge(language.pick("Выгорание", "Burnout", "Күйіп кету"), item.burnoutScore, MetricBurnout)
+                    ReportGauge(language.pick("Стресс", "Stress", "Стресс"), item.stressScore, MetricStress)
+                    ReportGauge(language.pick("Тревога", "Anxiety", "Мазасыздық"), item.anxietyScore, MetricAnxiety)
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    ReportGauge("Состояние", item.emotionScore, MetricEmotion)
-                    ReportGauge("Мотивация", item.motivationScore, MetricMotivation)
+                    ReportGauge(language.pick("Состояние", "Condition", "Жағдай"), item.emotionScore, MetricEmotion)
+                    ReportGauge(language.pick("Мотивация", "Motivation", "Мотивация"), item.motivationScore, MetricMotivation)
                 }
 
                 HorizontalDivider(color = MatteCardBorder)
@@ -175,15 +178,15 @@ fun TestResultReportSheet(
                             backgroundColor = Color(0xFF8A2BE2).copy(0.14f),
                             borderColor = Color(0xFF8A2BE2).copy(0.45f),
                             imagePadding = 3.dp,
-                            contentDescription = "Уми"
+                            contentDescription = language.pick("Уми", "Umi", "Уми")
                         )
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "AI-анализ теста (Gemini)",
+                                language.pick("AI-анализ теста (Gemini)", "AI test analysis (Gemini)", "Тесттің AI талдауы (Gemini)"),
                                 color = Color(0xFF9D5FF5), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold
                             )
                             Text(
-                                "Интеллектуальная интерпретация результатов",
+                                language.pick("Интеллектуальная интерпретация результатов", "Intelligent interpretation of results", "Нәтижелердің зияткерлік интерпретациясы"),
                                 color = TextHint, fontSize = 11.sp
                             )
                         }
@@ -193,7 +196,7 @@ fun TestResultReportSheet(
                                 .border(1.dp, Color(0xFF8A2BE2).copy(0.4f), RoundedCornerShape(8.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text("Скоро", color = Color(0xFF9D5FF5), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(language.pick("Скоро", "Soon", "Жақында"), color = Color(0xFF9D5FF5), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -201,9 +204,11 @@ fun TestResultReportSheet(
 
                     // Placeholder text
                     Text(
-                        "Здесь будет интеллектуальный анализ результатов от модели Gemini AI.\n\n" +
-                        "Система автоматически выявит психологические паттерны, оценит риски выгорания, " +
-                        "стресса и тревожности, а также предложит персональные рекомендации для данного студента.",
+                        language.pick(
+                            "Здесь будет интеллектуальный анализ результатов от модели Gemini AI.\n\nСистема автоматически выявит психологические паттерны, оценит риски выгорания, стресса и тревожности, а также предложит персональные рекомендации для данного студента.",
+                            "An intelligent analysis of the results from the Gemini AI model will appear here.\n\nThe system will automatically identify psychological patterns, assess the risks of burnout, stress, and anxiety, and provide personalized recommendations for this student.",
+                            "Мұнда Gemini AI моделінен алынған нәтижелердің зияткерлік талдауы көрсетіледі.\n\nЖүйе психологиялық үлгілерді автоматты түрде анықтап, күйіп кету, стресс және мазасыздық тәуекелдерін бағалап, осы студентке жеке ұсыныстар береді."
+                        ),
                         color = TextHint,
                         fontSize = 13.sp,
                         lineHeight = 20.sp

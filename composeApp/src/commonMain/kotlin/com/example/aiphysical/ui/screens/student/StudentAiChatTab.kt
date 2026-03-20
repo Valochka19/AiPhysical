@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.ChatMessage
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
@@ -47,6 +49,7 @@ fun StudentAiChatTab(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val language = state.currentLanguage
 
     // Auto-scroll to bottom on new message
     LaunchedEffect(state.chatMessages.size) {
@@ -63,6 +66,7 @@ fun StudentAiChatTab(
 
         // ── Header ────────────────────────────────────────────────────────────
         ChatHeader(
+            language = language,
             messageCount = state.chatMessages.size,
             onClear = { vm.onEvent(StudentEvent.ClearChatHistory) }
         )
@@ -79,6 +83,7 @@ fun StudentAiChatTab(
             if (state.chatMessages.isEmpty()) {
                 item {
                     ChatEmptyState(
+                        language = language,
                         onSuggestionClick = { suggestion ->
                             if (!state.isChatLoading) {
                                 vm.onEvent(StudentEvent.SendChatMessage(suggestion))
@@ -89,11 +94,11 @@ fun StudentAiChatTab(
             }
 
             items(state.chatMessages) { msg ->
-                ChatBubble(message = msg)
+                ChatBubble(message = msg, language = language)
             }
 
             if (state.isChatLoading) {
-                item { TypingIndicator() }
+                item { TypingIndicator(language = language) }
             }
         }
 
@@ -113,6 +118,7 @@ fun StudentAiChatTab(
 
         // ── Input field ───────────────────────────────────────────────────────
         ChatInputBar(
+            language = language,
             value        = state.chatInput,
             isLoading    = state.isChatLoading,
             onValueChange = { vm.onEvent(StudentEvent.UpdateChatInput(it)) },
@@ -131,6 +137,7 @@ fun StudentAiChatTab(
 
 @Composable
 private fun ChatHeader(
+    language: AppLanguage,
     messageCount: Int,
     onClear: () -> Unit,
 ) {
@@ -156,7 +163,7 @@ private fun ChatHeader(
                 borderBrush = Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
                 borderWidth = 1.dp,
                 imagePadding = 0.dp,
-                contentDescription = "Аватар Уми"
+                contentDescription = language.pick("Аватар Уми", "Umi avatar", "Уми аватары")
             )
         }
 
@@ -168,7 +175,11 @@ private fun ChatHeader(
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Gemini 3 Flash Preview • $messageCount сообщ.",
+                language.pick(
+                    ru = "Gemini 3 Flash Preview • $messageCount сообщ.",
+                    en = "Gemini 3 Flash Preview • $messageCount msgs",
+                    kz = "Gemini 3 Flash Preview • $messageCount хабар"
+                ),
                 color = PsychTeal.copy(0.8f),
                 fontSize = 11.sp
             )
@@ -188,7 +199,7 @@ private fun ChatHeader(
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🗑 Очистить", color = Color.White.copy(0.6f), fontSize = 11.sp)
+                Text(language.pick("🗑 Очистить", "🗑 Clear", "🗑 Тазалау"), color = Color.White.copy(0.6f), fontSize = 11.sp)
             }
         }
     }
@@ -205,6 +216,7 @@ private fun ChatHeader(
 
 @Composable
 private fun ChatEmptyState(
+    language: AppLanguage,
     onSuggestionClick: (String) -> Unit,
 ) {
     Column(
@@ -224,17 +236,21 @@ private fun ChatEmptyState(
             borderBrush = Brush.sweepGradient(listOf(Color(0xFF9D5FF5), PsychTeal, Color(0xFF9D5FF5))),
             borderWidth = 2.5.dp,
             imagePadding = 0.dp,
-            contentDescription = "Уми"
+            contentDescription = language.pick("Уми", "Umi", "Уми")
         )
         Text(
-            "Уми готова помочь",
+            language.pick("Уми готова помочь", "Umi is ready to help", "Уми көмектесуге дайын"),
             color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
         Text(
-            "Задайте любой вопрос о здоровье,\nучёбе или психологическом благополучии",
+            language.pick(
+                "Задайте любой вопрос о здоровье,\nучёбе или психологическом благополучии",
+                "Ask any question about health,\nstudying, or mental well-being",
+                "Денсаулық,\nоқу немесе психологиялық әл-ауқат туралы кез келген сұрақты қойыңыз"
+            ),
             color = Color.White.copy(0.45f),
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
@@ -245,10 +261,10 @@ private fun ChatEmptyState(
 
         // Suggestion chips
         val suggestions = listOf(
-            "💡 Как снизить стресс?",
-            "📚 Советы по обучению",
-            "😴 Улучшить сон",
-            "🧘 Медитация для новичков"
+            language.pick("💡 Как снизить стресс?", "💡 How can I reduce stress?", "💡 Стресті қалай азайтуға болады?"),
+            language.pick("📚 Советы по обучению", "📚 Study tips", "📚 Оқу бойынша кеңестер"),
+            language.pick("😴 Улучшить сон", "😴 Improve sleep", "😴 Ұйқыны жақсарту"),
+            language.pick("🧘 Медитация для новичков", "🧘 Meditation for beginners", "🧘 Жаңадан бастаушыларға арналған медитация")
         )
         suggestions.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -278,7 +294,7 @@ private fun ChatEmptyState(
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-internal fun ChatBubble(message: ChatMessage) {
+internal fun ChatBubble(message: ChatMessage, language: AppLanguage) {
     val isUser = message.role == "user"
 
     Row(
@@ -301,7 +317,7 @@ internal fun ChatBubble(message: ChatMessage) {
                 UmiAvatarBadge(
                     modifier = Modifier.fillMaxSize(),
                     imagePadding = 0.dp,
-                    contentDescription = "Уми"
+                    contentDescription = language.pick("Уми", "Umi", "Уми")
                 )
             }
             Spacer(Modifier.width(8.dp))
@@ -356,7 +372,7 @@ internal fun ChatBubble(message: ChatMessage) {
             }
 
             Text(
-                text     = if (isUser) "Вы" else if (message.isError) "⚠️ Ошибка" else "Уми",
+                text     = if (isUser) language.pick("Вы", "You", "Сіз") else if (message.isError) language.pick("⚠️ Ошибка", "⚠️ Error", "⚠️ Қате") else "Уми",
                 color    = Color.White.copy(0.3f),
                 fontSize = 10.sp
             )
@@ -386,7 +402,7 @@ internal fun ChatBubble(message: ChatMessage) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun TypingIndicator() {
+private fun TypingIndicator(language: AppLanguage) {
     val infiniteTransition = rememberInfiniteTransition(label = "typing")
     Row(
         horizontalArrangement = Arrangement.Start,
@@ -405,7 +421,7 @@ private fun TypingIndicator() {
             UmiAvatarBadge(
                 modifier = Modifier.fillMaxSize(),
                 imagePadding = 0.dp,
-                contentDescription = "Уми печатает"
+                contentDescription = language.pick("Уми печатает", "Umi is typing", "Уми теріп жатыр")
             )
         }
 
@@ -486,6 +502,7 @@ private fun ChatErrorBanner(message: String, onDismiss: () -> Unit) {
 
 @Composable
 private fun ChatInputBar(
+    language: AppLanguage,
     value: String,
     isLoading: Boolean,
     onValueChange: (String) -> Unit,
@@ -505,7 +522,11 @@ private fun ChatInputBar(
         // Token counter (visible only when > 10k tokens typed)
         if (estimatedTokens > 10_000) {
             Text(
-                "~$estimatedTokens / 50 000 токенов",
+                language.pick(
+                    ru = "~$estimatedTokens / 50 000 токенов",
+                    en = "~$estimatedTokens / 50,000 tokens",
+                    kz = "~$estimatedTokens / 50 000 токен"
+                ),
                 color    = if (overLimit) Color(0xFFFF5370) else if (nearLimit) Color(0xFFFFB800) else PsychTeal,
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.End)
@@ -521,7 +542,7 @@ private fun ChatInputBar(
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
                 placeholder  = {
-                    Text("Задайте вопрос Уми...", color = Color.White.copy(0.35f), fontSize = 14.sp)
+                    Text(language.pick("Задайте вопрос Уми...", "Ask Umi a question...", "Умиге сұрақ қойыңыз..."), color = Color.White.copy(0.35f), fontSize = 14.sp)
                 },
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,

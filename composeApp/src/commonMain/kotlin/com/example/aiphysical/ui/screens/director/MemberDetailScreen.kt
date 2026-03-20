@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.director.DirectorDashboardState
 import com.example.aiphysical.presentation.director.DirectorEvent
 import com.example.aiphysical.ui.components.*
@@ -69,7 +70,7 @@ fun MemberDetailScreen(
             item { PremiumMemberHeaderCard(member = member, strings = strings) }
 
             // ── 5 Metrics ─────────────────────────────────────────────────────
-            item { MemberMetricsCard(member = member, strings = strings) }
+            item { MemberMetricsCard(member = member, strings = strings, language = state.currentLanguage) }
 
             // ── Loading ───────────────────────────────────────────────────────
             if (state.isLoadingDetail) {
@@ -193,7 +194,11 @@ private fun MetaInfoChip(emoji: String, label: String, value: String, color: Col
 // ─── Member 5-Metrics Card ────────────────────────────────────────────────────
 
 @Composable
-private fun MemberMetricsCard(member: UserProfile, strings: Strings) {
+private fun MemberMetricsCard(
+    member: UserProfile,
+    strings: Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,7 +209,11 @@ private fun MemberMetricsCard(member: UserProfile, strings: Strings) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            "Детальные метрики",
+            language.pick(
+                ru = "Детальные метрики",
+                en = "Detailed metrics",
+                kz = "Толық көрсеткіштер"
+            ),
             style = TextStyle(brush = Brush.horizontalGradient(listOf(NeonViolet, CyanAccent)), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         )
         MetricProgressBar(label = strings.metricBurnout,    value = member.burnoutScore,    isHighBad = true,  color = MetricBurnout)

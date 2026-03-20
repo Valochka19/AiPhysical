@@ -27,10 +27,15 @@ import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.data.model.MetricSemantics
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.data.model.buildStudentMetricSummaries
+import com.example.aiphysical.data.model.displayDurationLabel
+import com.example.aiphysical.data.model.displayTitle
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.presentation.student.displayLabel
 import com.example.aiphysical.ui.components.UmiAvatarBadge
 import com.example.aiphysical.ui.theme.*
 import kotlin.math.PI
@@ -62,6 +67,7 @@ fun StudentHomeTab(
         StudentGreetingHeader(
             name = state.profile.fullName,
             status = state.profile.latestAiStatus,
+            language = state.currentLanguage,
             onLogout = onLogout
         )
 
@@ -70,6 +76,7 @@ fun StudentHomeTab(
         } else {
             // ② Test Carousel ("Stories" style)
             TestCarouselSection(
+                language = state.currentLanguage,
                 completedIds = state.completedTestIds,
                 onTestClick = { vm.onEvent(StudentEvent.StartTest(it)) }
             )
@@ -78,6 +85,7 @@ fun StudentHomeTab(
             OverallHealthCard(
                 score = state.overallScore,
                 status = state.profile.latestAiStatus,
+                language = state.currentLanguage,
                 profile = state.profile,
                 completedIds = state.completedTestIds,
                 onGenerateReport = { vm.onEvent(StudentEvent.GenerateReport) }
@@ -88,6 +96,7 @@ fun StudentHomeTab(
                 PsychologistMessageCard(
                     comment  = state.profile.psychComment,
                     priority = state.profile.psychPriority,
+                    language = state.currentLanguage,
                     courseName = state.profile.assignedCourseName,
                     onCoursesClick = { vm.onEvent(StudentEvent.NavigateToTab(com.example.aiphysical.presentation.student.StudentTab.Courses)) }
                 )
@@ -95,6 +104,7 @@ fun StudentHomeTab(
 
             // ⑤ AI course recommendations
             AiCourseRecommendationsSection(
+                language = state.currentLanguage,
                 assignedCourseName = state.profile.assignedCourseName,
                 onViewCourses = { vm.onEvent(StudentEvent.NavigateToTab(com.example.aiphysical.presentation.student.StudentTab.Courses)) }
             )
@@ -107,7 +117,7 @@ fun StudentHomeTab(
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun StudentGreetingHeader(name: String, status: String, onLogout: () -> Unit) {
+private fun StudentGreetingHeader(name: String, status: String, language: AppLanguage, onLogout: () -> Unit) {
     val firstName = name.split(" ").firstOrNull() ?: name
     val orbColor = statusToColor(status)
     val glowAlpha = 0.52f
@@ -148,13 +158,13 @@ private fun StudentGreetingHeader(name: String, status: String, onLogout: () -> 
 
         // Text
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Привет,", color = TextSecondary, fontSize = 13.sp)
+            Text(language.pick("Привет,", "Hi,", "Сәлем,"), color = TextSecondary, fontSize = 13.sp)
             Text(firstName, color = TextPrimary, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp)
             val (statusEmoji, statusText, statusColor) = when (status) {
-                "critical" -> Triple("🔴", "Требует внимания", PsychCritical)
-                "stress"   -> Triple("🟡", "Небольшой стресс",  PsychWarning)
-                "normal"   -> Triple("🟢", "Всё хорошо",        PsychTeal)
-                else       -> Triple("⚪", "Пройди тест",       TextHint)
+                "critical" -> Triple("🔴", language.pick("Требует внимания", "Needs attention", "Назар аударуды қажет етеді"), PsychCritical)
+                "stress"   -> Triple("🟡", language.pick("Небольшой стресс", "Mild stress", "Аздаған стресс"),  PsychWarning)
+                "normal"   -> Triple("🟢", language.pick("Всё хорошо", "All good", "Бәрі жақсы"),        PsychTeal)
+                else       -> Triple("⚪", language.pick("Пройди тест", "Take a test", "Тест тапсырыңыз"),       TextHint)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(statusEmoji, fontSize = 10.sp)
@@ -170,7 +180,7 @@ private fun StudentGreetingHeader(name: String, status: String, onLogout: () -> 
                 .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(0.18f), Color.White.copy(0.04f))), RoundedCornerShape(12.dp))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onLogout)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) { Text("Выйти", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium) }
+        ) { Text(language.pick("Выйти", "Logout", "Шығу"), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium) }
     }
 }
 
@@ -180,12 +190,13 @@ private fun StudentGreetingHeader(name: String, status: String, onLogout: () -> 
 
 @Composable
 private fun TestCarouselSection(
+    language: AppLanguage,
     completedIds: Set<String>,
     onTestClick: (StudentTestType) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "📋 Психологические тесты",
+            language.pick("📋 Психологические тесты", "📋 Psychological tests", "📋 Психологиялық тесттер"),
             color = TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.ExtraBold
@@ -197,6 +208,7 @@ private fun TestCarouselSection(
             items(StudentTestType.entries) { test ->
                 TestStoryCard(
                     test = test,
+                    language = language,
                     isCompleted = test.testId in completedIds,
                     onClick = { onTestClick(test) }
                 )
@@ -208,6 +220,7 @@ private fun TestCarouselSection(
 @Composable
 private fun TestStoryCard(
     test: StudentTestType,
+    language: AppLanguage,
     isCompleted: Boolean,
     onClick: () -> Unit,
 ) {
@@ -265,7 +278,7 @@ private fun TestStoryCard(
                 Text(test.emoji, fontSize = 30.sp)
             }
             Text(
-                test.label,
+                test.displayLabel(language),
                 color = Color.White,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -298,6 +311,7 @@ private fun TestStoryCard(
 private fun OverallHealthCard(
     score: Float,
     status: String,
+    language: AppLanguage,
     profile: UserProfile,
     completedIds: Set<String>,
     onGenerateReport: () -> Unit,
@@ -305,7 +319,7 @@ private fun OverallHealthCard(
     val accentColor = statusToColor(status)
     val hasData = score > 0f
     val displayScore = if (hasData) score else 50f
-    val metricSummaries = remember(profile, completedIds) { buildStudentMetricSummaries(profile, completedIds) }
+    val metricSummaries = remember(profile, completedIds, language) { buildStudentMetricSummaries(profile, completedIds, language) }
     val completedCount = metricSummaries.count { it.isCompleted }
 
     Column(
@@ -324,7 +338,7 @@ private fun OverallHealthCard(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            "ТВОЁ МЕНТАЛЬНОЕ СОСТОЯНИЕ",
+            language.pick("ТВОЁ МЕНТАЛЬНОЕ СОСТОЯНИЕ", "YOUR MENTAL STATE", "СЕНІҢ ПСИХИКАЛЫҚ ЖАҒДАЙЫҢ"),
             color = TextHint,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.ExtraBold,
@@ -341,6 +355,7 @@ private fun OverallHealthCard(
                 score = displayScore,
                 color = accentColor,
                 hasData = hasData,
+                language = language,
                 modifier = Modifier.size(120.dp)
             )
 
@@ -350,10 +365,10 @@ private fun OverallHealthCard(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 val (label, description) = when (status) {
-                    "critical" -> "Критическое\nсостояние" to "Необходима помощь психолога"
-                    "stress"   -> "Повышенный\nстресс"     to "Рекомендуем пройти курсы"
-                    "normal"   -> "Норма"                  to "Показатели в пределах нормы"
-                    else       -> "Нет данных"             to "Пройди тест для оценки"
+                    "critical" -> language.pick("Критическое\nсостояние", "Critical\ncondition", "Маңызды\nжағдай") to language.pick("Необходима помощь психолога", "Psychologist support is recommended", "Психолог көмегі қажет")
+                    "stress"   -> language.pick("Повышенный\nстресс", "Elevated\nstress", "Жоғарылаған\nстресс")     to language.pick("Рекомендуем пройти курсы", "We recommend taking courses", "Курстардан өтуді ұсынамыз")
+                    "normal"   -> language.pick("Норма", "Normal", "Қалыпты")                  to language.pick("Показатели в пределах нормы", "Indicators are within the normal range", "Көрсеткіштер қалыпты шекте")
+                    else       -> language.pick("Нет данных", "No data", "Дерек жоқ")             to language.pick("Пройди тест для оценки", "Take a test for evaluation", "Бағалау үшін тест тапсырыңыз")
                 }
                 Text(
                     label,
@@ -386,13 +401,17 @@ private fun OverallHealthCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Детализация по тестам",
+                    language.pick("Детализация по тестам", "Test breakdown", "Тесттер бойынша бөлініс"),
                     color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Пройдено $completedCount из ${metricSummaries.size}",
+                    language.pick(
+                        ru = "Пройдено $completedCount из ${metricSummaries.size}",
+                        en = "$completedCount of ${metricSummaries.size} completed",
+                        kz = "${metricSummaries.size}-дің $completedCount-і өтті"
+                    ),
                     color = TextHint,
                     fontSize = 11.sp
                 )
@@ -403,13 +422,18 @@ private fun OverallHealthCard(
                     label = metric.label,
                     value = metric.score,
                     semantics = metric.semantics,
+                    language = language,
                     isCompleted = metric.isCompleted
                 )
             }
 
             if (completedCount < metricSummaries.size) {
                 Text(
-                    "Общий процент сейчас считается только по уже пройденным тестам, чтобы не искажать картину.",
+                    language.pick(
+                        ru = "Общий процент сейчас считается только по уже пройденным тестам, чтобы не искажать картину.",
+                        en = "The overall percentage is currently based only on completed tests so the picture stays accurate.",
+                        kz = "Жалпы пайыз көріністі бұрмаламау үшін әзірге тек өткен тесттер бойынша есептеледі."
+                    ),
                     color = TextHint,
                     fontSize = 11.sp,
                     lineHeight = 16.sp
@@ -443,12 +467,12 @@ private fun OverallHealthCard(
                     UmiAvatarBadge(
                         modifier = Modifier.fillMaxSize(),
                         imagePadding = 0.dp,
-                        contentDescription = "Уми"
+                        contentDescription = language.pick("Уми", "Umi", "Уми")
                     )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("Сгенерировать общий отчёт", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("AI-анализ твоего состояния", color = TextSecondary, fontSize = 11.sp)
+                    Text(language.pick("Сгенерировать общий отчёт", "Generate overall report", "Жалпы есепті құрастыру"), color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("AI-анализ твоего состояния", "AI analysis of your condition", "Жағдайыңның AI талдауы"), color = TextSecondary, fontSize = 11.sp)
                 }
             }
         }
@@ -460,6 +484,7 @@ private fun HealthCircularIndicator(
     score: Float,
     color: Color,
     hasData: Boolean,
+    language: AppLanguage,
     modifier: Modifier = Modifier,
 ) {
     val animatable = remember { Animatable(0f) }
@@ -526,7 +551,7 @@ private fun HealthCircularIndicator(
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
-            Text("из 100", color = TextHint, fontSize = 10.sp, textAlign = TextAlign.Center)
+            Text(language.pick("из 100", "out of 100", "100-ден"), color = TextHint, fontSize = 10.sp, textAlign = TextAlign.Center)
         }
     }
 }
@@ -547,6 +572,7 @@ private fun StudentMetricRow(
     label: String,
     value: Float,
     semantics: MetricSemantics,
+    language: AppLanguage,
     isCompleted: Boolean,
 ) {
     val safeValue = value.coerceIn(0f, 100f)
@@ -564,18 +590,18 @@ private fun StudentMetricRow(
         }
     }
     val statusLabel = if (!isCompleted) {
-        "Не пройден"
+        language.pick("Не пройден", "Not completed", "Өтілмеген")
     } else when (semantics) {
         MetricSemantics.HIGH_IS_BAD -> when {
-            safeValue >= 70f -> "Риск высокий"
-            safeValue >= 40f -> "Есть напряжение"
-            else -> "Стабильно"
+            safeValue >= 70f -> language.pick("Риск высокий", "High risk", "Қауіп жоғары")
+            safeValue >= 40f -> language.pick("Есть напряжение", "There is tension", "Кернеу бар")
+            else -> language.pick("Стабильно", "Stable", "Тұрақты")
         }
 
         MetricSemantics.HIGH_IS_GOOD -> when {
-            safeValue >= 70f -> "Хорошо"
-            safeValue >= 40f -> "Средне"
-            else -> "Просело"
+            safeValue >= 70f -> language.pick("Хорошо", "Good", "Жақсы")
+            safeValue >= 40f -> language.pick("Средне", "Average", "Орташа")
+            else -> language.pick("Просело", "Dropped", "Төмендеген")
         }
     }
 
@@ -629,14 +655,15 @@ private fun StudentMetricRow(
 private fun PsychologistMessageCard(
     comment: String,
     priority: String,
+    language: AppLanguage,
     courseName: String,
     onCoursesClick: () -> Unit,
 ) {
     val (priorityColor, priorityLabel) = when (priority.uppercase()) {
-        "HIGH"   -> PsychCritical to "🔴 Высокий приоритет"
-        "MEDIUM" -> PsychWarning  to "🟡 Средний приоритет"
-        "LOW"    -> PsychTeal     to "🟢 Низкий приоритет"
-        else     -> TextHint      to "📩 Сообщение"
+        "HIGH"   -> PsychCritical to language.pick("🔴 Высокий приоритет", "🔴 High priority", "🔴 Жоғары басымдық")
+        "MEDIUM" -> PsychWarning  to language.pick("🟡 Средний приоритет", "🟡 Medium priority", "🟡 Орта басымдық")
+        "LOW"    -> PsychTeal     to language.pick("🟢 Низкий приоритет", "🟢 Low priority", "🟢 Төмен басымдық")
+        else     -> TextHint      to language.pick("📩 Сообщение", "📩 Message", "📩 Хабарлама")
     }
     val borderAlpha = 0.55f
 
@@ -662,7 +689,7 @@ private fun PsychologistMessageCard(
             ) { Text("🧠", fontSize = 18.sp) }
             Column(Modifier.weight(1f)) {
                 Text(
-                    "СООБЩЕНИЕ ОТ ПСИХОЛОГА",
+                    language.pick("СООБЩЕНИЕ ОТ ПСИХОЛОГА", "MESSAGE FROM THE PSYCHOLOGIST", "ПСИХОЛОГТАН ХАБАРЛАМА"),
                     color = priorityColor.copy(0.7f),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
@@ -695,7 +722,7 @@ private fun PsychologistMessageCard(
             ) {
                 Text("📚", fontSize = 16.sp)
                 Column(Modifier.weight(1f)) {
-                    Text("Рекомендованный курс", color = priorityColor.copy(0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(language.pick("Рекомендованный курс", "Recommended course", "Ұсынылған курс"), color = priorityColor.copy(0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(courseName, color = TextPrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text("→", color = priorityColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -710,6 +737,7 @@ private fun PsychologistMessageCard(
 
 @Composable
 private fun AiCourseRecommendationsSection(
+    language: AppLanguage,
     assignedCourseName: String,
     onViewCourses: () -> Unit,
 ) {
@@ -721,9 +749,9 @@ private fun AiCourseRecommendationsSection(
                     backgroundColor = Color.White.copy(0.06f),
                     borderColor = Color(0xFF9D5FF5).copy(0.35f),
                     imagePadding = 3.dp,
-                    contentDescription = "Уми рекомендует"
+                    contentDescription = language.pick("Уми рекомендует", "Umi recommends", "Уми ұсынады")
                 )
-                Text("ИИ рекомендует вам:", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                Text(language.pick("ИИ рекомендует вам:", "AI recommends for you:", "AI сізге ұсынады:"), color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
             }
             Box(
                 Modifier
@@ -732,17 +760,17 @@ private fun AiCourseRecommendationsSection(
                     .border(1.dp, PsychTeal.copy(0.30f), RoundedCornerShape(10.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onViewCourses)
                     .padding(horizontal = 10.dp, vertical = 5.dp)
-            ) { Text("Все →", color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(language.pick("Все →", "All →", "Барлығы →"), color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
         }
 
         // Show assigned course first (if any)
         if (assignedCourseName.isNotBlank()) {
-            AiCourseChip("🎯", assignedCourseName, "Назначен психологом", PsychTeal, onClick = onViewCourses)
+            AiCourseChip("🎯", assignedCourseName, language.pick("Назначен психологом", "Assigned by psychologist", "Психолог тағайындады"), PsychTeal, onClick = onViewCourses)
         }
 
         // Always show first 3 canonical base courses as suggestions
         AppCourseCatalog.baseCourses.take(3).forEach { item ->
-            AiCourseChip(item.emoji, item.title, item.durationLabel, Color(item.accentColorHex), onClick = onViewCourses)
+            AiCourseChip(item.emoji, item.displayTitle(language), item.displayDurationLabel(language), Color(item.accentColorHex), onClick = onViewCourses)
         }
     }
 }

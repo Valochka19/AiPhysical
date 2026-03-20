@@ -58,9 +58,12 @@ import com.example.aiphysical.data.model.MetricSemantics
 import com.example.aiphysical.data.model.StudentTestDefinition
 import com.example.aiphysical.data.model.StudentTestStep
 import com.example.aiphysical.data.model.StudentTestUiState
+import com.example.aiphysical.data.model.displayLabel
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.presentation.student.StudentViewModel
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.ui.theme.PsychCritical
 import com.example.aiphysical.ui.theme.PsychTeal
 import com.example.aiphysical.ui.theme.PsychWarning
@@ -69,6 +72,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun StudentTestScreen(
     testState: StudentTestUiState,
+    language: AppLanguage = AppLanguage.RU,
     vm: StudentViewModel,
 ) {
     Box(
@@ -78,9 +82,9 @@ fun StudentTestScreen(
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
     ) {
         when (val step = testState.step) {
-            StudentTestStep.Questions -> QuestionsContent(testState, vm)
-            StudentTestStep.LoadingResult -> LoadingResultContent(testState.definition.testName)
-            is StudentTestStep.Result -> ResultContent(testState.definition, step, testState.errorMessage, vm)
+            StudentTestStep.Questions -> QuestionsContent(testState, language, vm)
+            StudentTestStep.LoadingResult -> LoadingResultContent(testState.definition.localizedTestName(language), language)
+            is StudentTestStep.Result -> ResultContent(testState.definition, step, testState.errorMessage, language, vm)
         }
     }
 }
@@ -88,11 +92,12 @@ fun StudentTestScreen(
 @Composable
 fun BurnoutTestScreen(
     testState: BurnoutTestUiState,
+    language: AppLanguage = AppLanguage.RU,
     vm: StudentViewModel,
-) = StudentTestScreen(testState = testState, vm = vm)
+) = StudentTestScreen(testState = testState, language = language, vm = vm)
 
 @Composable
-private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel) {
+private fun QuestionsContent(testState: StudentTestUiState, language: AppLanguage, vm: StudentViewModel) {
     val definition = testState.definition
     val currentIndex = testState.currentQuestionIndex
     val question = definition.questions.getOrNull(currentIndex)
@@ -121,7 +126,7 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        definition.testName,
+                        definition.localizedTestName(language),
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold
@@ -144,7 +149,7 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
                         ) { vm.onEvent(StudentEvent.CloseActiveTest) }
                         .padding(horizontal = 14.dp, vertical = 7.dp)
                 ) {
-                    Text("✕ Закрыть", color = Color.White.copy(0.55f), fontSize = 12.sp)
+                    Text(language.pick("✕ Закрыть", "✕ Close", "✕ Жабу"), color = Color.White.copy(0.55f), fontSize = 12.sp)
                 }
             }
 
@@ -158,6 +163,7 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
                 MascotComponent(
                     catState = question?.catEmotion ?: CatState.IDLE,
                     size = 104.dp,
+                    language = language,
                     assetVariant = mascotAssetVariant
                 )
             }
@@ -170,11 +176,12 @@ private fun QuestionsContent(testState: StudentTestUiState, vm: StudentViewModel
                 },
                 label = "student_question_card"
             ) { q ->
-                QuestionCard(text = q?.text ?: "")
+                QuestionCard(text = q?.let { definition.localizedQuestionText(it.id, language) } ?: "")
             }
         }
 
         AnswerButtonsColumn(
+            language = language,
             modifier = Modifier.padding(bottom = 8.dp),
             isAnswering = testState.isAnswering,
             onAnswer = { vm.onEvent(StudentEvent.AnswerCurrentTestQuestion(it)) }
@@ -251,6 +258,7 @@ private fun QuestionCard(text: String) {
 
 @Composable
 private fun AnswerButtonsColumn(
+    language: AppLanguage,
     modifier: Modifier = Modifier,
     isAnswering: Boolean,
     onAnswer: (AnswerType) -> Unit,
@@ -286,7 +294,7 @@ private fun AnswerButtonsColumn(
                     .padding(horizontal = 18.dp, vertical = 13.dp)
             ) {
                 Text(
-                    text = answerType.label,
+                    text = answerType.displayLabel(language),
                     color = if (!isAnswering) Color.White.copy(0.92f) else Color.White.copy(0.35f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -306,7 +314,7 @@ private fun answerTypeBorderColor(type: AnswerType): Color = when (type) {
 }
 
 @Composable
-private fun LoadingResultContent(testName: String) {
+private fun LoadingResultContent(testName: String, language: AppLanguage) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -323,11 +331,11 @@ private fun LoadingResultContent(testName: String) {
             label = "pulse_scale"
         )
         Box(modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }) {
-            MascotComponent(catState = CatState.IDLE, size = 120.dp)
+            MascotComponent(catState = CatState.IDLE, size = 120.dp, language = language)
         }
         Spacer(Modifier.height(28.dp))
         Text(
-            "Анализ данных..",
+            language.pick("Анализ данных..", "Analyzing data..", "Деректер талданып жатыр.."),
             color = PsychTeal,
             fontSize = 21.sp,
             fontWeight = FontWeight.Bold,
@@ -335,7 +343,11 @@ private fun LoadingResultContent(testName: String) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "Изучаю твои ответы по тесту «$testName» и собираю содержательный разбор.",
+            language.pick(
+                "Изучаю твои ответы по тесту «$testName» и собираю содержательный разбор.",
+                "I'm reviewing your answers for the \"$testName\" test and preparing a clear summary.",
+                "«$testName» тесті бойынша жауаптарыңды қарап, мазмұнды қорытынды дайындап жатырмын."
+            ),
             color = Color.White.copy(0.5f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
@@ -355,6 +367,7 @@ private fun ResultContent(
     definition: StudentTestDefinition,
     result: StudentTestStep.Result,
     errorMessage: String?,
+    language: AppLanguage,
     vm: StudentViewModel,
 ) {
     val statusColor = when (result.aiAssessment) {
@@ -363,11 +376,11 @@ private fun ResultContent(
         "critical" -> PsychCritical
         else -> PsychTeal
     }
-    val statusLabel = resultStatusLabel(definition, result.aiAssessment)
+    val statusLabel = resultStatusLabel(definition, result.aiAssessment, language)
     val mascotForResult = resultMascot(definition, result.aiAssessment)
     val showRetry = !errorMessage.isNullOrBlank() && (
         errorMessage.contains("AI", ignoreCase = true) ||
-            errorMessage.contains("локальный", ignoreCase = true)
+            errorMessage.contains("Gemini", ignoreCase = true)
         )
 
     var displayedText by remember { mutableStateOf("") }
@@ -391,13 +404,13 @@ private fun ResultContent(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                definition.testName,
+                definition.localizedTestName(language),
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Разбор результата",
+                language.pick("Разбор результата", "Result overview", "Нәтиже талдауы"),
                 color = Color.White.copy(0.6f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
@@ -409,7 +422,7 @@ private fun ResultContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            MascotComponent(catState = mascotForResult, size = 110.dp)
+            MascotComponent(catState = mascotForResult, size = 110.dp, language = language)
             Box(
                 Modifier
                     .background(statusColor.copy(0.15f), RoundedCornerShape(20.dp))
@@ -426,15 +439,15 @@ private fun ResultContent(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                "Результат: ${result.score}/100",
+                language.pick("Результат: ${result.score}/100", "Result: ${result.score}/100", "Нәтиже: ${result.score}/100"),
                 color = statusColor,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
                 when (definition.semantics) {
-                    MetricSemantics.HIGH_IS_BAD -> "Для этого теста высокий процент означает более выраженный риск."
-                    MetricSemantics.HIGH_IS_GOOD -> "Для этого теста высокий процент означает более устойчивое состояние."
+                    MetricSemantics.HIGH_IS_BAD -> language.pick("Для этого теста высокий процент означает более выраженный риск.", "For this test, a higher percentage means a more pronounced risk.", "Бұл тестте жоғары пайыз қауіптің айқынырақ екенін білдіреді.")
+                    MetricSemantics.HIGH_IS_GOOD -> language.pick("Для этого теста высокий процент означает более устойчивое состояние.", "For this test, a higher percentage means a more stable condition.", "Бұл тестте жоғары пайыз жағдайдың тұрақтырақ екенін білдіреді.")
                 },
                 color = Color.White.copy(0.5f),
                 fontSize = 12.sp,
@@ -460,7 +473,7 @@ private fun ResultContent(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Разбор AI-психолога",
+                    language.pick("Разбор AI-психолога", "AI psychologist summary", "AI психолог қорытындысы"),
                     color = statusColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -506,7 +519,7 @@ private fun ResultContent(
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("↻ Повторить AI-анализ", color = PsychWarning, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(language.pick("↻ Повторить AI-анализ", "↻ Retry AI analysis", "↻ AI талдауын қайталау"), color = PsychWarning, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -527,7 +540,7 @@ private fun ResultContent(
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("✓ Закрыть тест", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(language.pick("✓ Закрыть тест", "✓ Close test", "✓ Тестті жабу"), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
 
             Box(
@@ -543,7 +556,7 @@ private fun ResultContent(
                     .padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("↺ Пройти заново", color = Color.White.copy(0.55f), fontSize = 14.sp)
+                Text(language.pick("↺ Пройти заново", "↺ Retake", "↺ Қайта өту"), color = Color.White.copy(0.55f), fontSize = 14.sp)
             }
         }
     }
@@ -573,34 +586,34 @@ private fun resultMascot(definition: StudentTestDefinition, assessment: String):
     }
 }
 
-private fun resultStatusLabel(definition: StudentTestDefinition, assessment: String): String = when (definition.type) {
+private fun resultStatusLabel(definition: StudentTestDefinition, assessment: String, language: AppLanguage): String = when (definition.type) {
     StudentTestType.BURNOUT -> when (assessment) {
-        "normal" -> "Ресурс в норме 😊"
-        "stress" -> "Усталость накапливается 😐"
-        else -> "Высокое выгорание 🔥"
+        "normal" -> language.pick("Ресурс в норме 😊", "Resource level is normal 😊", "Ресурс қалыпты 😊")
+        "stress" -> language.pick("Усталость накапливается 😐", "Fatigue is building up 😐", "Шаршау жиналып келеді 😐")
+        else -> language.pick("Высокое выгорание 🔥", "High burnout 🔥", "Күйіп кету жоғары 🔥")
     }
 
     StudentTestType.STRESS -> when (assessment) {
-        "normal" -> "Стресс под контролем 🌿"
-        "stress" -> "Напряжение повышено ⚡"
-        else -> "Сильный стресс 🚨"
+        "normal" -> language.pick("Стресс под контролем 🌿", "Stress is under control 🌿", "Стресс бақылауда 🌿")
+        "stress" -> language.pick("Напряжение повышено ⚡", "Tension is elevated ⚡", "Кернеу жоғарылаған ⚡")
+        else -> language.pick("Сильный стресс 🚨", "High stress 🚨", "Қатты стресс 🚨")
     }
 
     StudentTestType.EMOTION -> when (assessment) {
-        "normal" -> "Фон довольно устойчивый 🌤"
-        "stress" -> "Нужно чуть больше ресурса 🌿"
-        else -> "Эмоциональный фон просел 🌧"
+        "normal" -> language.pick("Фон довольно устойчивый 🌤", "Your emotional state is quite stable 🌤", "Эмоциялық фон жеткілікті тұрақты 🌤")
+        "stress" -> language.pick("Нужно чуть больше ресурса 🌿", "You need a bit more energy 🌿", "Сәл көбірек ресурс керек 🌿")
+        else -> language.pick("Эмоциональный фон просел 🌧", "Your emotional state has dropped 🌧", "Эмоциялық фон төмендеген 🌧")
     }
 
     StudentTestType.MOTIVATION -> when (assessment) {
-        "normal" -> "Мотивация живая 🚀"
-        "stress" -> "Нужна перезагрузка 🧭"
-        else -> "Мотивация заметно снижена 🪫"
+        "normal" -> language.pick("Мотивация живая 🚀", "Motivation is alive 🚀", "Мотивация жақсы 🚀")
+        "stress" -> language.pick("Нужна перезагрузка 🧭", "A reset is needed 🧭", "Қайта қуаттану керек 🧭")
+        else -> language.pick("Мотивация заметно снижена 🪫", "Motivation is noticeably low 🪫", "Мотивация айқын төмендеген 🪫")
     }
 
     StudentTestType.ANXIETY -> when (assessment) {
-        "normal" -> "Тревога в пределах нормы ☀️"
-        "stress" -> "Тревога повышена ☁️"
-        else -> "Высокая тревожность 🌩"
+        "normal" -> language.pick("Тревога в пределах нормы ☀️", "Anxiety is within the normal range ☀️", "Мазасыздық қалыпты шекте ☀️")
+        "stress" -> language.pick("Тревога повышена ☁️", "Anxiety is elevated ☁️", "Мазасыздық жоғарылаған ☁️")
+        else -> language.pick("Высокая тревожность 🌩", "High anxiety 🌩", "Мазасыздық жоғары 🌩")
     }
 }

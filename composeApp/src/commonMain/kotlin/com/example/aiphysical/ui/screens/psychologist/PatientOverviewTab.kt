@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistTab
@@ -73,6 +75,7 @@ fun PatientOverviewTab(
             // ② Group Climate Hub (CTA)
             GroupClimateHubCard(
                 climate = state.psychClimate,
+                language = state.currentLanguage,
                 totalStudents = state.students.size,
                 criticalCount = state.criticalStudents.size,
                 stressCount = state.stressStudents.size,
@@ -89,6 +92,7 @@ fun PatientOverviewTab(
                     avgAnxiety = state.avgAnxiety,
                     avgEmotion = state.avgEmotion,
                     avgMotivation = state.avgMotivation,
+                    language = state.currentLanguage,
                     climate = state.psychClimate
                 )
             }
@@ -96,6 +100,7 @@ fun PatientOverviewTab(
             // ④ Summary glass chips
             if (state.students.isNotEmpty()) {
                 SummaryGlassChips(
+                    language = state.currentLanguage,
                     total = state.students.size,
                     critical = state.criticalStudents.size,
                     stable = (state.students.size - state.criticalStudents.size - state.stressStudents.size)
@@ -106,6 +111,7 @@ fun PatientOverviewTab(
             // ⑤ Critical alert zone
             if (state.criticalStudents.isNotEmpty()) {
                 GlassCriticalAlertZone(
+                    language = state.currentLanguage,
                     criticalStudents = state.criticalStudents,
                     onViewStudent = { vm.onEvent(PsychologistEvent.SelectStudent(it)) },
                     onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(it)) }
@@ -115,6 +121,7 @@ fun PatientOverviewTab(
             // ⑥ Recent test feed
             if (state.recentTestFeed.isNotEmpty()) {
                 GlassTestResultsFeed(
+                    language = state.currentLanguage,
                     items = state.recentTestFeed.take(5),
                     onViewResult = { vm.onEvent(PsychologistEvent.ViewTestResult(it)) },
                     onViewAll = { vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Database)) }
@@ -124,6 +131,7 @@ fun PatientOverviewTab(
             // ⑦ Pending interventions nudge
             if (state.pendingRecommendations.isNotEmpty()) {
                 GlassPendingInterventionsCard(
+                    language = state.currentLanguage,
                     count = state.pendingRecommendations.size,
                     onClick = { vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Interventions)) }
                 )
@@ -131,7 +139,13 @@ fun PatientOverviewTab(
 
             // ⑧ Empty state
             if (state.students.isEmpty()) {
-                GlassEmptyState("Студенты ещё не зарегистрировались в организации")
+                GlassEmptyState(
+                    message = state.currentLanguage.pick(
+                        "Студенты ещё не зарегистрировались в организации",
+                        "Students have not registered in the organization yet",
+                        "Студенттер әлі ұйымға тіркелмеген"
+                    )
+                )
             }
         }
     }
@@ -232,7 +246,7 @@ private fun GlassAiOrbHeader(
                 UmiAvatarBadge(
                     modifier = Modifier.fillMaxSize(),
                     imagePadding = 0.dp,
-                    contentDescription = "Уми"
+                    contentDescription = currentLanguage.pick("Уми", "Umi", "Уми")
                 )
             }
         }
@@ -291,6 +305,7 @@ private fun GlassAiOrbHeader(
 @Composable
 private fun GroupClimateHubCard(
     climate: String,
+    language: AppLanguage,
     totalStudents: Int,
     criticalCount: Int,
     stressCount: Int,
@@ -336,9 +351,9 @@ private fun GroupClimateHubCard(
             ) { Text(statusIcon, fontSize = 22.sp) }
 
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("ПСИХОЭМОЦИОНАЛЬНЫЙ ФОН", color = accentColor.copy(0.70f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.6.sp)
-                Text(climateVerdict(climate), color = accentColor, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, lineHeight = 28.sp)
-                Text(climateSubText(climate), color = accentColor.copy(0.60f), style = MaterialTheme.typography.bodyMedium)
+                Text(language.pick("ПСИХОЭМОЦИОНАЛЬНЫЙ ФОН", "PSYCHOEMOTIONAL BACKGROUND", "ПСИХОЭМОЦИЯЛЫҚ АХУАЛ"), color = accentColor.copy(0.70f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.6.sp)
+                Text(climateVerdict(climate, language), color = accentColor, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, lineHeight = 28.sp)
+                Text(climateSubText(climate, language), color = accentColor.copy(0.60f), style = MaterialTheme.typography.bodyMedium)
             }
         }
 
@@ -346,13 +361,13 @@ private fun GroupClimateHubCard(
 
         // Stats row
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            ClimateStatColumn(totalStudents, "Всего", TextPrimary)
+            ClimateStatColumn(totalStudents, language.pick("Всего", "Total", "Барлығы"), TextPrimary)
             Box(Modifier.width(1.dp).height(36.dp).background(Color.White.copy(0.12f)))
-            ClimateStatColumn(criticalCount, "Критично", PsychCritical)
+            ClimateStatColumn(criticalCount, language.pick("Критично", "Critical", "Критикалық"), PsychCritical)
             Box(Modifier.width(1.dp).height(36.dp).background(Color.White.copy(0.12f)))
-            ClimateStatColumn(stressCount, "Стресс", PsychWarning)
+            ClimateStatColumn(stressCount, language.pick("Стресс", "Stress", "Стресс"), PsychWarning)
             Box(Modifier.width(1.dp).height(36.dp).background(Color.White.copy(0.12f)))
-            ClimateStatColumn((totalStudents - criticalCount - stressCount).coerceAtLeast(0), "Норма", PsychTeal)
+            ClimateStatColumn((totalStudents - criticalCount - stressCount).coerceAtLeast(0), language.pick("Норма", "Normal", "Қалыпты"), PsychTeal)
         }
 
         HorizontalDivider(color = accentColor.copy(0.14f))
@@ -381,8 +396,8 @@ private fun GroupClimateHubCard(
                     contentAlignment = Alignment.Center
                 ) { Text("📋", fontSize = 17.sp) }
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("Просмотреть отчёты тестов", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Полная аналитика по группе →", color = TextSecondary, fontSize = 11.sp)
+                    Text(language.pick("Просмотреть отчёты тестов", "View test reports", "Тест есептерін көру"), color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("Полная аналитика по группе →", "Full group analytics →", "Топ бойынша толық аналитика →"), color = TextSecondary, fontSize = 11.sp)
                 }
             }
         }
@@ -402,7 +417,6 @@ private fun ClimateStatColumn(value: Int, label: String, color: Color) {
 //  Replaces 5 circular gauges with a single psychographic radar diagram.
 // ══════════════════════════════════════════════════════════════════════════════
 
-private val radarAxisLabels = listOf("Выгорание", "Стресс", "Тревога", "Состояние", "Мотивация")
 private val radarAxisColors = listOf(MetricBurnout, MetricStress, MetricAnxiety, MetricEmotion, MetricMotivation)
 
 @Composable
@@ -412,10 +426,18 @@ private fun GlassRadarCard(
     avgAnxiety: Float,
     avgEmotion: Float,
     avgMotivation: Float,
+    language: AppLanguage,
     climate: String,
 ) {
     val accentColor = climateAccentColor(climate)
     val values = listOf(avgBurnout, avgStress, avgAnxiety, avgEmotion, avgMotivation)
+    val radarAxisLabels = listOf(
+        language.pick("Выгорание", "Burnout", "Күйіп кету"),
+        language.pick("Стресс", "Stress", "Стресс"),
+        language.pick("Тревога", "Anxiety", "Мазасыздық"),
+        language.pick("Состояние", "Condition", "Жағдай"),
+        language.pick("Мотивация", "Motivation", "Мотивация")
+    )
 
     // wrapContentHeight — card strictly hugs its content, no dead space
     Column(
@@ -440,14 +462,14 @@ private fun GlassRadarCard(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
-                    "ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ",
+                    language.pick("ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ", "PSYCHOLOGICAL PROFILE", "ПСИХОЛОГИЯЛЫҚ ПРОФИЛЬ"),
                     color = TextHint,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.6.sp
                 )
                 Text(
-                    "Радарная диаграмма группы",
+                    language.pick("Радарная диаграмма группы", "Group radar chart", "Топтың радар диаграммасы"),
                     color = TextSecondary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
@@ -460,7 +482,7 @@ private fun GlassRadarCard(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    "Ср. по группе",
+                    language.pick("Ср. по группе", "Group avg", "Топ орташа"),
                     color = accentColor,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
@@ -619,11 +641,11 @@ private fun RadarSpiderChart(
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun SummaryGlassChips(total: Int, critical: Int, stable: Int) {
+private fun SummaryGlassChips(language: AppLanguage, total: Int, critical: Int, stable: Int) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        GlassStatChip("👥", "$total",    "Студентов", TextPrimary,   Color.White.copy(0.28f), Modifier.weight(1f))
-        GlassStatChip("🔴", "$critical", "Критично",  PsychCritical, PsychCritical.copy(0.55f), Modifier.weight(1f))
-        GlassStatChip("✅", "$stable",   "Стабильно", PsychTeal,     PsychTeal.copy(0.55f),  Modifier.weight(1f))
+        GlassStatChip("👥", "$total",    language.pick("Студентов", "Students", "Студент"), TextPrimary,   Color.White.copy(0.28f), Modifier.weight(1f))
+        GlassStatChip("🔴", "$critical", language.pick("Критично", "Critical", "Критикалық"),  PsychCritical, PsychCritical.copy(0.55f), Modifier.weight(1f))
+        GlassStatChip("✅", "$stable",   language.pick("Стабильно", "Stable", "Тұрақты"), PsychTeal,     PsychTeal.copy(0.55f),  Modifier.weight(1f))
     }
 }
 
@@ -650,6 +672,7 @@ private fun GlassStatChip(icon: String, value: String, label: String, color: Col
 
 @Composable
 private fun GlassCriticalAlertZone(
+    language: AppLanguage,
     criticalStudents: List<UserProfile>,
     onViewStudent: (UserProfile) -> Unit,
     onRecommend: (UserProfile) -> Unit,
@@ -683,19 +706,27 @@ private fun GlassCriticalAlertZone(
                 contentAlignment = Alignment.Center
             ) { Text("🚨", fontSize = 16.sp) }
             Column {
-                Text("КРИТИЧЕСКИЕ СЛУЧАИ", color = PsychCritical, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.0.sp)
-                Text("${criticalStudents.size} студент${psySuffix(criticalStudents.size)} требуют немедленного внимания", color = PsychCritical.copy(0.70f), fontSize = 12.sp)
+                Text(language.pick("КРИТИЧЕСКИЕ СЛУЧАИ", "CRITICAL CASES", "КРИТИКАЛЫҚ ЖАҒДАЙЛАР"), color = PsychCritical, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.0.sp)
+                Text(
+                    language.pick(
+                        "${criticalStudents.size} студент${psySuffix(criticalStudents.size)} требуют немедленного внимания",
+                        "${criticalStudents.size} student(s) require immediate attention",
+                        "${criticalStudents.size} студентке шұғыл назар қажет"
+                    ),
+                    color = PsychCritical.copy(0.70f),
+                    fontSize = 12.sp
+                )
             }
         }
         HorizontalDivider(color = PsychCritical.copy(0.15f))
         criticalStudents.forEach { s ->
-            GlassCriticalStudentCard(student = s, onView = { onViewStudent(s) }, onRecommend = { onRecommend(s) })
+            GlassCriticalStudentCard(language = language, student = s, onView = { onViewStudent(s) }, onRecommend = { onRecommend(s) })
         }
     }
 }
 
 @Composable
-private fun GlassCriticalStudentCard(student: UserProfile, onView: () -> Unit, onRecommend: () -> Unit) {
+private fun GlassCriticalStudentCard(language: AppLanguage, student: UserProfile, onView: () -> Unit, onRecommend: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
@@ -721,13 +752,13 @@ private fun GlassCriticalStudentCard(student: UserProfile, onView: () -> Unit, o
                 Text(student.email, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(Modifier.background(PsychCritical, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                Text("КРИТИЧНО", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                Text(language.pick("КРИТИЧНО", "CRITICAL", "КРИТИКАЛЫҚ"), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MiniMetricPill("Стресс",    student.stressScore,   PsychCritical, Modifier.weight(1f))
-            MiniMetricPill("Выгорание", student.burnoutScore,  PsychWarning,  Modifier.weight(1f))
-            MiniMetricPill("Тревога",   student.anxietyScore,  MetricAnxiety, Modifier.weight(1f))
+            MiniMetricPill(language.pick("Стресс", "Stress", "Стресс"),    student.stressScore,   PsychCritical, Modifier.weight(1f))
+            MiniMetricPill(language.pick("Выгорание", "Burnout", "Күйіп кету"), student.burnoutScore,  PsychWarning,  Modifier.weight(1f))
+            MiniMetricPill(language.pick("Тревога", "Anxiety", "Мазасыздық"),   student.anxietyScore,  MetricAnxiety, Modifier.weight(1f))
         }
         if (expanded) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -738,14 +769,14 @@ private fun GlassCriticalStudentCard(student: UserProfile, onView: () -> Unit, o
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onView)
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
-                ) { Text("📊 Профиль", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                ) { Text(language.pick("📊 Профиль", "📊 Profile", "📊 Профиль"), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
                 Box(
                     Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
                         .background(PsychCritical)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRecommend)
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
-                ) { Text("💬 Рекомендация", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(language.pick("💬 Рекомендация", "💬 Recommendation", "💬 Ұсыным"), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -757,13 +788,14 @@ private fun GlassCriticalStudentCard(student: UserProfile, onView: () -> Unit, o
 
 @Composable
 private fun GlassTestResultsFeed(
+    language: AppLanguage,
     items: List<RecentTestFeedItem>,
     onViewResult: (RecentTestFeedItem) -> Unit,
     onViewAll: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Последние результаты", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+            Text(language.pick("Последние результаты", "Recent results", "Соңғы нәтижелер"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
@@ -771,19 +803,19 @@ private fun GlassTestResultsFeed(
                     .border(1.dp, PsychTeal.copy(0.30f), RoundedCornerShape(10.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onViewAll)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) { Text("Все →", color = PsychTeal, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(language.pick("Все →", "All →", "Барлығы →"), color = PsychTeal, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
         }
-        items.forEach { item -> GlassTestFeedCard(item = item, onView = { onViewResult(item) }) }
+        items.forEach { item -> GlassTestFeedCard(language = language, item = item, onView = { onViewResult(item) }) }
     }
 }
 
 @Composable
-private fun GlassTestFeedCard(item: RecentTestFeedItem, onView: () -> Unit) {
+private fun GlassTestFeedCard(language: AppLanguage, item: RecentTestFeedItem, onView: () -> Unit) {
     val (statusColor, statusLabel) = when (item.studentStatus) {
-        "critical" -> PsychCritical to "Критично"
-        "stress"   -> PsychWarning  to "Стресс"
-        "normal"   -> PsychTeal     to "Норма"
-        else       -> TextHint      to "Неизвестно"
+        "critical" -> PsychCritical to language.pick("Критично", "Critical", "Критикалық")
+        "stress"   -> PsychWarning  to language.pick("Стресс", "Stress", "Стресс")
+        "normal"   -> PsychTeal     to language.pick("Норма", "Normal", "Қалыпты")
+        else        -> TextHint      to language.pick("Неизвестно", "Unknown", "Белгісіз")
     }
     Row(
         modifier = Modifier
@@ -802,7 +834,7 @@ private fun GlassTestFeedCard(item: RecentTestFeedItem, onView: () -> Unit) {
 
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(item.studentName, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("завершил(а) психологическую оценку", color = TextSecondary, fontSize = 12.sp)
+            Text(language.pick("завершил(а) психологическую оценку", "completed the psychological assessment", "психологиялық бағалауды аяқтады"), color = TextSecondary, fontSize = 12.sp)
             Box(
                 modifier = Modifier
                     .background(statusColor.copy(0.15f), RoundedCornerShape(6.dp))
@@ -819,7 +851,7 @@ private fun GlassTestFeedCard(item: RecentTestFeedItem, onView: () -> Unit) {
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onView)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
-        ) { Text("Смотреть\nрезультат", color = PsychTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
+        ) { Text(language.pick("Смотреть\nрезультат", "View\nresult", "Нәтижені\nкөру"), color = PsychTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
     }
 }
 
@@ -828,7 +860,7 @@ private fun GlassTestFeedCard(item: RecentTestFeedItem, onView: () -> Unit) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun GlassPendingInterventionsCard(count: Int, onClick: () -> Unit) {
+private fun GlassPendingInterventionsCard(language: AppLanguage, count: Int, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -842,8 +874,17 @@ private fun GlassPendingInterventionsCard(count: Int, onClick: () -> Unit) {
     ) {
         Text("💬", fontSize = 26.sp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("$count студент${psySuffix(count)} ожидают рекомендации", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Text("Перейти в раздел «Помощь»", color = PsychWarning, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(
+                language.pick(
+                    "$count студент${psySuffix(count)} ожидают рекомендации",
+                    "$count student(s) are waiting for a recommendation",
+                    "$count студент ұсынысты күтіп отыр"
+                ),
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(language.pick("Перейти в раздел «Помощь»", "Go to the Help section", "«Көмек» бөліміне өту"), color = PsychWarning, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
         Text("›", color = PsychWarning, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     }
@@ -954,18 +995,18 @@ private fun climateAccentColor(climate: String): Color = when (climate) {
     else       -> Color(0xFF8A2BE2)
 }
 
-private fun climateVerdict(climate: String): String = when (climate) {
-    "critical" -> "Обнаружен риск выгорания"
-    "warning"  -> "Требует внимания"
-    "good"     -> "Состояние в норме"
-    else       -> "Данных недостаточно"
+private fun climateVerdict(climate: String, language: AppLanguage): String = when (climate) {
+    "critical" -> language.pick("Обнаружен риск выгорания", "Burnout risk detected", "Күйіп кету қаупі анықталды")
+    "warning"  -> language.pick("Требует внимания", "Needs attention", "Назар аударуды қажет етеді")
+    "good"     -> language.pick("Состояние в норме", "Condition is normal", "Жағдай қалыпты")
+    else        -> language.pick("Данных недостаточно", "Not enough data", "Дерек жеткіліксіз")
 }
 
-private fun climateSubText(climate: String): String = when (climate) {
-    "critical" -> "Немедленное вмешательство необходимо"
-    "warning"  -> "Часть студентов испытывают стресс"
-    "good"     -> "Показатели группы в пределах нормы"
-    else       -> "Ожидание результатов тестирования"
+private fun climateSubText(climate: String, language: AppLanguage): String = when (climate) {
+    "critical" -> language.pick("Немедленное вмешательство необходимо", "Immediate intervention is required", "Шұғыл араласу қажет")
+    "warning"  -> language.pick("Часть студентов испытывают стресс", "Some students are experiencing stress", "Студенттердің бір бөлігі стресс сезінуде")
+    "good"     -> language.pick("Показатели группы в пределах нормы", "Group indicators are within the normal range", "Топ көрсеткіштері қалыпты шекте")
+    else        -> language.pick("Ожидание результатов тестирования", "Waiting for test results", "Тест нәтижелері күтілуде")
 }
 
 private fun psySuffix(count: Int): String = when {

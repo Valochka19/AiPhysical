@@ -40,6 +40,7 @@ import aiphysical.composeapp.generated.resources.surprised_enot
 import aiphysical.composeapp.generated.resources.uneasy_enot
 import aiphysical.composeapp.generated.resources.wait_enot
 import com.example.aiphysical.data.model.CatState
+import com.example.aiphysical.presentation.auth.AppLanguage
 import com.example.aiphysical.ui.theme.PsychTeal
 import com.example.aiphysical.ui.theme.PsychWarning
 import org.jetbrains.compose.resources.painterResource
@@ -71,6 +72,7 @@ fun MascotComponent(
     catState: CatState,
     modifier: Modifier = Modifier,
     size: Dp = 100.dp,
+    language: AppLanguage = AppLanguage.RU,
     assetVariant: MascotAssetVariant = MascotAssetVariant.NONE,
 ) {
     val resolvedAssetVariant = when {
@@ -130,84 +132,126 @@ fun MascotComponent(
             label = "cat_emotion"
         ) { (variant, state) ->
             when (variant) {
-                MascotAssetVariant.NONE -> CatEmojiView(catState = state, size = size)
+                MascotAssetVariant.NONE -> CatEmojiView(catState = state, size = size, language = language)
                 MascotAssetVariant.RACCOON_HAPPY -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.rejoice_enot),
-                    contentDescription = "Енот"
+                    contentDescription = localizedRaccoonDescription(language, "base")
                 )
                 MascotAssetVariant.RACCOON_ENERGETIC -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.enegretic_enot),
-                    contentDescription = "Энергичный енот"
+                    contentDescription = localizedRaccoonDescription(language, "energetic")
                 )
                 MascotAssetVariant.RACCOON_UNEASY -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.uneasy_enot),
-                    contentDescription = "Тревожный енот"
+                    contentDescription = localizedRaccoonDescription(language, "uneasy")
                 )
                 MascotAssetVariant.RACCOON_SAD -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.sad_enot),
-                    contentDescription = "Грустный енот"
+                    contentDescription = localizedRaccoonDescription(language, "sad")
                 )
                 MascotAssetVariant.RACCOON_JOY -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.joy_enot),
-                    contentDescription = "Весёлый енот"
+                    contentDescription = localizedRaccoonDescription(language, "joy")
                 )
                 MascotAssetVariant.RACCOON_PEACE -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.peace_enot),
-                    contentDescription = "Спокойный енот"
+                    contentDescription = localizedRaccoonDescription(language, "peace")
                 )
                 MascotAssetVariant.RACCOON_PROUD -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.proud_enot),
-                    contentDescription = "Гордый енот"
+                    contentDescription = localizedRaccoonDescription(language, "proud")
                 )
                 MascotAssetVariant.RACCOON_SURPRISED -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.surprised_enot),
-                    contentDescription = "Удивлённый енот"
+                    contentDescription = localizedRaccoonDescription(language, "surprised")
                 )
                 MascotAssetVariant.RACCOON_MANY -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.many_enot),
-                    contentDescription = "Перегруженный енот"
+                    contentDescription = localizedRaccoonDescription(language, "overwhelmed")
                 )
                 MascotAssetVariant.RACCOON_WAIT -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.wait_enot),
-                    contentDescription = "Ждущий енот"
+                    contentDescription = localizedRaccoonDescription(language, "waiting")
                 )
                 MascotAssetVariant.RACCOON_NOT_UNDERSTAND -> RaccoonAssetView(
                     catState = state,
                     size = size,
                     painter = painterResource(Res.drawable.not_understand_enot),
-                    contentDescription = "Растерянный енот"
+                    contentDescription = localizedRaccoonDescription(language, "confused")
                 )
             }
         }
     }
 }
 
+private fun localizedRaccoonDescription(language: AppLanguage, mood: String): String = when (language) {
+    AppLanguage.RU -> when (mood) {
+        "base" -> "Енот"
+        "energetic" -> "Энергичный енот"
+        "uneasy" -> "Тревожный енот"
+        "sad" -> "Грустный енот"
+        "joy" -> "Весёлый енот"
+        "peace" -> "Спокойный енот"
+        "proud" -> "Гордый енот"
+        "surprised" -> "Удивлённый енот"
+        "overwhelmed" -> "Перегруженный енот"
+        "waiting" -> "Ждущий енот"
+        else -> "Растерянный енот"
+    }
+    AppLanguage.EN -> when (mood) {
+        "base" -> "Raccoon"
+        "energetic" -> "Energetic raccoon"
+        "uneasy" -> "Anxious raccoon"
+        "sad" -> "Sad raccoon"
+        "joy" -> "Happy raccoon"
+        "peace" -> "Calm raccoon"
+        "proud" -> "Proud raccoon"
+        "surprised" -> "Surprised raccoon"
+        "overwhelmed" -> "Overwhelmed raccoon"
+        "waiting" -> "Waiting raccoon"
+        else -> "Confused raccoon"
+    }
+    AppLanguage.KZ -> when (mood) {
+        "base" -> "Жанат"
+        "energetic" -> "Қуатты жанат"
+        "uneasy" -> "Алаңдаулы жанат"
+        "sad" -> "Мұңды жанат"
+        "joy" -> "Көңілді жанат"
+        "peace" -> "Сабырлы жанат"
+        "proud" -> "Мақтанышты жанат"
+        "surprised" -> "Таңғалған жанат"
+        "overwhelmed" -> "Шамадан тыс жүктелген жанат"
+        "waiting" -> "Күтіп тұрған жанат"
+        else -> "Аң-таң жанат"
+    }
+}
+
 // ─── Inner cat visual (swap this with PNG/Lottie when assets are ready) ───────
 
 @Composable
-private fun CatEmojiView(catState: CatState, size: Dp) {
+private fun CatEmojiView(catState: CatState, size: Dp, language: AppLanguage) {
     val emoji       = catStateEmoji(catState)
-    val label       = catStateLabel(catState)
+    val label       = catStateLabel(catState, language)
     val borderColor = catStateGlowColor(catState)
     val bgColor     = catStateBgColor(catState)
 
@@ -281,18 +325,46 @@ private fun catStateEmoji(state: CatState): String = when (state) {
     CatState.IN_BOX      -> "📦"
 }
 
-private fun catStateLabel(state: CatState): String = when (state) {
-    CatState.IDLE        -> "Жду..."
-    CatState.HAPPY       -> "Радуюсь!"
-    CatState.NERVOUS     -> "Нервничаю"
-    CatState.PROUD       -> "Горжусь!"
-    CatState.TIRED       -> "Устал..."
-    CatState.ENERGETIC   -> "Энергия!"
-    CatState.STRESS      -> "Ой-ой!"
-    CatState.PEACEFUL    -> "Мир 🌿"
-    CatState.OVERWHELMED -> "Много..."
-    CatState.LAUGHING    -> "Хаха!"
-    CatState.IN_BOX      -> "В коробке"
+private fun catStateLabel(state: CatState, language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> when (state) {
+        CatState.IDLE        -> "Жду..."
+        CatState.HAPPY       -> "Радуюсь!"
+        CatState.NERVOUS     -> "Нервничаю"
+        CatState.PROUD       -> "Горжусь!"
+        CatState.TIRED       -> "Устал..."
+        CatState.ENERGETIC   -> "Энергия!"
+        CatState.STRESS      -> "Ой-ой!"
+        CatState.PEACEFUL    -> "Мир 🌿"
+        CatState.OVERWHELMED -> "Много..."
+        CatState.LAUGHING    -> "Хаха!"
+        CatState.IN_BOX      -> "В коробке"
+    }
+    AppLanguage.EN -> when (state) {
+        CatState.IDLE        -> "Waiting..."
+        CatState.HAPPY       -> "So happy!"
+        CatState.NERVOUS     -> "Feeling nervous"
+        CatState.PROUD       -> "So proud!"
+        CatState.TIRED       -> "Tired..."
+        CatState.ENERGETIC   -> "Full of energy!"
+        CatState.STRESS      -> "Uh-oh!"
+        CatState.PEACEFUL    -> "Calm 🌿"
+        CatState.OVERWHELMED -> "Too much..."
+        CatState.LAUGHING    -> "Haha!"
+        CatState.IN_BOX      -> "In the box"
+    }
+    AppLanguage.KZ -> when (state) {
+        CatState.IDLE        -> "Күтіп тұрмын..."
+        CatState.HAPPY       -> "Қуанып тұрмын!"
+        CatState.NERVOUS     -> "Алаңдап тұрмын"
+        CatState.PROUD       -> "Мақтанып тұрмын!"
+        CatState.TIRED       -> "Шаршадым..."
+        CatState.ENERGETIC   -> "Қуат көп!"
+        CatState.STRESS      -> "Ойпырмай!"
+        CatState.PEACEFUL    -> "Тыныштық 🌿"
+        CatState.OVERWHELMED -> "Тым көп..."
+        CatState.LAUGHING    -> "Хаха!"
+        CatState.IN_BOX      -> "Қораптың ішінде"
+    }
 }
 
 private fun catStateGlowColor(state: CatState): Color = when (state) {

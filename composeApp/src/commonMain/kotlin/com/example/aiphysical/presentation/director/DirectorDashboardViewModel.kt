@@ -8,6 +8,7 @@ import com.example.aiphysical.data.model.*
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
 import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -296,7 +297,14 @@ class DirectorDashboardViewModel(
     }
 
     private fun generateAiInsight(org: Organization?, members: List<UserProfile>): String {
-        if (members.isEmpty()) return "Нет данных для анализа организации."
+        val language = _state.value.currentLanguage
+        if (members.isEmpty()) {
+            return language.pick(
+                ru = "Нет данных для анализа организации.",
+                en = "No data available for organization analysis.",
+                kz = "Ұйымды талдауға арналған деректер жоқ."
+            )
+        }
         val criticalCount = members.count { it.latestAiStatus == "critical" }
         val stressCount = members.count { it.latestAiStatus == "stress" }
         val normalCount = members.count { it.latestAiStatus == "normal" }
@@ -304,16 +312,74 @@ class DirectorDashboardViewModel(
         val avgBurnout = (members.sumOf { it.burnoutScore.toDouble() } / members.size).toFloat()
         val avgMotivation = (members.sumOf { it.motivationScore.toDouble() } / members.size).toFloat()
         return buildString {
-            append("Анализ «${org?.name ?: "организации"}»: ")
+            val orgName = org?.name ?: language.pick(
+                ru = "организации",
+                en = "organization",
+                kz = "ұйым"
+            )
+            append(
+                language.pick(
+                    ru = "Анализ «$orgName»: ",
+                    en = "Analysis of \"$orgName\": ",
+                    kz = "«$orgName» бойынша талдау: "
+                )
+            )
             when {
-                criticalCount > 0 -> append("⚠️ Обнаружено $criticalCount случаев критического состояния — рекомендуется вмешательство психолога. ")
-                stressCount > members.size / 2 -> append("⚡ Более половины участников испытывают повышенный стресс. ")
-                else -> append("✅ Общая ситуация в норме. ")
+                criticalCount > 0 -> append(
+                    language.pick(
+                        ru = "⚠️ Обнаружено $criticalCount случаев критического состояния — рекомендуется вмешательство психолога. ",
+                        en = "⚠️ $criticalCount critical cases were detected — psychologist intervention is recommended. ",
+                        kz = "⚠️ $criticalCount критикалық жағдай анықталды — психологтың араласуы ұсынылады. "
+                    )
+                )
+                stressCount > members.size / 2 -> append(
+                    language.pick(
+                        ru = "⚡ Более половины участников испытывают повышенный стресс. ",
+                        en = "⚡ More than half of the members are experiencing elevated stress. ",
+                        kz = "⚡ Қатысушылардың жартысынан көбі жоғары стресс сезінуде. "
+                    )
+                )
+                else -> append(
+                    language.pick(
+                        ru = "✅ Общая ситуация в норме. ",
+                        en = "✅ The overall situation is within the normal range. ",
+                        kz = "✅ Жалпы жағдай қалыпты деңгейде. "
+                    )
+                )
             }
-            if (avgBurnout > 65f) append("Высокий риск выгорания (${avgBurnout.toInt()}%). ")
-            else if (avgBurnout > 40f) append("Умеренный риск выгорания (${avgBurnout.toInt()}%). ")
-            if (avgMotivation < 40f) append("Низкая мотивация — рекомендуются командные активности. ")
-            append("Средний стресс: ${avgStress.toInt()}%. Норма: $normalCount/${members.size}.")
+            if (avgBurnout > 65f) {
+                append(
+                    language.pick(
+                        ru = "Высокий риск выгорания (${avgBurnout.toInt()}%). ",
+                        en = "High burnout risk (${avgBurnout.toInt()}%). ",
+                        kz = "Күйіп кету қаупі жоғары (${avgBurnout.toInt()}%). "
+                    )
+                )
+            } else if (avgBurnout > 40f) {
+                append(
+                    language.pick(
+                        ru = "Умеренный риск выгорания (${avgBurnout.toInt()}%). ",
+                        en = "Moderate burnout risk (${avgBurnout.toInt()}%). ",
+                        kz = "Күйіп кету қаупі орташа (${avgBurnout.toInt()}%). "
+                    )
+                )
+            }
+            if (avgMotivation < 40f) {
+                append(
+                    language.pick(
+                        ru = "Низкая мотивация — рекомендуются командные активности. ",
+                        en = "Low motivation detected — team activities are recommended. ",
+                        kz = "Мотивация төмен — командалық белсенділіктер ұсынылады. "
+                    )
+                )
+            }
+            append(
+                language.pick(
+                    ru = "Средний стресс: ${avgStress.toInt()}%. Норма: $normalCount/${members.size}.",
+                    en = "Average stress: ${avgStress.toInt()}%. Normal: $normalCount/${members.size}.",
+                    kz = "Орташа стресс: ${avgStress.toInt()}%. Қалыпты: $normalCount/${members.size}."
+                )
+            )
         }
     }
 
@@ -356,14 +422,22 @@ class DirectorDashboardViewModel(
 
     private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
         if (course.courseUrl.isBlank()) {
-            emitEffect(DirectorEffect.ShowSnackbar("Ссылка на курс недоступна"))
+            emitEffect(DirectorEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Ссылка на курс недоступна",
+                en = "The course link is unavailable",
+                kz = "Курс сілтемесі қолжетімсіз"
+            )))
             return
         }
 
         emitEffect(DirectorEffect.OpenUrl(course.courseUrl))
         viewModelScope.launch {
             when (firestoreService.upsertBaseCourseProgress(uid, course)) {
-                is FirestoreResult.Failure -> emitEffect(DirectorEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
+                is FirestoreResult.Failure -> emitEffect(DirectorEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Не удалось обновить прогресс курса",
+                    en = "Failed to update course progress",
+                    kz = "Курс прогресін жаңарту мүмкін болмады"
+                )))
                 else -> Unit
             }
         }
@@ -391,7 +465,11 @@ class DirectorDashboardViewModel(
                 }
                 is FirestoreResult.Failure -> {
                     _state.update { it.copy(isLoadingCourseCompletionDetails = false) }
-                    emitEffect(DirectorEffect.ShowSnackbar("Не удалось загрузить прохождение курса"))
+                    emitEffect(DirectorEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Не удалось загрузить прохождение курса",
+                        en = "Failed to load course completion details",
+                        kz = "Курс өту деректерін жүктеу мүмкін болмады"
+                    )))
                 }
                 else -> _state.update { it.copy(isLoadingCourseCompletionDetails = false) }
             }
@@ -430,7 +508,11 @@ class DirectorDashboardViewModel(
                 }
                 is FirestoreResult.Failure -> {
                     _state.update { it.copy(isLoadingTestStats = false) }
-                    emitEffect(DirectorEffect.ShowSnackbar("Не удалось загрузить статистику теста"))
+                    emitEffect(DirectorEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Не удалось загрузить статистику теста",
+                        en = "Failed to load test statistics",
+                        kz = "Тест статистикасын жүктеу мүмкін болмады"
+                    )))
                 }
                 else -> _state.update { it.copy(isLoadingTestStats = false) }
             }
@@ -443,7 +525,11 @@ class DirectorDashboardViewModel(
                 if (course.videoUrl.isNotBlank()) {
                     emitEffect(DirectorEffect.OpenUrl(course.videoUrl))
                 } else {
-                    emitEffect(DirectorEffect.ShowSnackbar("Ссылка на видео недоступна"))
+                    emitEffect(DirectorEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Ссылка на видео недоступна",
+                        en = "The video link is unavailable",
+                        kz = "Бейне сілтемесі қолжетімсіз"
+                    )))
                 }
             }
             CourseContentType.TEXT -> {
@@ -458,13 +544,15 @@ class DirectorDashboardViewModel(
         viewModelScope.launch { _effects.emit(effect) }
     }
 
+    private fun currentLanguage(): AppLanguage = _state.value.currentLanguage
+
     private fun snackMsg(lang: AppLanguage, key: String): String = when (key) {
         "student_code" -> when (lang) { AppLanguage.KZ -> "Студент коды көшірілді"; AppLanguage.RU -> "Код студентов скопирован"; else -> "Student code copied" }
         "psych_code"   -> when (lang) { AppLanguage.KZ -> "Психолог коды көшірілді"; AppLanguage.RU -> "Код психолога скопирован"; else -> "Psychologist code copied" }
         "role_changed" -> when (lang) { AppLanguage.KZ -> "Рөл өзгертілді"; AppLanguage.RU -> "Роль изменена"; else -> "Role changed" }
         "user_blocked" -> when (lang) { AppLanguage.KZ -> "Пайдаланушы бұғатталды"; AppLanguage.RU -> "Пользователь заблокирован"; else -> "User blocked" }
         "user_unblocked" -> when (lang) { AppLanguage.KZ -> "Бұғат алынды"; AppLanguage.RU -> "Пользователь разблокирован"; else -> "User unblocked" }
-        else -> "Done"
+        else -> lang.pick(ru = "Готово", en = "Done", kz = "Дайын")
     }
 
     // ─── Factory ──────────────────────────────────────────────────────────────

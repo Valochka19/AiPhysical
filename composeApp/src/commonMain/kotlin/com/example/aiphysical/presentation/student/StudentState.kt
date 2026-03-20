@@ -31,6 +31,24 @@ enum class StudentTestType(
     ANXIETY(   "anxiety",    "☁️", "Тревожность", 0xFF9D5FF5, 0xFFE040FB)
 }
 
+fun StudentTestType.displayLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> label
+    AppLanguage.EN -> when (this) {
+        StudentTestType.BURNOUT -> "Burnout"
+        StudentTestType.STRESS -> "Stress"
+        StudentTestType.EMOTION -> "Condition"
+        StudentTestType.MOTIVATION -> "Motivation"
+        StudentTestType.ANXIETY -> "Anxiety"
+    }
+    AppLanguage.KZ -> when (this) {
+        StudentTestType.BURNOUT -> "Күйіп кету"
+        StudentTestType.STRESS -> "Стресс"
+        StudentTestType.EMOTION -> "Жағдай"
+        StudentTestType.MOTIVATION -> "Мотивация"
+        StudentTestType.ANXIETY -> "Мазасыздық"
+    }
+}
+
 // ── Main UI state ─────────────────────────────────────────────────────────────
 data class StudentUiState(
     val isLoading: Boolean = true,

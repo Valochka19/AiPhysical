@@ -2,11 +2,13 @@ package com.example.aiphysical.presentation.chat
 
 import com.example.aiphysical.data.model.ChatContactPreview
 import com.example.aiphysical.data.model.PsychChatMessage
+import com.example.aiphysical.presentation.auth.AppLanguage
 
 data class SupportChatUiState(
     val currentUserId: String = "",
     val currentUserRole: String = "",
     val currentUserName: String = "",
+    val currentLanguage: AppLanguage = AppLanguage.RU,
     val contacts: List<ChatContactPreview> = emptyList(),
     val selectedContact: ChatContactPreview? = null,
     val activeChatId: String = "",
@@ -20,6 +22,7 @@ data class SupportChatUiState(
 
 sealed class SupportChatEvent {
     object Reload : SupportChatEvent()
+    data class ChangeLanguage(val language: AppLanguage) : SupportChatEvent()
     data class SelectContact(val contact: ChatContactPreview) : SupportChatEvent()
     data class UpdateInput(val value: String) : SupportChatEvent()
     object SendMessage : SupportChatEvent()

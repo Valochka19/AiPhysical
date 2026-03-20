@@ -27,6 +27,9 @@ import com.example.aiphysical.data.model.OrganizationTestStats
 import com.example.aiphysical.data.model.assessmentLabel
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.OrganizationCourse
+import com.example.aiphysical.data.model.displayDescription
+import com.example.aiphysical.data.model.displayTitle
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
@@ -42,6 +45,7 @@ fun LibraryTab(
     vm: PsychologistViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val language = state.currentLanguage
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -52,23 +56,24 @@ fun LibraryTab(
     ) {
         // ── Header ─────────────────────────────────────────────────────────────
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Библиотека", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Тесты и курсы платформы KASU", color = TextSecondary, fontSize = 13.sp)
+            Text(language.pick("Библиотека", "Library", "Кітапхана"), color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+            Text(language.pick("Тесты и курсы платформы KASU", "KASU platform tests and courses", "KASU платформасының тесттері мен курстары"), color = TextSecondary, fontSize = 13.sp)
         }
 
         // ── Psychologist profile info ──────────────────────────────────────────
-        PsychProfileCard(state = state)
+        PsychProfileCard(state = state, language = language)
 
         // ── Tests Section ──────────────────────────────────────────────────────
-        LibrarySection(title = "5 ОБЯЗАТЕЛЬНЫХ ТЕСТОВ", emoji = "📋") {
+        LibrarySection(title = language.pick("5 ОБЯЗАТЕЛЬНЫХ ТЕСТОВ", "5 REQUIRED TESTS", "5 МІНДЕТТІ ТЕСТ"), emoji = "📋") {
             AppStudentTestCatalog.items.forEachIndexed { index, item ->
                 val stats = state.testStats.firstOrNull { it.testType == item.type }
                 PsychologistTestLibraryCard(
                     index = index + 1,
                     emoji = item.emoji,
-                    name = item.title,
-                    description = item.description,
+                    name = item.displayTitle(language),
+                    description = item.displayDescription(language),
                     stats = stats,
+                    language = language,
                     isLoadingStats = state.isLoadingTestStats && state.selectedTestStats?.testType == item.type,
                     onStatsClick = { vm.onEvent(PsychologistEvent.OpenTestStats(item.type)) },
                     isLast = index == AppStudentTestCatalog.items.lastIndex
@@ -77,12 +82,15 @@ fun LibraryTab(
         }
 
         // ── Base Courses Section (from shared catalog) ─────────────────────────
-        LibrarySection(title = "5 БАЗОВЫХ КУРСОВ", emoji = "📚") {
+        LibrarySection(title = language.pick("5 БАЗОВЫХ КУРСОВ", "5 BASE COURSES", "5 НЕГІЗГІ КУРС"), emoji = "📚") {
             AppCourseCatalog.baseCourses.forEach { item ->
                 val assignedCount = state.students.count { it.assignedCourseId == item.id }
                 PlatformCourseCard(
                     course = item,
-                    badgeText = if (assignedCount > 0) "$assignedCount назн." else null,
+                    language = language,
+                    badgeText = if (assignedCount > 0) {
+                        language.pick("$assignedCount назн.", "$assignedCount assigned", "$assignedCount тағайындалды")
+                    } else null,
                     onClick = { vm.onEvent(PsychologistEvent.OpenBaseCourse(item)) }
                 )
             }
@@ -91,16 +99,24 @@ fun LibraryTab(
         // ── Action buttons ─────────────────────────────────────────────────────
         PsychActionButton(
             emoji = "➕",
-            title = "Добавление курса",
-            subtitle = "Создать и опубликовать новый курс",
+            title = language.pick("Добавление курса", "Add course", "Курс қосу"),
+            subtitle = language.pick("Создать и опубликовать новый курс", "Create and publish a new course", "Жаңа курсты жасап, жариялау"),
             accentColor = PsychTeal,
             onClick = { vm.onEvent(PsychologistEvent.OpenAddCourseSheet) }
         )
 
         PsychActionButton(
             emoji = "📂",
-            title = "Добавленные курсы",
-            subtitle = if (state.addedCourses.isEmpty()) "Курсов пока нет" else "${state.addedCourses.size} курс(ов) опубликовано",
+            title = language.pick("Добавленные курсы", "Added courses", "Қосылған курстар"),
+            subtitle = if (state.addedCourses.isEmpty()) {
+                language.pick("Курсов пока нет", "No courses yet", "Әзірге курстар жоқ")
+            } else {
+                language.pick(
+                    "${state.addedCourses.size} курс(ов) опубликовано",
+                    "${state.addedCourses.size} course(s) published",
+                    "${state.addedCourses.size} курс жарияланды"
+                )
+            },
             accentColor = NeonViolet,
             badge = if (state.addedCourses.isNotEmpty()) state.addedCourses.size.toString() else null,
             onClick = { vm.onEvent(PsychologistEvent.OpenAddedCourses) }
@@ -108,8 +124,8 @@ fun LibraryTab(
 
         PsychActionButton(
             emoji = "🧪",
-            title = "Загрузить тест",
-            subtitle = "Создать и опубликовать тест для студентов",
+            title = language.pick("Загрузить тест", "Publish test", "Тест жүктеу"),
+            subtitle = language.pick("Создать и опубликовать тест для студентов", "Create and publish a test for students", "Студенттерге арналған тест жасап, жариялау"),
             accentColor = AlertOrange,
             onClick = { vm.onEvent(PsychologistEvent.OpenAddTestScreen) }
         )
@@ -117,6 +133,7 @@ fun LibraryTab(
         // ── Inline: Added courses viewer ───────────────────────────────────────
         if (state.showAddedCoursesViewer) {
             PsychAddedCoursesSection(
+                language = language,
                 courses = state.addedCourses,
                 onCourse = { vm.onEvent(PsychologistEvent.OpenAddedCourse(it)) },
                 onDelete = { vm.onEvent(PsychologistEvent.DeleteAddedCourse(it)) },
@@ -124,7 +141,7 @@ fun LibraryTab(
             )
         }
 
-        LibrarySection(title = "ДОБАВЛЕННЫЕ ТЕСТЫ", emoji = "🧪") {
+        LibrarySection(title = language.pick("ДОБАВЛЕННЫЕ ТЕСТЫ", "ADDED TESTS", "ҚОСЫЛҒАН ТЕСТТЕР"), emoji = "🧪") {
             if (state.isLoadingCustomTests) {
                 Box(
                     modifier = Modifier
@@ -138,18 +155,19 @@ fun LibraryTab(
                 Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("📝", fontSize = 36.sp)
-                        Text("Пока нет опубликованных тестов", color = TextSecondary, fontSize = 14.sp)
+                        Text(language.pick("Пока нет опубликованных тестов", "No published tests yet", "Әзірге жарияланған тесттер жоқ"), color = TextSecondary, fontSize = 14.sp)
                     }
                 }
             } else {
                 state.customTests.forEachIndexed { index, test ->
                     OrganizationCustomTestCard(
                         test = test,
+                        language = language,
                         onClick = {},
                         accentColor = AlertOrange,
-                        badgeText = "${test.questions.size} вопрос(ов)",
-                        metaText = test.createdByName.ifBlank { "Опубликовано" },
-                        ctaText = "Опубликован"
+                        badgeText = language.pick("${test.questions.size} вопрос(ов)", "${test.questions.size} question(s)", "${test.questions.size} сұрақ"),
+                        metaText = test.createdByName.ifBlank { language.pick("Опубликовано", "Published", "Жарияланған") },
+                        ctaText = language.pick("Опубликован", "Published", "Жарияланды")
                     )
                     if (index != state.customTests.lastIndex) {
                         Spacer(Modifier.height(12.dp))
@@ -159,7 +177,7 @@ fun LibraryTab(
         }
 
         // ── Stats overview ─────────────────────────────────────────────────────
-        LibraryStatsCard(state = state)
+        LibraryStatsCard(state = state, language = language)
     }
 
     // ── Add Course Sheet (dialog) ──────────────────────────────────────────────
@@ -171,6 +189,7 @@ fun LibraryTab(
     if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
         PsychTextCourseDialog(
             course = state.selectedAddedCourse,
+            language = language,
             onDismiss = { vm.onEvent(PsychologistEvent.CloseTextCourseViewer) }
         )
     }
@@ -178,6 +197,7 @@ fun LibraryTab(
     if (state.showTestStatsDialog && state.selectedTestStats != null) {
         TestStatsDialog(
             stats = state.selectedTestStats,
+            language = language,
             onDismiss = { vm.onEvent(PsychologistEvent.CloseTestStatsDialog) }
         )
     }
@@ -186,7 +206,7 @@ fun LibraryTab(
 // ── Psychologist Profile Card ─────────────────────────────────────────────────
 
 @Composable
-private fun PsychProfileCard(state: PsychologistHomeState) {
+private fun PsychProfileCard(state: PsychologistHomeState, language: com.example.aiphysical.presentation.auth.AppLanguage) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -230,7 +250,7 @@ private fun PsychProfileCard(state: PsychologistHomeState) {
                     .padding(horizontal = 10.dp, vertical = 3.dp)
             ) {
                 Text(
-                    "Психолог",
+                    language.pick("Психолог", "Psychologist", "Психолог"),
                     color = PsychTeal,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -238,7 +258,11 @@ private fun PsychProfileCard(state: PsychologistHomeState) {
                 )
             }
             Text(
-                "${state.students.size} студентов в организации",
+                language.pick(
+                    "${state.students.size} студентов в организации",
+                    "${state.students.size} students in the organization",
+                    "Ұйымда ${state.students.size} студент бар"
+                ),
                 color = TextSecondary,
                 fontSize = 11.sp
             )
@@ -318,6 +342,7 @@ private fun PsychActionButton(
 
 @Composable
 private fun PsychAddedCoursesSection(
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     courses: List<OrganizationCourse>,
     onCourse: (OrganizationCourse) -> Unit,
     onDelete: (String) -> Unit,
@@ -333,27 +358,28 @@ private fun PsychAddedCoursesSection(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("ДОБАВЛЕННЫЕ КУРСЫ", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+            Text(language.pick("ДОБАВЛЕННЫЕ КУРСЫ", "ADDED COURSES", "ҚОСЫЛҒАН КУРСТАР"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
             Box(
                 Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(MatteCardBorder.copy(0.4f))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)
                     .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) { Text("✕ Свернуть", color = TextSecondary, fontSize = 11.sp) }
+            ) { Text(language.pick("✕ Свернуть", "✕ Collapse", "✕ Жинау"), color = TextSecondary, fontSize = 11.sp) }
         }
 
         if (courses.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("📭", fontSize = 36.sp)
-                    Text("Новых курсов добавлено не было", color = TextSecondary, fontSize = 14.sp)
+                    Text(language.pick("Новых курсов добавлено не было", "No new courses have been added", "Жаңа курстар қосылған жоқ"), color = TextSecondary, fontSize = 14.sp)
                 }
             }
         } else {
             courses.forEach { course ->
                 OrganizationCourseCard(
                     course = course,
+                    language = language,
                     onClick = { onCourse(course) },
                     showDeleteButton = true,
                     onDelete = { onDelete(course.id) }
@@ -367,6 +393,7 @@ private fun PsychAddedCoursesSection(
 
 @Composable
 private fun AddCourseSheet(state: PsychologistHomeState, vm: PsychologistViewModel) {
+    val language = state.currentLanguage
     androidx.compose.ui.window.Dialog(
         onDismissRequest = { vm.onEvent(PsychologistEvent.CloseAddCourseSheet) },
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -396,33 +423,36 @@ private fun AddCourseSheet(state: PsychologistHomeState, vm: PsychologistViewMod
                 Box(Modifier.width(48.dp).height(4.dp).background(MatteCardBorder, RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
 
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Добавление курса", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Создайте курс для вашей организации", color = TextSecondary, fontSize = 13.sp)
+                    Text(language.pick("Добавление курса", "Add course", "Курс қосу"), color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("Создайте курс для вашей организации", "Create a course for your organization", "Ұйымыңыз үшін курс жасаңыз"), color = TextSecondary, fontSize = 13.sp)
                 }
 
                 HorizontalDivider(color = MatteCardBorder)
 
                 // Title field
                 FormField(
-                    label = "НАЗВАНИЕ КУРСА",
+                    label = language.pick("НАЗВАНИЕ КУРСА", "COURSE TITLE", "КУРС АТАУЫ"),
                     value = state.newCourseTitle,
-                    placeholder = "Введите название...",
+                    placeholder = language.pick("Введите название...", "Enter a title...", "Атауын енгізіңіз..."),
                     onValueChange = { vm.onEvent(PsychologistEvent.UpdateNewCourseTitle(it)) }
                 )
 
                 // Description field
                 FormField(
-                    label = "ОПИСАНИЕ",
+                    label = language.pick("ОПИСАНИЕ", "DESCRIPTION", "СИПАТТАМА"),
                     value = state.newCourseDescription,
-                    placeholder = "Краткое описание курса...",
+                    placeholder = language.pick("Краткое описание курса...", "Short course description...", "Курстың қысқаша сипаттамасы..."),
                     onValueChange = { vm.onEvent(PsychologistEvent.UpdateNewCourseDescription(it)) }
                 )
 
                 // Type selector
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("ТИП КУРСА", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text(language.pick("ТИП КУРСА", "COURSE TYPE", "КУРС ТҮРІ"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        listOf(CourseContentType.TEXT to ("📝" to "Текстовый"), CourseContentType.VIDEO to ("🎬" to "Видео")).forEach { (type, info) ->
+                        listOf(
+                            CourseContentType.TEXT to ("📝" to language.pick("Текстовый", "Text", "Мәтіндік")),
+                            CourseContentType.VIDEO to ("🎬" to language.pick("Видео", "Video", "Видео"))
+                        ).forEach { (type, info) ->
                             val (emoji, label) = info
                             val isSelected = state.newCourseType == type
                             Box(
@@ -449,16 +479,16 @@ private fun AddCourseSheet(state: PsychologistHomeState, vm: PsychologistViewMod
                 // Conditional fields
                 if (state.newCourseType == CourseContentType.VIDEO) {
                     FormField(
-                        label = "ССЫЛКА НА ВИДЕО",
+                        label = language.pick("ССЫЛКА НА ВИДЕО", "VIDEO LINK", "ВИДЕО СІЛТЕМЕСІ"),
                         value = state.newCourseVideoUrl,
                         placeholder = "https://youtube.com/...",
                         onValueChange = { vm.onEvent(PsychologistEvent.UpdateNewCourseVideoUrl(it)) }
                     )
                 } else {
                     FormField(
-                        label = "ТЕКСТ КУРСА",
+                        label = language.pick("ТЕКСТ КУРСА", "COURSE TEXT", "КУРС МӘТІНІ"),
                         value = state.newCourseTextContent,
-                        placeholder = "Введите текст курса...",
+                        placeholder = language.pick("Введите текст курса...", "Enter the course text...", "Курс мәтінін енгізіңіз..."),
                         minHeight = 180.dp,
                         onValueChange = { vm.onEvent(PsychologistEvent.UpdateNewCourseTextContent(it)) }
                     )
@@ -490,7 +520,7 @@ private fun AddCourseSheet(state: PsychologistHomeState, vm: PsychologistViewMod
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     } else {
                         Text(
-                            "Опубликовать курс",
+                            language.pick("Опубликовать курс", "Publish course", "Курсты жариялау"),
                             color = if (isFormValid) Color.White else TextHint,
                             fontSize = 16.sp, fontWeight = FontWeight.ExtraBold
                         )
@@ -536,7 +566,11 @@ private fun FormField(
 // ── Text Course Viewer Dialog ─────────────────────────────────────────────────
 
 @Composable
-private fun PsychTextCourseDialog(course: OrganizationCourse, onDismiss: () -> Unit) {
+private fun PsychTextCourseDialog(
+    course: OrganizationCourse,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+    onDismiss: () -> Unit,
+) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -563,7 +597,7 @@ private fun PsychTextCourseDialog(course: OrganizationCourse, onDismiss: () -> U
             ) {
                 Box(Modifier.width(48.dp).height(4.dp).background(MatteCardBorder, RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
                 Box(Modifier.background(PsychTeal.copy(0.15f), RoundedCornerShape(8.dp)).border(1.dp, PsychTeal.copy(0.35f), RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                    Text("📝 Текстовый курс", color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("📝 Текстовый курс", "📝 Text course", "📝 Мәтіндік курс"), color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Text(course.title, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                 if (course.description.isNotBlank()) Text(course.description, color = TextSecondary, fontSize = 14.sp, lineHeight = 20.sp)
@@ -572,7 +606,7 @@ private fun PsychTextCourseDialog(course: OrganizationCourse, onDismiss: () -> U
                     Text(course.contentText, color = TextPrimary, fontSize = 15.sp, lineHeight = 24.sp)
                 } else {
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MatteCardBorder.copy(0.3f)).padding(20.dp), contentAlignment = Alignment.Center) {
-                        Text("Текст курса отсутствует", color = TextHint, fontSize = 14.sp)
+                        Text(language.pick("Текст курса отсутствует", "Course text is missing", "Курс мәтіні жоқ"), color = TextHint, fontSize = 14.sp)
                     }
                 }
                 Box(
@@ -583,7 +617,7 @@ private fun PsychTextCourseDialog(course: OrganizationCourse, onDismiss: () -> U
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
-                ) { Text("Закрыть", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(language.pick("Закрыть", "Close", "Жабу"), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -598,6 +632,7 @@ private fun PsychologistTestLibraryCard(
     name: String,
     description: String,
     stats: OrganizationTestStats?,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     isLoadingStats: Boolean,
     onStatsClick: () -> Unit,
     isLast: Boolean,
@@ -617,7 +652,13 @@ private fun PsychologistTestLibraryCard(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Text(description, color = TextSecondary, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val statsText = stats?.let { "${it.totalAttempts} прохожд. · ${assessmentLabel(it.mostFrequentAssessment)}" } ?: "Нет данных по организации"
+                val statsText = stats?.let {
+                    language.pick(
+                        "${it.totalAttempts} прохожд. · ${assessmentLabel(it.mostFrequentAssessment, language)}",
+                        "${it.totalAttempts} attempts · ${assessmentLabel(it.mostFrequentAssessment, language)}",
+                        "${it.totalAttempts} өту · ${assessmentLabel(it.mostFrequentAssessment, language)}"
+                    )
+                } ?: language.pick("Нет данных по организации", "No organization data", "Ұйым бойынша дерек жоқ")
                 Text(statsText, color = TextHint, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             TextButton(
@@ -629,7 +670,7 @@ private fun PsychologistTestLibraryCard(
                 if (isLoadingStats) {
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), color = color, strokeWidth = 1.8.dp)
                 } else {
-                    Text("📊 Статистика", color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Text(language.pick("📊 Статистика", "📊 Stats", "📊 Статистика"), color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -638,7 +679,11 @@ private fun PsychologistTestLibraryCard(
 }
 
 @Composable
-private fun TestStatsDialog(stats: OrganizationTestStats, onDismiss: () -> Unit) {
+private fun TestStatsDialog(
+    stats: OrganizationTestStats,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+    onDismiss: () -> Unit,
+) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -662,17 +707,24 @@ private fun TestStatsDialog(stats: OrganizationTestStats, onDismiss: () -> Unit)
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Box(Modifier.width(48.dp).height(4.dp).background(MatteCardBorder, RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
-                Text(stats.testName, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Статистика по студентам вашей организации", color = TextSecondary, fontSize = 13.sp)
+                Text(
+                    AppStudentTestCatalog.items.firstOrNull { it.type == stats.testType || it.testId == stats.testId }
+                        ?.displayTitle(language)
+                        ?: stats.testName,
+                    color = TextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(language.pick("Статистика по студентам вашей организации", "Statistics for students in your organization", "Ұйымыңыздағы студенттер бойынша статистика"), color = TextSecondary, fontSize = 13.sp)
                 HorizontalDivider(color = MatteCardBorder)
-                LibraryStatsRow(label = "Всего прохождений", value = stats.totalAttempts.toString(), color = PsychTeal)
-                LibraryStatsRow(label = "Чаще всего", value = assessmentLabel(stats.mostFrequentAssessment), color = NeonViolet)
+                LibraryStatsRow(label = language.pick("Всего прохождений", "Total attempts", "Жалпы өту саны"), value = stats.totalAttempts.toString(), color = PsychTeal)
+                LibraryStatsRow(label = language.pick("Чаще всего", "Most frequent", "Ең жиі"), value = assessmentLabel(stats.mostFrequentAssessment, language), color = NeonViolet)
                 if (stats.totalAttempts == 0) {
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PsychBackground).border(1.dp, MatteCardBorder, RoundedCornerShape(14.dp)).padding(18.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Пока нет прохождений этого теста в текущей организации", color = TextSecondary, fontSize = 13.sp)
+                        Text(language.pick("Пока нет прохождений этого теста в текущей организации", "There have been no attempts for this test in the current organization yet", "Ағымдағы ұйымда бұл тесттен өту әлі болған жоқ"), color = TextSecondary, fontSize = 13.sp)
                     }
                 }
             }
@@ -695,7 +747,7 @@ private fun LibraryStatsRow(label: String, value: String, color: Color) {
 // ── Library Stats Card ────────────────────────────────────────────────────────
 
 @Composable
-private fun LibraryStatsCard(state: PsychologistHomeState) {
+private fun LibraryStatsCard(state: PsychologistHomeState, language: com.example.aiphysical.presentation.auth.AppLanguage) {
     val totalAssigned = state.students.count { it.assignedCourseId.isNotBlank() }
     val totalCommented = state.students.count { it.psychComment.isNotBlank() }
     Column(
@@ -707,12 +759,12 @@ private fun LibraryStatsCard(state: PsychologistHomeState) {
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("МОЯ РАБОТА", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+        Text(language.pick("МОЯ РАБОТА", "MY WORK", "МЕНІҢ ЖҰМЫСЫМ"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            WorkStatItem(totalCommented.toString(), "Рекоменд.", PsychTeal)
-            WorkStatItem(totalAssigned.toString(), "Курсов назн.", NeonViolet)
-            WorkStatItem(state.criticalStudents.size.toString(), "Критичных", PsychCritical)
-            WorkStatItem(state.students.size.toString(), "Всего студ.", TextSecondary)
+            WorkStatItem(totalCommented.toString(), language.pick("Рекоменд.", "Recs", "Ұсыным"), PsychTeal)
+            WorkStatItem(totalAssigned.toString(), language.pick("Курсов назн.", "Assigned", "Тағайын."), NeonViolet)
+            WorkStatItem(state.criticalStudents.size.toString(), language.pick("Критичных", "Critical", "Критик."), PsychCritical)
+            WorkStatItem(state.students.size.toString(), language.pick("Всего студ.", "Students", "Студ."), TextSecondary)
         }
     }
 }

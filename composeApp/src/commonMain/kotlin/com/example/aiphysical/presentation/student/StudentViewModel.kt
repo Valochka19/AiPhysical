@@ -22,6 +22,8 @@ import com.example.aiphysical.data.service.AppAiKnowledge
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
 import com.example.aiphysical.data.service.GeminiService
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.util.currentTimeMillis
 import com.example.aiphysical.util.createGeminiService
 import kotlinx.coroutines.Job
@@ -129,11 +131,17 @@ class StudentViewModel(
     private fun handleSendChatMessage(message: String) {
         if (message.isBlank()) return
 
+        val language = _state.value.currentLanguage
+
         val estimatedTokens = message.length / CHARS_PER_TOKEN
         if (estimatedTokens > MAX_TOKENS_PER_MESSAGE) {
             _state.update {
                 it.copy(
-                    chatError = "⚠️ Сообщение слишком длинное (~$estimatedTokens токенов). Максимум — 50 000 токенов. Сократите текст."
+                    chatError = language.pick(
+                        ru = "⚠️ Сообщение слишком длинное (~$estimatedTokens токенов). Максимум — 50 000 токенов. Сократите текст.",
+                        en = "⚠️ Your message is too long (~$estimatedTokens tokens). The limit is 50,000 tokens. Please shorten it.",
+                        kz = "⚠️ Хабарлама тым ұзын (~$estimatedTokens токен). Шегі — 50 000 токен. Қысқартыңыз."
+                    )
                 )
             }
             return
@@ -157,7 +165,8 @@ class StudentViewModel(
 
             geminiService.sendMessage(
                 history = _state.value.chatMessages,
-                systemInstruction = systemPrompt
+                systemInstruction = systemPrompt,
+                language = assistantState.currentLanguage
             ).fold(
                 onSuccess = { responseText ->
                     val modelMsg = ChatMessage(role = "model", text = normalizeAssistantText(responseText))
@@ -166,7 +175,11 @@ class StudentViewModel(
                 onFailure = { error ->
                     val errMsg = ChatMessage(
                         role = "model",
-                        text = "Ошибка: ${error.message ?: "Неизвестная ошибка"}",
+                        text = assistantState.currentLanguage.pick(
+                            ru = "Ошибка: ${error.message ?: "Неизвестная ошибка"}",
+                            en = "Error: ${error.message ?: "Unknown error"}",
+                            kz = "Қате: ${error.message ?: "Белгісіз қате"}"
+                        ),
                         isError = true
                     )
                     _state.update {
@@ -190,25 +203,37 @@ class StudentViewModel(
 
         val navigationScore = score(
             "где", "куда", "как найти", "как открыть", "как зайти", "как перейти",
-            "раздел", "вкладк", "экран", "меню", "профиль", "главн", "помощ", "курс"
+            "раздел", "вкладк", "экран", "меню", "профиль", "главн", "помощ", "курс",
+            "where", "how to find", "how can i find", "how to open", "how do i open", "how to go", "tab", "section", "screen", "menu", "home", "help", "profile",
+            "қайда", "қалай таб", "қалай аш", "қалай кір", "қалай өт", "бөлім", "қойынды", "экран", "мәзір", "басты", "көмек", "профиль", "курс"
         )
         val coursesScore = score(
             "курс", "курсы", "обучен", "урок", "каталог", "назначен", "рекоменд",
-            "video", "text", "ссылка"
+            "video", "text", "ссылка",
+            "course", "courses", "study", "lesson", "catalog", "assigned", "recommend", "link",
+            "курс", "курстар", "оқу", "сабақ", "каталог", "тағайындал", "ұсын", "мәтін", "сілтеме"
         )
         val testsScore = score(
-            "тест", "выгора", "стресс", "тревог", "мотивац", "состояни", "балл", "результат"
+            "тест", "выгора", "стресс", "тревог", "мотивац", "состояни", "балл", "результат",
+            "test", "burnout", "stress", "anxiety", "motivation", "condition", "score", "result",
+            "тест", "күйіп кет", "стресс", "мазасыз", "мотивац", "жағдай", "балл", "нәтиже"
         )
         val helpScore = score(
             "помощ", "психолог", "поддержк", "срочно", "кризис", "плохо", "150",
             "тревож", "страшно", "паник", "одинок", "груст", "депрес", "устал",
-            "нет сил", "выгорел", "плохо морально", "мне тяжело", "я не справляюсь", "хочу поговорить"
+            "нет сил", "выгорел", "плохо морально", "мне тяжело", "я не справляюсь", "хочу поговорить",
+            "help", "psychologist", "support", "urgent", "crisis", "bad", "anxious", "scared", "panic", "lonely", "sad", "depress", "tired", "no energy", "burned out", "need help", "need to talk",
+            "көмек", "психолог", "қолдау", "шұғыл", "дағдарыс", "жаман", "мазасыз", "қорқ", "үрей", "жалғыз", "мұң", "депресс", "шарша", "күш жоқ", "күйіп кетт", "маған қиын", "көмектес", "сөйлескім келеді"
         )
         val rolesScore = score(
-            "директор", "психолог", "студент", "роль", "для директора", "для психолога"
+            "директор", "психолог", "студент", "роль", "для директора", "для психолога",
+            "director", "psychologist", "student", "teacher", "role", "for director", "for psychologist",
+            "директор", "психолог", "студент", "мұғалім", "рөл", "директор үшін", "психолог үшін"
         )
         val progressScore = score(
-            "прогресс", "сколько прош", "статус", "assigned", "назначен", "мой курс"
+            "прогресс", "сколько прош", "статус", "assigned", "назначен", "мой курс",
+            "progress", "completed", "how much", "my course", "points",
+            "прогресс", "қанша өт", "статус", "менің курсым", "ұпай"
         )
 
         val ranked = listOf(
@@ -269,160 +294,177 @@ class StudentViewModel(
     }
 
     private fun buildChatSystemPrompt(state: StudentUiState, intent: ChatIntent): String {
-        val baseKnowledge = AppAiKnowledge.buildBasePrompt()
+        val language = state.currentLanguage
+        val baseKnowledge = AppAiKnowledge.buildBasePrompt(language)
         val intentKnowledge = when (intent) {
-            ChatIntent.Navigation -> AppAiKnowledge.buildNavigationSlice()
-            ChatIntent.Courses -> AppAiKnowledge.buildCoursesSlice()
-            ChatIntent.Tests -> AppAiKnowledge.buildTestsSlice()
-            ChatIntent.Help -> AppAiKnowledge.buildHelpSlice()
-            ChatIntent.Roles -> AppAiKnowledge.buildRolesSlice()
-            ChatIntent.Progress -> AppAiKnowledge.buildProgressSlice()
-            ChatIntent.General -> AppAiKnowledge.buildGeneralSlice()
+            ChatIntent.Navigation -> AppAiKnowledge.buildNavigationSlice(language)
+            ChatIntent.Courses -> AppAiKnowledge.buildCoursesSlice(language)
+            ChatIntent.Tests -> AppAiKnowledge.buildTestsSlice(language)
+            ChatIntent.Help -> AppAiKnowledge.buildHelpSlice(language)
+            ChatIntent.Roles -> AppAiKnowledge.buildRolesSlice(language)
+            ChatIntent.Progress -> AppAiKnowledge.buildProgressSlice(language)
+            ChatIntent.General -> AppAiKnowledge.buildGeneralSlice(language)
         }
-        val currentAccountSummary = buildCurrentAccountSummary(state)
-        val dynamicContext = buildIntentContext(state, intent)
+        val currentAccountSummary = buildCurrentAccountSummary(state, language)
+        val dynamicContext = buildIntentContext(state, intent, language)
 
         return """
             $baseKnowledge
 
-            Режим ответа: ${intent.displayName()}
+            ${language.pick("Режим ответа", "Response mode", "Жауап режимі")}: ${intent.displayName(language)}
 
-            Полезный срез:
+            ${language.pick("Полезный срез", "Relevant context", "Пайдалы контекст")}:
             $intentKnowledge
 
-            Текущий аккаунт:
+            ${language.pick("Текущий аккаунт", "Current account", "Ағымдағы аккаунт")}:
             $currentAccountSummary
 
-            Контекст для ответа:
+            ${language.pick("Контекст для ответа", "Answer context", "Жауап контексті")}:
             $dynamicContext
         """.trimIndent()
     }
 
-    private fun buildIntentContext(state: StudentUiState, intent: ChatIntent): String = when (intent) {
+    private fun buildIntentContext(state: StudentUiState, intent: ChatIntent, language: AppLanguage): String = when (intent) {
         ChatIntent.Navigation -> listOf(
-            "- студент видит: Главная, Помощь, Курсы, Профиль и AI-чат",
-            "- если пользователь ищет функцию, дай короткий маршрут по вкладкам"
+            language.pick(
+                ru = "- студент видит: Главная, Помощь, Курсы, Профиль и AI-чат",
+                en = "- student sees: Home, Help, Courses, Profile, and AI chat",
+                kz = "- студент мына бөлімдерді көреді: Басты бет, Көмек, Курстар, Профиль және AI чат"
+            ),
+            language.pick(
+                ru = "- если пользователь ищет функцию, дай короткий маршрут по вкладкам",
+                en = "- if the user is looking for a feature, give a short path through tabs",
+                kz = "- егер пайдаланушы функция іздесе, бөлімдер арқылы қысқа маршрут бер"
+            )
         ).joinToString("\n")
 
         ChatIntent.Courses -> listOf(
-            "Доступные организационные курсы:",
-            buildOrganizationCoursesSummary(state),
-            "База курсов:",
-            buildBaseCatalogSummary(),
-            "Идеи будущих курсов:",
-            buildFutureCourseIdeas(state)
+            language.pick("Доступные организационные курсы:", "Available organization courses:", "Қолжетімді ұйым курстары:"),
+            buildOrganizationCoursesSummary(state, language),
+            language.pick("База курсов:", "Course catalog:", "Курс каталогы:"),
+            buildBaseCatalogSummary(language),
+            language.pick("Идеи будущих курсов:", "Future course ideas:", "Болашақ курс идеялары:"),
+            buildFutureCourseIdeas(state, language)
         ).joinToString("\n")
 
         ChatIntent.Tests -> listOf(
-            "Последние тесты:",
-            buildTestHistorySummary(state.testHistory),
-            "- completed=${state.completedTestIds.ifEmpty { setOf("нет") }.joinToString()}"
+            language.pick("Последние тесты:", "Recent tests:", "Соңғы тесттер:"),
+            buildTestHistorySummary(state.testHistory, language),
+            "- completed=${state.completedTestIds.ifEmpty { setOf(language.pick("нет", "none", "жоқ")) }.joinToString()}"
         ).joinToString("\n")
 
         ChatIntent.Help -> listOf(
-            "- раздел Помощь содержит связь с психологом, быструю помощь и номер 150",
-            "- текущий статус=${state.profile.latestAiStatus}"
+            language.pick(
+                ru = "- раздел Помощь содержит связь с психологом, быструю помощь и номер 150",
+                en = "- the Help section contains psychologist contact, quick support, and hotline 150",
+                kz = "- Көмек бөлімінде психологпен байланыс, жедел қолдау және 150 нөмірі бар"
+            ),
+            language.pick(
+                ru = "- текущий статус=${state.profile.latestAiStatus}",
+                en = "- current status=${state.profile.latestAiStatus}",
+                kz = "- ағымдағы статус=${state.profile.latestAiStatus}"
+            )
         ).joinToString("\n")
 
-        ChatIntent.Roles -> AppAiKnowledge.buildFullRoleReference()
+        ChatIntent.Roles -> AppAiKnowledge.buildFullRoleReference(language)
 
         ChatIntent.Progress -> listOf(
-            "Прогресс курсов:",
-            buildCourseProgressSummary(state),
-            "- назначенный курс=${state.profile.assignedCourseName.ifBlank { "нет" }}"
+            language.pick("Прогресс курсов:", "Course progress:", "Курс прогресі:"),
+            buildCourseProgressSummary(state, language),
+            "- assignedCourse=${state.profile.assignedCourseName.ifBlank { language.pick("нет", "none", "жоқ") }}"
         ).joinToString("\n")
 
         ChatIntent.General -> listOf(
-            "Последние тесты:",
-            buildTestHistorySummary(state.testHistory),
-            "Прогресс курсов:",
-            buildCourseProgressSummary(state),
-            "Курсы организации:",
-            buildOrganizationCoursesSummary(state)
+            language.pick("Последние тесты:", "Recent tests:", "Соңғы тесттер:"),
+            buildTestHistorySummary(state.testHistory, language),
+            language.pick("Прогресс курсов:", "Course progress:", "Курс прогресі:"),
+            buildCourseProgressSummary(state, language),
+            language.pick("Курсы организации:", "Organization courses:", "Ұйым курстары:"),
+            buildOrganizationCoursesSummary(state, language)
         ).joinToString("\n")
     }
 
-    private fun ChatIntent.displayName(): String = when (this) {
-        ChatIntent.Navigation -> "навигация"
-        ChatIntent.Courses -> "курсы"
-        ChatIntent.Tests -> "тесты"
-        ChatIntent.Help -> "помощь"
-        ChatIntent.Roles -> "роли"
-        ChatIntent.Progress -> "прогресс"
-        ChatIntent.General -> "общий"
+    private fun ChatIntent.displayName(language: AppLanguage): String = when (this) {
+        ChatIntent.Navigation -> language.pick("навигация", "navigation", "навигация")
+        ChatIntent.Courses -> language.pick("курсы", "courses", "курстар")
+        ChatIntent.Tests -> language.pick("тесты", "tests", "тесттер")
+        ChatIntent.Help -> language.pick("помощь", "help", "көмек")
+        ChatIntent.Roles -> language.pick("роли", "roles", "рөлдер")
+        ChatIntent.Progress -> language.pick("прогресс", "progress", "прогресс")
+        ChatIntent.General -> language.pick("общий", "general", "жалпы")
     }
 
-    private fun buildCurrentAccountSummary(state: StudentUiState): String = buildString {
-        appendLine("- email=${state.profile.email.ifBlank { "не указан" }}, name=${state.profile.fullName.ifBlank { "не указано" }}, role=student")
-        appendLine("- uid=${state.profile.uid.ifBlank { uid }}, orgId=${state.profile.orgId.ifBlank { orgId.ifBlank { "не указан" } }}")
-        appendLine("- age=${state.profile.ageGroup.ifBlank { "не указана" }}, overall=${state.overallScore.toInt()}/100, status=${state.profile.latestAiStatus}")
-        appendLine("- assignedCourse=${state.profile.assignedCourseName.ifBlank { "нет" }}, psychComment=${state.profile.psychComment.take(120).ifBlank { "нет" }}")
-        append("- completedTests=${state.completedTestIds.ifEmpty { setOf("нет") }.joinToString()}")
+    private fun buildCurrentAccountSummary(state: StudentUiState, language: AppLanguage): String = buildString {
+        appendLine("- email=${state.profile.email.ifBlank { language.pick("не указан", "not specified", "көрсетілмеген") }}, name=${state.profile.fullName.ifBlank { language.pick("не указано", "not specified", "көрсетілмеген") }}, role=student")
+        appendLine("- uid=${state.profile.uid.ifBlank { uid }}, orgId=${state.profile.orgId.ifBlank { orgId.ifBlank { language.pick("не указан", "not specified", "көрсетілмеген") } }}")
+        appendLine("- age=${state.profile.ageGroup.ifBlank { language.pick("не указана", "not specified", "көрсетілмеген") }}, overall=${state.overallScore.toInt()}/100, status=${state.profile.latestAiStatus}")
+        appendLine("- assignedCourse=${state.profile.assignedCourseName.ifBlank { language.pick("нет", "none", "жоқ") }}, psychComment=${state.profile.psychComment.take(120).ifBlank { language.pick("нет", "none", "жоқ") }}")
+        append("- completedTests=${state.completedTestIds.ifEmpty { setOf(language.pick("нет", "none", "жоқ")) }.joinToString()}")
     }
 
-    private fun buildTestHistorySummary(results: List<com.example.aiphysical.data.model.TestResult>): String {
-        if (results.isEmpty()) return "- пока нет сохранённых результатов"
+    private fun buildTestHistorySummary(results: List<com.example.aiphysical.data.model.TestResult>, language: AppLanguage): String {
+        if (results.isEmpty()) return language.pick("- пока нет сохранённых результатов", "- no saved results yet", "- әзірге сақталған нәтиже жоқ")
         return results
             .sortedByDescending { it.dateMillis }
             .take(4)
             .joinToString("\n") { result ->
-                val shortFeedback = result.feedbackText.replace("\n", " ").take(80).ifBlank { "без комментария" }
+                val shortFeedback = result.feedbackText.replace("\n", " ").take(80).ifBlank { language.pick("без комментария", "no comment", "пікір жоқ") }
                 "- ${result.testId}: ${result.score.toInt()}%, ${result.aiAssessment}, ${shortFeedback}"
             }
     }
 
-    private fun buildCourseProgressSummary(state: StudentUiState): String {
+    private fun buildCourseProgressSummary(state: StudentUiState, language: AppLanguage): String {
         val progressList = state.courseProgress
-        if (progressList.isEmpty()) return "- прогресс пока не сохранён"
+        if (progressList.isEmpty()) return language.pick("- прогресс пока не сохранён", "- no progress saved yet", "- прогресс әлі сақталмаған")
         return progressList.joinToString("\n") { item ->
             val percent = normalizeCourseProgress(item.progress)
             "- ${item.courseName.ifBlank { item.courseId }}: $percent%"
         }
     }
 
-    private fun buildOrganizationCoursesSummary(state: StudentUiState): String {
-        if (state.addedCourses.isEmpty()) return "- опубликованных организационных курсов пока нет"
+    private fun buildOrganizationCoursesSummary(state: StudentUiState, language: AppLanguage): String {
+        if (state.addedCourses.isEmpty()) return language.pick("- опубликованных организационных курсов пока нет", "- no published organization courses yet", "- жарияланған ұйым курстары әлі жоқ")
         return state.addedCourses.take(8).joinToString("\n") { course ->
             val linkPart = if (course.type == CourseContentType.VIDEO && course.videoUrl.isNotBlank()) {
-                ", ссылка=${course.videoUrl}"
+                language.pick(", ссылка=${course.videoUrl}", ", link=${course.videoUrl}", ", сілтеме=${course.videoUrl}")
             } else {
                 ""
             }
-            "- ${course.title} [${course.type.name}]: ${course.description.ifBlank { "без описания" }}$linkPart"
+            "- ${course.title} [${course.type.name}]: ${course.description.ifBlank { language.pick("без описания", "no description", "сипаттама жоқ") }}$linkPart"
         }
     }
 
-    private fun buildBaseCatalogSummary(): String = AppCourseCatalog.baseCourses.joinToString("\n") { course ->
+    private fun buildBaseCatalogSummary(language: AppLanguage): String = AppCourseCatalog.baseCourses.joinToString("\n") { course ->
         "- ${course.id}: ${course.title} (${course.durationLabel})"
     }
 
-    private fun buildFutureCourseIdeas(state: StudentUiState): String {
+    private fun buildFutureCourseIdeas(state: StudentUiState, language: AppLanguage): String {
         val ideas = linkedSetOf<String>()
 
         if (state.profile.latestAiStatus == "critical") {
-            ideas += "антикризисная самопомощь и быстрые техники стабилизации"
+            ideas += language.pick("антикризисная самопомощь и быстрые техники стабилизации", "anti-crisis self-help and quick stabilization tools", "дағдарысқа қарсы өзіндік көмек және тез тұрақтану тәсілдері")
         }
         if ((state.profile.burnoutScore) >= 60f) {
-            ideas += "профилактика выгорания и восстановление ресурса"
+            ideas += language.pick("профилактика выгорания и восстановление ресурса", "burnout prevention and energy recovery", "күйіп кетудің алдын алу және ресурсты қалпына келтіру")
         }
         if ((state.profile.stressScore) >= 60f || (state.profile.anxietyScore) >= 60f) {
-            ideas += "снижение стресса, тревоги и техники заземления"
+            ideas += language.pick("снижение стресса, тревоги и техники заземления", "stress and anxiety reduction with grounding tools", "стресс пен мазасыздықты азайту және grounding тәсілдері")
         }
         if ((state.profile.motivationScore) in 0f..45f) {
-            ideas += "возврат мотивации и маленькие устойчивые привычки"
+            ideas += language.pick("возврат мотивации и маленькие устойчивые привычки", "bringing motivation back with small sustainable habits", "мотивацияны қайтару және шағын тұрақты әдеттер")
         }
         if ((state.profile.emotionScore) in 0f..45f) {
-            ideas += "эмоциональная устойчивость и саморегуляция"
+            ideas += language.pick("эмоциональная устойчивость и саморегуляция", "emotional resilience and self-regulation", "эмоциялық тұрақтылық пен өзін-өзі реттеу")
         }
         if (state.addedCourses.none { it.title.contains("сон", ignoreCase = true) }) {
-            ideas += "сон и восстановление"
+            ideas += language.pick("сон и восстановление", "sleep and recovery", "ұйқы және қалпына келу")
         }
         if (state.addedCourses.none { it.title.contains("коммуника", ignoreCase = true) }) {
-            ideas += "коммуникация и личные границы"
+            ideas += language.pick("коммуникация и личные границы", "communication and personal boundaries", "коммуникация және жеке шекаралар")
         }
 
         if (ideas.isEmpty()) {
-            ideas += "углублённые курсы по стресс-менеджменту, эмоциональной устойчивости и учебному балансу"
+            ideas += language.pick("углублённые курсы по стресс-менеджменту, эмоциональной устойчивости и учебному балансу", "deeper courses on stress management, emotional resilience, and study balance", "стресс-менеджмент, эмоциялық тұрақтылық және оқу балансын тереңірек ашатын курстар")
         }
 
         return ideas.take(5).joinToString("\n") { "- $it" }
@@ -447,7 +489,11 @@ class StudentViewModel(
             val profile = when (profileResult) {
                 is FirestoreResult.UserProfileSuccess -> profileResult.profile
                 else -> {
-                    emit(StudentEffect.ShowSnackbar("Ошибка загрузки профиля"))
+                    emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Ошибка загрузки профиля",
+                        en = "Failed to load the profile",
+                        kz = "Профильді жүктеу қатесі"
+                    )))
                     _state.update { it.copy(isLoading = false, isRefreshing = false) }
                     return@launch
                 }
@@ -530,7 +576,11 @@ class StudentViewModel(
         when (course.type) {
             CourseContentType.VIDEO -> {
                 if (course.videoUrl.isNotBlank()) emit(StudentEffect.OpenUrl(course.videoUrl))
-                else emit(StudentEffect.ShowSnackbar("Ссылка на видео недоступна"))
+                else emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Ссылка на видео недоступна",
+                    en = "The video link is unavailable",
+                    kz = "Бейне сілтемесі қолжетімсіз"
+                )))
             }
             CourseContentType.TEXT -> _state.update { it.copy(selectedAddedCourse = course, showTextCourseViewer = true) }
         }
@@ -538,14 +588,22 @@ class StudentViewModel(
 
     private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
         if (course.courseUrl.isBlank()) {
-            emit(StudentEffect.ShowSnackbar("Ссылка на курс недоступна"))
+            emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Ссылка на курс недоступна",
+                en = "The course link is unavailable",
+                kz = "Курс сілтемесі қолжетімсіз"
+            )))
             return
         }
 
         emit(StudentEffect.OpenUrl(course.courseUrl))
         viewModelScope.launch {
             when (val result = firestoreService.upsertBaseCourseProgress(uid, course)) {
-                is FirestoreResult.Failure -> emit(StudentEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
+                is FirestoreResult.Failure -> emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Не удалось обновить прогресс курса",
+                    en = "Failed to update course progress",
+                    kz = "Курс прогресін жаңарту мүмкін болмады"
+                )))
                 else -> loadData()
             }
         }
@@ -553,7 +611,11 @@ class StudentViewModel(
 
     private fun handleOpenOrganizationCustomTest(test: OrganizationCustomTest) {
         if (test.questions.isEmpty()) {
-            emit(StudentEffect.ShowSnackbar("В этом тесте пока нет вопросов"))
+            emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "В этом тесте пока нет вопросов",
+                en = "This test has no questions yet",
+                kz = "Бұл тестте әзірге сұрақтар жоқ"
+            )))
             return
         }
         _state.update {
@@ -576,7 +638,11 @@ class StudentViewModel(
         val selectedOption = question.options.firstOrNull { it.id == session.selectedOptionId }
         if (selectedOption == null) {
             _state.update { state ->
-                state.copy(activeCustomTestState = state.activeCustomTestState?.copy(errorMessage = "Выберите один вариант ответа"))
+                state.copy(activeCustomTestState = state.activeCustomTestState?.copy(errorMessage = currentLanguage().pick(
+                    ru = "Выберите один вариант ответа",
+                    en = "Select one answer option",
+                    kz = "Бір жауап нұсқасын таңдаңыз"
+                )))
             }
             return
         }
@@ -613,7 +679,11 @@ class StudentViewModel(
         val selectedOption = question.options.firstOrNull { it.id == session.selectedOptionId }
         if (selectedOption == null) {
             _state.update { state ->
-                state.copy(activeCustomTestState = state.activeCustomTestState?.copy(errorMessage = "Выберите один вариант ответа"))
+                state.copy(activeCustomTestState = state.activeCustomTestState?.copy(errorMessage = currentLanguage().pick(
+                    ru = "Выберите один вариант ответа",
+                    en = "Select one answer option",
+                    kz = "Бір жауап нұсқасын таңдаңыз"
+                )))
             }
             return
         }
@@ -640,7 +710,13 @@ class StudentViewModel(
                 testTitle = session.test.title,
                 studentId = uid,
                 studentName = currentState.profile.fullName.ifBlank {
-                    currentState.profile.email.ifBlank { "Студент" }
+                    currentState.profile.email.ifBlank {
+                        currentLanguage().pick(
+                            ru = "Студент",
+                            en = "Student",
+                            kz = "Студент"
+                        )
+                    }
                 },
                 submittedAt = now,
                 answers = finalAnswers.sortedBy { it.order }
@@ -649,7 +725,11 @@ class StudentViewModel(
                 is FirestoreResult.GenericSuccess -> {
                     loadData()
                     _state.update { it.copy(activeCustomTestState = null) }
-                    emit(StudentEffect.ShowSnackbar("Информация отправлена психологу"))
+                    emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Информация отправлена психологу",
+                        en = "The information was sent to the psychologist",
+                        kz = "Ақпарат психологқа жіберілді"
+                    )))
                 }
 
                 is FirestoreResult.Failure -> _state.update { state ->
@@ -674,8 +754,14 @@ class StudentViewModel(
     }
 
     private fun handleGenerateReport() {
-        emit(StudentEffect.ShowSnackbar("📊 Генерация отчёта — функция в разработке"))
+        emit(StudentEffect.ShowSnackbar(currentLanguage().pick(
+            ru = "📊 Генерация отчёта — функция в разработке",
+            en = "📊 Report generation is under development",
+            kz = "📊 Есепті құрастыру функциясы әзірленуде"
+        )))
     }
+
+    private fun currentLanguage(): AppLanguage = _state.value.currentLanguage
 
     private fun openTest(testType: StudentTestType) {
         val definition = studentTestDefinitionFor(testType)
@@ -756,10 +842,14 @@ class StudentViewModel(
     ) {
         val score = definition.scoreAnswers(answers)
         val assessment = definition.computeAssessment(score)
-        val prompt = definition.buildPrompt(answers, score, assessment)
+        val language = _state.value.currentLanguage
+        val prompt = definition.buildPrompt(answers, score, assessment, language)
 
         viewModelScope.launch {
-            geminiService.sendMessage(listOf(ChatMessage(role = "user", text = prompt))).fold(
+            geminiService.sendMessage(
+                history = listOf(ChatMessage(role = "user", text = prompt)),
+                language = language
+            ).fold(
                 onSuccess = { feedbackText ->
                     persistAndPresentResult(
                         definition = definition,
@@ -767,18 +857,24 @@ class StudentViewModel(
                         score = score,
                         assessment = assessment,
                         feedbackText = normalizeAssistantText(feedbackText),
-                        initialErrorMessage = null
+                        initialErrorMessage = null,
+                        language = language
                     )
                 },
                 onFailure = {
-                    val fallback = definition.buildFallback(score, assessment)
+                    val fallback = definition.buildFallback(score, assessment, language)
                     persistAndPresentResult(
                         definition = definition,
                         answers = answers,
                         score = score,
                         assessment = assessment,
                         feedbackText = fallback,
-                        initialErrorMessage = "⚠️ AI недоступен, показан локальный результат"
+                        initialErrorMessage = language.pick(
+                            ru = "⚠️ AI недоступен, показан локальный результат",
+                            en = "⚠️ AI is unavailable, showing a local result",
+                            kz = "⚠️ AI қолжетімсіз, жергілікті нәтиже көрсетілді"
+                        ),
+                        language = language
                     )
                 }
             )
@@ -802,7 +898,8 @@ class StudentViewModel(
         score: Int,
         assessment: String,
         feedbackText: String,
-        initialErrorMessage: String?
+        initialErrorMessage: String?,
+        language: AppLanguage
     ) {
         val saveResult = firestoreService.saveStudentTestResult(
             uid = uid,
@@ -819,12 +916,22 @@ class StudentViewModel(
         if (saveErrorMessage == null) {
             loadData()
         } else {
-            emit(StudentEffect.ShowSnackbar("Не удалось сохранить результат теста"))
+            emit(StudentEffect.ShowSnackbar(language.pick(
+                ru = "Не удалось сохранить результат теста",
+                en = "Failed to save the test result",
+                kz = "Тест нәтижесін сақтау мүмкін болмады"
+            )))
         }
 
         val combinedError = listOfNotNull(
             initialErrorMessage,
-            saveErrorMessage?.let { "⚠️ Не удалось сохранить результат: $it" }
+            saveErrorMessage?.let {
+                language.pick(
+                    ru = "⚠️ Не удалось сохранить результат: $it",
+                    en = "⚠️ Failed to save the result: $it",
+                    kz = "⚠️ Нәтижені сақтау мүмкін болмады: $it"
+                )
+            }
         ).takeIf { it.isNotEmpty() }?.joinToString("\n")
 
         _state.update { state ->

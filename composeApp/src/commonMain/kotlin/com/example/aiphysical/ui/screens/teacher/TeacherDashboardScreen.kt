@@ -96,6 +96,8 @@ import kotlinx.coroutines.launch
 fun TeacherDashboardScreen(
     uid: String,
     orgId: String,
+    currentLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
     val firestoreService = remember { createFirestoreService() }
@@ -139,7 +141,13 @@ fun TeacherDashboardScreen(
                     try {
                         uriHandler.openUri(effect.url)
                     } catch (_: Exception) {
-                        snackbarHostState.showSnackbar("Не удалось открыть ссылку")
+                        snackbarHostState.showSnackbar(
+                            when (currentLanguage) {
+                                AppLanguage.RU -> "Не удалось открыть ссылку"
+                                AppLanguage.EN -> "Failed to open the link"
+                                AppLanguage.KZ -> "Сілтемені ашу мүмкін болмады"
+                            }
+                        )
                     }
                 }
                 is StudentEffect.NavigateToTest -> Unit
@@ -147,10 +155,22 @@ fun TeacherDashboardScreen(
         }
     }
 
+    LaunchedEffect(currentLanguage) {
+        vm.onEvent(StudentEvent.ChangeLanguage(currentLanguage))
+        supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
+    }
+
+    LaunchedEffect(state.currentLanguage) {
+        if (state.currentLanguage != currentLanguage) {
+            onLanguageChange(state.currentLanguage)
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             DashboardDrawerSheet(
+                language = state.currentLanguage,
                 onProfileClick = {
                     vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Profile))
                     drawerOverlay = DashboardOverlayDestination.None
@@ -224,7 +244,10 @@ fun TeacherDashboardScreen(
                         StudentTab.Profile -> TeacherProfileTab(
                             state = state,
                             onLogout = onLogout,
-                            onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
+                            onLanguageChange = {
+                                vm.onEvent(StudentEvent.ChangeLanguage(it))
+                                onLanguageChange(it)
+                            },
                             modifier = Modifier.padding(innerPadding)
                         )
                     }
@@ -233,6 +256,7 @@ fun TeacherDashboardScreen(
                 if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
                     TextCourseViewerDialog(
                         course = state.selectedAddedCourse!!,
+                        language = state.currentLanguage,
                         onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
                     )
                 }
@@ -250,6 +274,7 @@ fun TeacherDashboardScreen(
                 when (drawerOverlay) {
                     DashboardOverlayDestination.Chat -> SupportChatScreen(
                         state = supportState,
+                        state.currentLanguage,
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         onContactSelected = { supportVm.onEvent(SupportChatEvent.SelectContact(it)) },
                         onConversationBack = { supportVm.onEvent(SupportChatEvent.ClearSelection) },
@@ -259,11 +284,20 @@ fun TeacherDashboardScreen(
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     )
                     DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
-                        title = "Баллы преподавателя",
+                        title = when (state.currentLanguage) {
+                            AppLanguage.RU -> "Баллы преподавателя"
+                            AppLanguage.EN -> "Teacher points"
+                            AppLanguage.KZ -> "Мұғалім ұпайлары"
+                        },
+                        language = state.currentLanguage,
                         currentUserName = state.profile.fullName.ifBlank { state.profile.email },
                         currentPoints = state.profile.pointsTotal,
                         leaderboard = organizationMembers,
-                        introText = "Баллы студентов начисляются после полного завершения тестов. Здесь можно смотреть рейтинг вашей организации.",
+                        introText = when (state.currentLanguage) {
+                            AppLanguage.RU -> "Баллы студентов начисляются после полного завершения тестов. Здесь можно смотреть рейтинг вашей организации."
+                            AppLanguage.EN -> "Student points are awarded after fully completing tests. Here you can view your organization's ranking."
+                            AppLanguage.KZ -> "Студент ұпайлары тесттер толық аяқталғаннан кейін беріледі. Мұнда ұйымыңыздың рейтингін көре аласыз."
+                        },
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     )

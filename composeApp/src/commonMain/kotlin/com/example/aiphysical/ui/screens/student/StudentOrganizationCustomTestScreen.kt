@@ -32,6 +32,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.OrganizationCustomTestSessionState
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.ui.theme.PsychBackground
 import com.example.aiphysical.ui.theme.PsychTeal
 import com.example.aiphysical.ui.theme.TextHint
@@ -41,6 +43,7 @@ import com.example.aiphysical.ui.theme.TextSecondary
 @Composable
 fun StudentOrganizationCustomTestScreen(
 	session: OrganizationCustomTestSessionState,
+	language: AppLanguage = AppLanguage.RU,
 	onClose: () -> Unit,
 	onOptionSelected: (String) -> Unit,
 	onNext: () -> Unit,
@@ -69,7 +72,7 @@ fun StudentOrganizationCustomTestScreen(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				Text(
-					text = "✕ Закрыть",
+					text = language.pick("✕ Закрыть", "✕ Close", "✕ Жабу"),
 					color = TextSecondary,
 					fontSize = 14.sp,
 					fontWeight = FontWeight.SemiBold,
@@ -87,7 +90,7 @@ fun StudentOrganizationCustomTestScreen(
 						fontWeight = FontWeight.ExtraBold,
 						textAlign = TextAlign.End
 					)
-					Text("Вопрос $progressLabel", color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+					Text(language.pick("Вопрос $progressLabel", "Question $progressLabel", "$progressLabel сұрақ"), color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
 				}
 			}
 
@@ -101,7 +104,7 @@ fun StudentOrganizationCustomTestScreen(
 			) {
 				Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
 					Text(
-						"ВЫБЕРИТЕ ОДИН ВАРИАНТ",
+						language.pick("ВЫБЕРИТЕ ОДИН ВАРИАНТ", "CHOOSE ONE OPTION", "БІР НҰСҚАНЫ ТАҢДАҢЫЗ"),
 						color = TextHint,
 						fontSize = 10.sp,
 						fontWeight = FontWeight.ExtraBold,
@@ -115,7 +118,7 @@ fun StudentOrganizationCustomTestScreen(
 						fontWeight = FontWeight.ExtraBold
 					)
 					Text(
-						"Ответ будет отправлен психологу после завершения теста.",
+						language.pick("Ответ будет отправлен психологу после завершения теста.", "Your answer will be sent to the psychologist after the test is completed.", "Жауап тест аяқталғаннан кейін психологқа жіберіледі."),
 						color = TextSecondary,
 						fontSize = 13.sp
 					)
@@ -207,7 +210,7 @@ fun StudentOrganizationCustomTestScreen(
 					CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
 				} else {
 					Text(
-						text = if (session.isLastQuestion) "Завершить тест" else "Следующий вопрос",
+						text = if (session.isLastQuestion) language.pick("Завершить тест", "Finish test", "Тестті аяқтау") else language.pick("Следующий вопрос", "Next question", "Келесі сұрақ"),
 						color = if (isReady) Color.White else TextHint,
 						fontSize = 16.sp,
 						fontWeight = FontWeight.ExtraBold,

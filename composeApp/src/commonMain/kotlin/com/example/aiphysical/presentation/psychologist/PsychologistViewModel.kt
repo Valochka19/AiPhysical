@@ -15,6 +15,7 @@ import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.data.model.studentTestDefinitionFor
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.util.currentTimeMillis
 import kotlinx.coroutines.Job
@@ -274,7 +275,11 @@ class PsychologistViewModel(
         val s = _state.value
         val target = s.recommendationTarget ?: return
         if (s.recommendationComment.isBlank()) {
-            emitEffect(PsychologistEffect.ShowSnackbar("Введите текст рекомендации"))
+            emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Введите текст рекомендации",
+                en = "Enter the recommendation text",
+                kz = "Ұсыным мәтінін енгізіңіз"
+            )))
             return
         }
         _state.update { it.copy(isSendingRecommendation = true) }
@@ -300,12 +305,20 @@ class PsychologistViewModel(
                             recommendationPriority = "MEDIUM"
                         )
                     }
-                    emitEffect(PsychologistEffect.ShowSnackbar("✅ Рекомендация отправлена студенту"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "✅ Рекомендация отправлена студенту",
+                        en = "✅ Recommendation sent to the student",
+                        kz = "✅ Ұсыным студентке жіберілді"
+                    )))
                     emitEffect(PsychologistEffect.TriggerHaptic)
                 }
                 is FirestoreResult.Failure -> {
                     _state.update { it.copy(isSendingRecommendation = false) }
-                    emitEffect(PsychologistEffect.ShowSnackbar("Ошибка: ${result.message}"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Ошибка: ${result.message}",
+                        en = "Error: ${result.message}",
+                        kz = "Қате: ${result.message}"
+                    )))
                 }
                 else -> _state.update { it.copy(isSendingRecommendation = false) }
             }
@@ -359,27 +372,47 @@ class PsychologistViewModel(
         val s = _state.value
         // Validation
         if (s.newCourseTitle.isBlank()) {
-            emitEffect(PsychologistEffect.ShowSnackbar("Введите название курса"))
+            emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Введите название курса",
+                en = "Enter the course title",
+                kz = "Курс атауын енгізіңіз"
+            )))
             return
         }
         if (s.newCourseDescription.isBlank()) {
-            emitEffect(PsychologistEffect.ShowSnackbar("Введите описание курса"))
+            emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Введите описание курса",
+                en = "Enter the course description",
+                kz = "Курс сипаттамасын енгізіңіз"
+            )))
             return
         }
         when (s.newCourseType) {
             CourseContentType.VIDEO -> {
                 if (s.newCourseVideoUrl.isBlank()) {
-                    emitEffect(PsychologistEffect.ShowSnackbar("Введите ссылку на видео"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Введите ссылку на видео",
+                        en = "Enter the video link",
+                        kz = "Бейне сілтемесін енгізіңіз"
+                    )))
                     return
                 }
                 if (!s.newCourseVideoUrl.startsWith("http")) {
-                    emitEffect(PsychologistEffect.ShowSnackbar("Введите корректную ссылку"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Введите корректную ссылку",
+                        en = "Enter a valid link",
+                        kz = "Дұрыс сілтемені енгізіңіз"
+                    )))
                     return
                 }
             }
             CourseContentType.TEXT -> {
                 if (s.newCourseTextContent.isBlank()) {
-                    emitEffect(PsychologistEffect.ShowSnackbar("Введите текст курса"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Введите текст курса",
+                        en = "Enter the course text",
+                        kz = "Курс мәтінін енгізіңіз"
+                    )))
                     return
                 }
             }
@@ -413,12 +446,20 @@ class PsychologistViewModel(
                             newCourseTextContent = "", newCourseVideoUrl = ""
                         )
                     }
-                    emitEffect(PsychologistEffect.ShowSnackbar("✅ Курс опубликован"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "✅ Курс опубликован",
+                        en = "✅ Course published",
+                        kz = "✅ Курс жарияланды"
+                    )))
                     emitEffect(PsychologistEffect.TriggerHaptic)
                 }
                 is FirestoreResult.Failure -> {
                     _state.update { it.copy(isPublishingCourse = false) }
-                    emitEffect(PsychologistEffect.ShowSnackbar("Ошибка: ${result.message}"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Ошибка: ${result.message}",
+                        en = "Error: ${result.message}",
+                        kz = "Қате: ${result.message}"
+                    )))
                 }
                 else -> _state.update { it.copy(isPublishingCourse = false) }
             }
@@ -430,10 +471,18 @@ class PsychologistViewModel(
             val result = firestoreService.deleteOrganizationCourse(orgId, courseId)
             when (result) {
                 is FirestoreResult.GenericSuccess -> {
-                    emitEffect(PsychologistEffect.ShowSnackbar("🗑 Курс удалён"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "🗑 Курс удалён",
+                        en = "🗑 Course deleted",
+                        kz = "🗑 Курс өшірілді"
+                    )))
                     emitEffect(PsychologistEffect.TriggerHaptic)
                 }
-                is FirestoreResult.Failure -> emitEffect(PsychologistEffect.ShowSnackbar("Ошибка удаления: ${result.message}"))
+                is FirestoreResult.Failure -> emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Ошибка удаления: ${result.message}",
+                    en = "Deletion error: ${result.message}",
+                    kz = "Өшіру қатесі: ${result.message}"
+                )))
                 else -> { /* ignore */ }
             }
         }
@@ -451,7 +500,11 @@ class PsychologistViewModel(
         val state = _state.value
         val validated = state.buildValidatedDraftQuestionOrNull()
         if (validated == null) {
-            emitEffect(PsychologistEffect.ShowSnackbar("Заполните название, вопрос и все 3 варианта ответа"))
+            emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Заполните название, вопрос и все 3 варианта ответа",
+                en = "Fill in the title, the question, and all 3 answer options",
+                kz = "Атауды, сұрақты және барлық 3 жауап нұсқасын толтырыңыз"
+            )))
             return
         }
         _state.update {
@@ -472,15 +525,27 @@ class PsychologistViewModel(
         val finalQuestions = when {
             state.buildValidatedDraftQuestionOrNull() != null -> state.draftQuestions + state.buildValidatedDraftQuestionOrNull()!!
             state.hasPartialCurrentDraftQuestion() -> {
-                emitEffect(PsychologistEffect.ShowSnackbar("Заполните текущий вопрос полностью или очистите его перед публикацией"))
+                emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Заполните текущий вопрос полностью или очистите его перед публикацией",
+                    en = "Complete the current question fully or clear it before publishing",
+                    kz = "Жариялау алдында ағымдағы сұрақты толық толтырыңыз немесе тазалаңыз"
+                )))
                 return
             }
             state.draftQuestions.isEmpty() -> {
-                emitEffect(PsychologistEffect.ShowSnackbar("Добавьте хотя бы один вопрос"))
+                emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Добавьте хотя бы один вопрос",
+                    en = "Add at least one question",
+                    kz = "Кемінде бір сұрақ қосыңыз"
+                )))
                 return
             }
             state.currentTestDraftTitle.trim().isBlank() -> {
-                emitEffect(PsychologistEffect.ShowSnackbar("Введите название теста"))
+                emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Введите название теста",
+                    en = "Enter the test title",
+                    kz = "Тест атауын енгізіңіз"
+                )))
                 return
             }
             else -> state.draftQuestions
@@ -501,14 +566,22 @@ class PsychologistViewModel(
             )
             when (val result = firestoreService.createOrganizationCustomTest(orgId, test)) {
                 is FirestoreResult.GenericSuccess -> {
-                    emitEffect(PsychologistEffect.ShowSnackbar("✅ Тест опубликован"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "✅ Тест опубликован",
+                        en = "✅ Test published",
+                        kz = "✅ Тест жарияланды"
+                    )))
                     emitEffect(PsychologistEffect.TriggerHaptic)
                     resetCustomTestBuilder(showSnackbar = false)
                 }
 
                 is FirestoreResult.Failure -> {
                     _state.update { it.copy(isPublishingCustomTest = false) }
-                    emitEffect(PsychologistEffect.ShowSnackbar("Ошибка: ${result.message}"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Ошибка: ${result.message}",
+                        en = "Error: ${result.message}",
+                        kz = "Қате: ${result.message}"
+                    )))
                 }
 
                 else -> _state.update { it.copy(isPublishingCustomTest = false) }
@@ -518,14 +591,22 @@ class PsychologistViewModel(
 
     private fun handleOpenBaseCourse(course: BaseCourseCatalogItem) {
         if (course.courseUrl.isBlank()) {
-            emitEffect(PsychologistEffect.ShowSnackbar("Ссылка на курс недоступна"))
+            emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Ссылка на курс недоступна",
+                en = "The course link is unavailable",
+                kz = "Курс сілтемесі қолжетімсіз"
+            )))
             return
         }
 
         emitEffect(PsychologistEffect.OpenUrl(course.courseUrl))
         viewModelScope.launch {
             when (firestoreService.upsertBaseCourseProgress(uid, course)) {
-                is FirestoreResult.Failure -> emitEffect(PsychologistEffect.ShowSnackbar("Не удалось обновить прогресс курса"))
+                is FirestoreResult.Failure -> emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                    ru = "Не удалось обновить прогресс курса",
+                    en = "Failed to update course progress",
+                    kz = "Курс прогресін жаңарту мүмкін болмады"
+                )))
                 else -> Unit
             }
         }
@@ -537,7 +618,11 @@ class PsychologistViewModel(
                 if (course.videoUrl.isNotBlank()) {
                     emitEffect(PsychologistEffect.OpenUrl(course.videoUrl))
                 } else {
-                    emitEffect(PsychologistEffect.ShowSnackbar("Ссылка на видео недоступна"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Ссылка на видео недоступна",
+                        en = "The video link is unavailable",
+                        kz = "Бейне сілтемесі қолжетімсіз"
+                    )))
                 }
             }
             CourseContentType.TEXT -> {
@@ -579,7 +664,11 @@ class PsychologistViewModel(
 
                 is FirestoreResult.Failure -> {
                     _state.update { it.copy(isLoadingTestStats = false) }
-                    emitEffect(PsychologistEffect.ShowSnackbar("Не удалось загрузить статистику теста"))
+                    emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                        ru = "Не удалось загрузить статистику теста",
+                        en = "Failed to load test statistics",
+                        kz = "Тест статистикасын жүктеу мүмкін болмады"
+                    )))
                 }
 
                 else -> _state.update { it.copy(isLoadingTestStats = false) }
@@ -604,9 +693,15 @@ class PsychologistViewModel(
             )
         }
         if (showSnackbar) {
-            emitEffect(PsychologistEffect.ShowSnackbar("Создание теста отменено"))
+            emitEffect(PsychologistEffect.ShowSnackbar(currentLanguage().pick(
+                ru = "Создание теста отменено",
+                en = "Test creation cancelled",
+                kz = "Тест құру тоқтатылды"
+            )))
         }
     }
+
+    private fun currentLanguage() = _state.value.currentLanguage
 
     private fun hasCustomTestDraftData(state: PsychologistHomeState): Boolean =
         state.currentTestDraftTitle.isNotBlank() ||

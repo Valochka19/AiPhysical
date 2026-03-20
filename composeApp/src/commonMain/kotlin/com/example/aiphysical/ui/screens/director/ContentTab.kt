@@ -35,6 +35,9 @@ import com.example.aiphysical.data.model.CourseCompletionMember
 import com.example.aiphysical.data.model.OrganizationCourse
 import com.example.aiphysical.data.model.OrganizationTestStats
 import com.example.aiphysical.data.model.assessmentLabel
+import com.example.aiphysical.data.model.displayDescription
+import com.example.aiphysical.data.model.displayTitle
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.director.DirectorDashboardState
 import com.example.aiphysical.presentation.director.DirectorDashboardViewModel
 import com.example.aiphysical.presentation.director.DirectorEvent
@@ -75,7 +78,7 @@ fun ContentTab(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ContentStatChip("🧪", "${AppStudentTestCatalog.items.size}", strings.testsTitle, NeonViolet, Modifier.weight(1f))
                     ContentStatChip("📚", "${AppCourseCatalog.baseCourses.size}", strings.coursesTitle, CyanAccent, Modifier.weight(1f))
-                    ContentStatChip("➕", "${state.addedCourses.size}", "Добавлено", AlertOrange, Modifier.weight(1f))
+                    ContentStatChip("➕", "${state.addedCourses.size}", state.currentLanguage.pick("Добавлено", "Added", "Қосылды"), AlertOrange, Modifier.weight(1f))
                 }
             }
 
@@ -83,7 +86,11 @@ fun ContentTab(
                 ContentSectionHeader(
                     emoji = "🧪",
                     title = strings.testsTitle,
-                    subtitle = "Реальные тесты студента и статистика по организации",
+                    subtitle = state.currentLanguage.pick(
+                        "Реальные тесты студента и статистика по организации",
+                        "Real student tests and organization statistics",
+                        "Студенттердің нақты тесттері және ұйым статистикасы"
+                    ),
                     accentColor = NeonViolet
                 )
             }
@@ -92,10 +99,11 @@ fun ContentTab(
                 DirectorTestCard(
                     index = index + 1,
                     emoji = item.emoji,
-                    name = item.title,
-                    description = item.description,
+                    name = item.displayTitle(state.currentLanguage),
+                    description = item.displayDescription(state.currentLanguage),
                     color = Color(item.accentColorHex),
                     stats = stats,
+                    language = state.currentLanguage,
                     isLoading = state.isLoadingTestStats && state.selectedTestStats?.testType == item.type,
                     onStats = { vm.onEvent(DirectorEvent.OpenTestStats(item.type)) }
                 )
@@ -106,7 +114,11 @@ fun ContentTab(
                 ContentSectionHeader(
                     emoji = "📚",
                     title = strings.coursesTitle,
-                    subtitle = "${AppCourseCatalog.baseCourses.size} базовых курсов платформы",
+                    subtitle = state.currentLanguage.pick(
+                        "${AppCourseCatalog.baseCourses.size} базовых курсов платформы",
+                        "${AppCourseCatalog.baseCourses.size} base platform courses",
+                        "Платформаның ${AppCourseCatalog.baseCourses.size} негізгі курсы"
+                    ),
                     accentColor = CyanAccent
                 )
             }
@@ -114,8 +126,11 @@ fun ContentTab(
                 val completionStats = state.baseCourseCompletionStats.firstOrNull { it.courseId == course.id }
                 PlatformCourseCard(
                     course = course,
+                    language = state.currentLanguage,
                     onClick = { vm.onEvent(DirectorEvent.OpenBaseCourse(course)) },
-                    badgeText = completionStats?.completedCount?.takeIf { it > 0 }?.let { "$it прошли" },
+                    badgeText = completionStats?.completedCount?.takeIf { it > 0 }?.let {
+                        state.currentLanguage.pick("$it прошли", "$it completed", "$it өтті")
+                    },
                     footer = {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -123,7 +138,13 @@ fun ContentTab(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = completionStats?.let { "Прошли: ${it.completedCount} · Не начинали: ${it.notStartedCount}" } ?: "Нет данных по организации",
+                                text = completionStats?.let {
+                                    state.currentLanguage.pick(
+                                        "Прошли: ${it.completedCount} · Не начинали: ${it.notStartedCount}",
+                                        "Completed: ${it.completedCount} · Not started: ${it.notStartedCount}",
+                                        "Өткендер: ${it.completedCount} · Бастамағандар: ${it.notStartedCount}"
+                                    )
+                                } ?: state.currentLanguage.pick("Нет данных по организации", "No organization data", "Ұйым бойынша дерек жоқ"),
                                 color = TextHint,
                                 fontSize = 11.sp,
                                 modifier = Modifier.weight(1f)
@@ -143,7 +164,7 @@ fun ContentTab(
                                 if (state.isLoadingCourseCompletionDetails && state.selectedBaseCourseCompletion?.courseId == course.id) {
                                     CircularProgressIndicator(modifier = Modifier.size(14.dp), color = CyanAccent, strokeWidth = 1.8.dp)
                                 } else {
-                                    Text("Кто прошёл", color = CyanAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text(state.currentLanguage.pick("Кто прошёл", "Who completed", "Кім өтті"), color = CyanAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -155,8 +176,16 @@ fun ContentTab(
                 Spacer(Modifier.height(4.dp))
                 ContentSectionHeader(
                     emoji = "➕",
-                    title = "Добавленные курсы",
-                    subtitle = if (state.addedCourses.isEmpty()) "Психолог ещё не добавил курсы" else "${state.addedCourses.size} курс(ов) от психолога",
+                    title = state.currentLanguage.pick("Добавленные курсы", "Added courses", "Қосылған курстар"),
+                    subtitle = if (state.addedCourses.isEmpty()) {
+                        state.currentLanguage.pick("Психолог ещё не добавил курсы", "The psychologist has not added courses yet", "Психолог әлі курстар қоспаған")
+                    } else {
+                        state.currentLanguage.pick(
+                            "${state.addedCourses.size} курс(ов) от психолога",
+                            "${state.addedCourses.size} course(s) from the psychologist",
+                            "Психологтан ${state.addedCourses.size} курс"
+                        )
+                    },
                     accentColor = AlertOrange
                 )
             }
@@ -173,7 +202,7 @@ fun ContentTab(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("📭", fontSize = 36.sp)
-                            Text("Новых курсов добавлено не было", color = Color.White.copy(0.4f), fontSize = 14.sp)
+                            Text(state.currentLanguage.pick("Новых курсов добавлено не было", "No new courses have been added", "Жаңа курстар қосылған жоқ"), color = Color.White.copy(0.4f), fontSize = 14.sp)
                         }
                     }
                 }
@@ -181,6 +210,7 @@ fun ContentTab(
                 itemsIndexed(state.addedCourses) { _, course ->
                     OrganizationCourseCard(
                         course = course,
+                        language = state.currentLanguage,
                         onClick = { vm.onEvent(DirectorEvent.OpenAddedCourse(course)) }
                     )
                 }
@@ -193,6 +223,7 @@ fun ContentTab(
         if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
             DirectorTextCourseDialog(
                 course = state.selectedAddedCourse,
+                language = state.currentLanguage,
                 onDismiss = { vm.onEvent(DirectorEvent.CloseTextCourseViewer) }
             )
         }
@@ -200,6 +231,7 @@ fun ContentTab(
         if (state.showTestStatsDialog && state.selectedTestStats != null) {
             DirectorTestStatsDialog(
                 stats = state.selectedTestStats,
+                language = state.currentLanguage,
                 onDismiss = { vm.onEvent(DirectorEvent.CloseTestStatsDialog) }
             )
         }
@@ -207,6 +239,7 @@ fun ContentTab(
         if (state.showBaseCourseCompletionDialog && state.selectedBaseCourseCompletion != null) {
             BaseCourseCompletionDialog(
                 details = state.selectedBaseCourseCompletion,
+                language = state.currentLanguage,
                 onDismiss = { vm.onEvent(DirectorEvent.CloseBaseCourseCompletionDialog) }
             )
         }
@@ -257,6 +290,23 @@ private fun ContentStatChip(emoji: String, value: String, label: String, color: 
     }
 }
 
+@Composable
+private fun DirectorStatRow(label: String, value: String, accentColor: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(0.04f))
+            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color.White.copy(0.62f), fontSize = 13.sp)
+        Text(value, color = accentColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
 // ─── Director Test Card ────────────────────────────────────────────────────────
 
 @Composable
@@ -267,6 +317,7 @@ private fun DirectorTestCard(
     description: String,
     color: Color,
     stats: OrganizationTestStats?,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     isLoading: Boolean,
     onStats: () -> Unit,
 ) {
@@ -293,7 +344,13 @@ private fun DirectorTestCard(
             }
             Text(description, color = TextSecondary, fontSize = 11.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                stats?.let { "${it.totalAttempts} прохождений · ${assessmentLabel(it.mostFrequentAssessment)}" } ?: "Нет данных по организации",
+                stats?.let {
+                    language.pick(
+                        "${it.totalAttempts} прохождений · ${assessmentLabel(it.mostFrequentAssessment, language)}",
+                        "${it.totalAttempts} attempts · ${assessmentLabel(it.mostFrequentAssessment, language)}",
+                        "${it.totalAttempts} өту · ${assessmentLabel(it.mostFrequentAssessment, language)}"
+                    )
+                } ?: language.pick("Нет данных по организации", "No organization data", "Ұйым бойынша дерек жоқ"),
                 color = TextHint,
                 fontSize = 10.sp,
                 maxLines = 1,
@@ -307,16 +364,18 @@ private fun DirectorTestCard(
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(14.dp), color = color, strokeWidth = 1.8.dp)
             } else {
-                Text("📊 Статистика", color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                Text(language.pick("📊 Статистика", "📊 Stats", "📊 Статистика"), color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
 }
 
-// ─── Director Test Stats Dialog ───────────────────────────────────────────────
-
 @Composable
-private fun DirectorTestStatsDialog(stats: OrganizationTestStats, onDismiss: () -> Unit) {
+private fun DirectorTestStatsDialog(
+    stats: OrganizationTestStats,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+    onDismiss: () -> Unit,
+) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -340,17 +399,24 @@ private fun DirectorTestStatsDialog(stats: OrganizationTestStats, onDismiss: () 
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Box(Modifier.width(48.dp).height(4.dp).background(Color.White.copy(0.12f), RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
-                Text(stats.testName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Статистика по студентам текущей организации", color = Color.White.copy(0.55f), fontSize = 13.sp)
+                Text(
+                    AppStudentTestCatalog.items.firstOrNull { it.type == stats.testType || it.testId == stats.testId }
+                        ?.displayTitle(language)
+                        ?: stats.testName,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(language.pick("Статистика по студентам текущей организации", "Statistics for students in the current organization", "Ағымдағы ұйым студенттері бойынша статистика"), color = Color.White.copy(0.55f), fontSize = 13.sp)
                 HorizontalDivider(color = Color.White.copy(0.08f))
-                DirectorStatRow("Всего прохождений", stats.totalAttempts.toString(), CyanAccent)
-                DirectorStatRow("Чаще всего", assessmentLabel(stats.mostFrequentAssessment), NeonViolet)
+                DirectorStatRow(language.pick("Всего прохождений", "Total attempts", "Жалпы өту саны"), stats.totalAttempts.toString(), CyanAccent)
+                DirectorStatRow(language.pick("Чаще всего", "Most frequent", "Ең жиі"), assessmentLabel(stats.mostFrequentAssessment, language), NeonViolet)
                 if (stats.totalAttempts == 0) {
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(0.04f)).border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp)).padding(18.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Пока нет прохождений этого теста", color = Color.White.copy(0.45f), fontSize = 13.sp)
+                        Text(language.pick("Пока нет прохождений этого теста", "There have been no attempts for this test yet", "Бұл тесттен өту әлі болған жоқ"), color = Color.White.copy(0.45f), fontSize = 13.sp)
                     }
                 }
             }
@@ -358,24 +424,12 @@ private fun DirectorTestStatsDialog(stats: OrganizationTestStats, onDismiss: () 
     }
 }
 
-// ─── Director Stat Row ─────────────────────────────────────────────────────────
-
 @Composable
-private fun DirectorStatRow(label: String, value: String, color: Color) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, color = Color.White.copy(0.45f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-        Box(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(color.copy(0.14f)).border(1.dp, color.copy(0.35f), RoundedCornerShape(14.dp)).padding(14.dp)
-        ) {
-            Text(value, color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-// ─── Base Course Completion Dialog ─────────────────────────────────────────────
-
-@Composable
-private fun BaseCourseCompletionDialog(details: BaseCourseCompletionDetails, onDismiss: () -> Unit) {
+private fun BaseCourseCompletionDialog(
+    details: BaseCourseCompletionDetails,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+    onDismiss: () -> Unit,
+) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -401,20 +455,30 @@ private fun BaseCourseCompletionDialog(details: BaseCourseCompletionDetails, onD
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Box(Modifier.width(48.dp).height(4.dp).background(Color.White.copy(0.12f), RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
-                Text(details.courseName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Статусы прохождения среди студентов организации", color = Color.White.copy(0.55f), fontSize = 13.sp)
-                CompletionSection("Прошли курс", details.completedMembers, StatusNormal)
-                CompletionSection("Начали / в процессе", details.inProgressMembers, AlertOrange)
-                CompletionSection("Не начинали", details.notStartedMembers, TextHint)
+                Text(
+                    AppCourseCatalog.baseCourses.firstOrNull { it.id == details.courseId }
+                        ?.displayTitle(language)
+                        ?: details.courseName,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(language.pick("Статусы прохождения среди студентов организации", "Completion statuses among students in the organization", "Ұйым студенттері арасындағы өту мәртебелері"), color = Color.White.copy(0.55f), fontSize = 13.sp)
+                CompletionSection(language.pick("Прошли курс", "Completed the course", "Курсты аяқтағандар"), details.completedMembers, StatusNormal, language)
+                CompletionSection(language.pick("Начали / в процессе", "Started / in progress", "Бастаған / өтіп жатыр"), details.inProgressMembers, AlertOrange, language)
+                CompletionSection(language.pick("Не начинали", "Not started", "Бастамағандар"), details.notStartedMembers, TextHint, language)
             }
         }
     }
 }
 
-// ─── Completion Section ────────────────────────────────────────────────────────
-
 @Composable
-private fun CompletionSection(title: String, members: List<CourseCompletionMember>, color: Color) {
+private fun CompletionSection(
+    title: String,
+    members: List<CourseCompletionMember>,
+    color: Color,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.size(8.dp).background(color, CircleShape))
@@ -427,7 +491,7 @@ private fun CompletionSection(title: String, members: List<CourseCompletionMembe
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(0.04f)).border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp)).padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Нет студентов в этой группе", color = Color.White.copy(0.45f), fontSize = 12.sp)
+                Text(language.pick("Нет студентов в этой группе", "There are no students in this group", "Бұл топта студенттер жоқ"), color = Color.White.copy(0.45f), fontSize = 12.sp)
             }
         } else {
             members.forEach { member ->
@@ -450,7 +514,15 @@ private fun CompletionSection(title: String, members: List<CourseCompletionMembe
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(member.fullName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            if (member.lastAccessMillis > 0L) "Последний доступ: ${formatCourseDate(member.lastAccessMillis)}" else "Последний доступ: —",
+                            if (member.lastAccessMillis > 0L) {
+                                language.pick(
+                                    "Последний доступ: ${formatCourseDate(member.lastAccessMillis)}",
+                                    "Last access: ${formatCourseDate(member.lastAccessMillis)}",
+                                    "Соңғы кіру: ${formatCourseDate(member.lastAccessMillis)}"
+                                )
+                            } else {
+                                language.pick("Последний доступ: —", "Last access: —", "Соңғы кіру: —")
+                            },
                             color = Color.White.copy(0.45f),
                             fontSize = 10.sp
                         )
@@ -462,10 +534,12 @@ private fun CompletionSection(title: String, members: List<CourseCompletionMembe
     }
 }
 
-// ─── Director Text Course Dialog ──────────────────────────────────────────────
-
 @Composable
-private fun DirectorTextCourseDialog(course: OrganizationCourse, onDismiss: () -> Unit) {
+private fun DirectorTextCourseDialog(
+    course: OrganizationCourse,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+    onDismiss: () -> Unit,
+) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -492,7 +566,7 @@ private fun DirectorTextCourseDialog(course: OrganizationCourse, onDismiss: () -
             ) {
                 Box(Modifier.width(48.dp).height(4.dp).background(Color.White.copy(0.12f), RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally))
                 Box(Modifier.background(CyanAccent.copy(0.15f), RoundedCornerShape(8.dp)).border(1.dp, CyanAccent.copy(0.35f), RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                    Text("📝 Текстовый курс", color = CyanAccent, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("📝 Текстовый курс", "📝 Text course", "📝 Мәтіндік курс"), color = CyanAccent, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Text(course.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                 if (course.description.isNotBlank()) Text(course.description, color = Color.White.copy(0.55f), fontSize = 14.sp, lineHeight = 20.sp)
@@ -501,7 +575,7 @@ private fun DirectorTextCourseDialog(course: OrganizationCourse, onDismiss: () -
                     Text(course.contentText, color = Color.White.copy(0.85f), fontSize = 15.sp, lineHeight = 24.sp)
                 } else {
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White.copy(0.05f)).padding(20.dp), contentAlignment = Alignment.Center) {
-                        Text("Текст курса отсутствует", color = Color.White.copy(0.35f), fontSize = 14.sp)
+                        Text(language.pick("Текст курса отсутствует", "Course text is missing", "Курс мәтіні жоқ"), color = Color.White.copy(0.35f), fontSize = 14.sp)
                     }
                 }
                 Box(
@@ -513,7 +587,7 @@ private fun DirectorTextCourseDialog(course: OrganizationCourse, onDismiss: () -
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
-                ) { Text("Закрыть", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+                ) { Text(language.pick("Закрыть", "Close", "Жабу"), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }

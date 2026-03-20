@@ -28,6 +28,11 @@ import com.example.aiphysical.data.model.BaseCourseCatalogItem
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.OrganizationCustomTest
 import com.example.aiphysical.data.model.OrganizationCourse
+import com.example.aiphysical.data.model.displayDescription
+import com.example.aiphysical.data.model.displayDurationLabel
+import com.example.aiphysical.data.model.displayLabel
+import com.example.aiphysical.data.model.displayTitle
+import com.example.aiphysical.presentation.auth.AppLanguage
 import com.example.aiphysical.ui.theme.PsychCritical
 import com.example.aiphysical.ui.theme.PsychTeal
 import com.example.aiphysical.ui.theme.TextHint
@@ -39,8 +44,9 @@ fun PlatformCourseCard(
     course: BaseCourseCatalogItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    language: AppLanguage = AppLanguage.RU,
     progress: Float? = null,
-    metaText: String = course.durationLabel,
+    metaText: String = course.displayDurationLabel(language),
     badgeText: String? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
@@ -79,7 +85,7 @@ fun PlatformCourseCard(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        course.title,
+                        course.displayTitle(language),
                         color = TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
@@ -99,7 +105,7 @@ fun PlatformCourseCard(
                     }
                 }
                 Text(
-                    course.description,
+                    course.displayDescription(language),
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
@@ -148,11 +154,12 @@ fun OrganizationCourseCard(
     course: OrganizationCourse,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    language: AppLanguage = AppLanguage.RU,
     showDeleteButton: Boolean = false,
     onDelete: (() -> Unit)? = null,
 ) {
     val typeColor = if (course.type == CourseContentType.VIDEO) Color(0xFFFF8C00) else PsychTeal
-    val typeLabel = if (course.type == CourseContentType.VIDEO) "Видео" else "Текстовый"
+    val typeLabel = course.type.displayLabel(language)
     val typeEmoji = if (course.type == CourseContentType.VIDEO) "🎬" else "📝"
 
     Row(
@@ -214,10 +221,19 @@ fun OrganizationCustomTestCard(
     test: OrganizationCustomTest,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    language: AppLanguage = AppLanguage.RU,
     accentColor: Color = Color(0xFF9D5FF5),
     badgeText: String? = null,
-    metaText: String = "Тест организации",
-    ctaText: String = "Открыть",
+    metaText: String = when (language) {
+        AppLanguage.RU -> "Тест организации"
+        AppLanguage.EN -> "Organization test"
+        AppLanguage.KZ -> "Ұйым тесті"
+    },
+    ctaText: String = when (language) {
+        AppLanguage.RU -> "Открыть"
+        AppLanguage.EN -> "Open"
+        AppLanguage.KZ -> "Ашу"
+    },
 ) {
     Column(
         modifier = modifier
@@ -273,7 +289,19 @@ fun OrganizationCustomTestCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    if (test.questions.isEmpty()) "Вопросы пока не добавлены" else "${test.questions.size} вопрос(ов) · 3 варианта ответа",
+                    if (test.questions.isEmpty()) {
+                        when (language) {
+                            AppLanguage.RU -> "Вопросы пока не добавлены"
+                            AppLanguage.EN -> "No questions added yet"
+                            AppLanguage.KZ -> "Сұрақтар әлі қосылмаған"
+                        }
+                    } else {
+                        when (language) {
+                            AppLanguage.RU -> "${test.questions.size} вопрос(ов) · 3 варианта ответа"
+                            AppLanguage.EN -> "${test.questions.size} question(s) · 3 answer options"
+                            AppLanguage.KZ -> "${test.questions.size} сұрақ · 3 жауап нұсқасы"
+                        }
+                    },
                     color = TextHint,
                     fontSize = 11.sp
                 )

@@ -13,6 +13,8 @@ import com.example.aiphysical.data.model.supportMessageMaxLength
 import com.example.aiphysical.data.model.trimmedSupportMessage
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +46,7 @@ class SupportChatViewModel(
     fun onEvent(event: SupportChatEvent) {
         when (event) {
             SupportChatEvent.Reload -> reload()
+            is SupportChatEvent.ChangeLanguage -> _state.update { it.copy(currentLanguage = event.language) }
             is SupportChatEvent.SelectContact -> selectContact(event.contact)
             is SupportChatEvent.UpdateInput -> _state.update { it.copy(input = event.value) }
             SupportChatEvent.SendMessage -> sendMessage()
@@ -75,7 +78,12 @@ class SupportChatViewModel(
                 _state.update {
                     it.copy(
                         isLoadingContacts = false,
-                        errorMessage = (profileResult as? FirestoreResult.Failure)?.message ?: "Не удалось загрузить профиль"
+                                errorMessage = (profileResult as? FirestoreResult.Failure)?.message
+                                    ?: _state.value.currentLanguage.pick(
+                                        ru = "Не удалось загрузить профиль",
+                                        en = "Failed to load profile",
+                                        kz = "Профильді жүктеу мүмкін болмады"
+                                    )
                     )
                 }
                 return@launch
@@ -158,7 +166,7 @@ class SupportChatViewModel(
 
     private fun selectContact(contact: ChatContactPreview) {
         if (!isAllowedPsychChatPair(currentRole, contact.role)) {
-            _state.update { it.copy(errorMessage = "Этот чат недоступен для выбранной роли") }
+            _state.update { it.copy(errorMessage = unsupportedChatMessage(it.currentLanguage)) }
             return
         }
         val chatId = buildPsychChatId(orgId, uid, contact.uid)
@@ -193,23 +201,35 @@ class SupportChatViewModel(
 
     private fun sendMessage() {
         val selectedContact = _state.value.selectedContact ?: run {
-            _state.update { it.copy(errorMessage = "Сначала выберите собеседника") }
+            _state.update { it.copy(errorMessage = it.currentLanguage.pick(
+                ru = "Сначала выберите собеседника",
+                en = "Choose a contact first",
+                kz = "Алдымен сұхбаттасушыны таңдаңыз"
+            )) }
             return
         }
         val rawMessage = _state.value.input
         val trimmedMessage = rawMessage.trimmedSupportMessage(supportMessageMaxLength())
         if (trimmedMessage.isBlank()) {
-            _state.update { it.copy(errorMessage = "Нельзя отправить пустое сообщение") }
+            _state.update { it.copy(errorMessage = it.currentLanguage.pick(
+                ru = "Нельзя отправить пустое сообщение",
+                en = "You cannot send an empty message",
+                kz = "Бос хабарламаны жіберу мүмкін емес"
+            )) }
             return
         }
         if (rawMessage.trim().length > supportMessageMaxLength()) {
             _state.update {
-                it.copy(errorMessage = "Сообщение слишком длинное. Максимум — ${supportMessageMaxLength()} символов")
+                it.copy(errorMessage = it.currentLanguage.pick(
+                    ru = "Сообщение слишком длинное. Максимум — ${supportMessageMaxLength()} символов",
+                    en = "Message is too long. Maximum — ${supportMessageMaxLength()} characters",
+                    kz = "Хабарлама тым ұзын. Шегі — ${supportMessageMaxLength()} таңба"
+                ))
             }
             return
         }
         if (!isAllowedPsychChatPair(currentRole, selectedContact.role)) {
-            _state.update { it.copy(errorMessage = "Этот чат недоступен для выбранной роли") }
+            _state.update { it.copy(errorMessage = unsupportedChatMessage(it.currentLanguage)) }
             return
         }
 
@@ -248,5 +268,11 @@ class SupportChatViewModel(
                 SupportChatViewModel(uid, orgId, firestoreService) as T
         }
     }
+
+    private fun unsupportedChatMessage(language: AppLanguage): String = language.pick(
+        ru = "Этот чат недоступен для выбранной роли",
+        en = "This chat is not available for the selected role",
+        kz = "Бұл чат таңдалған рөл үшін қолжетімсіз"
+    )
 }
 

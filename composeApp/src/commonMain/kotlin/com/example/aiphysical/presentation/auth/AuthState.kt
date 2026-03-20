@@ -39,6 +39,18 @@ enum class AppLanguage(val displayName: String, val code: String) {
     EN("ENG", "en")
 }
 
+fun AppLanguage.pick(ru: String, en: String, kz: String): String = when (this) {
+    AppLanguage.RU -> ru
+    AppLanguage.EN -> en
+    AppLanguage.KZ -> kz
+}
+
+fun AppLanguage.replyLanguageName(): String = pick(
+    ru = "русском",
+    en = "English",
+    kz = "қазақ тілінде"
+)
+
 sealed class AuthScreen {
     object Login : AuthScreen()
     object RoleSelection : AuthScreen()

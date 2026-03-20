@@ -21,6 +21,8 @@ import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.data.model.CourseContentType
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.OrganizationCourse
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentEvent
 import com.example.aiphysical.presentation.student.StudentContentSubTab
 import com.example.aiphysical.presentation.student.StudentUiState
@@ -40,6 +42,7 @@ fun StudentCoursesTab(
     vm: StudentViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val language = state.currentLanguage
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -50,18 +53,19 @@ fun StudentCoursesTab(
     ) {
         // Header
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("КУРСЫ", color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
-            Text("Активные курсы", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+            Text(language.pick("КУРСЫ", "COURSES", "КУРСТАР"), color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+            Text(language.pick("Активные курсы", "Active courses", "Белсенді курстар"), color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
         }
 
         ContentSubTabSwitcher(
+            language = language,
             selectedTab = state.selectedContentSubTab,
             onSelected = { vm.onEvent(StudentEvent.ChangeContentSubTab(it)) }
         )
 
         when (state.selectedContentSubTab) {
-            StudentContentSubTab.Courses -> StudentCoursesContent(state = state, vm = vm)
-            StudentContentSubTab.Tests -> StudentCustomTestsContent(state = state, vm = vm)
+            StudentContentSubTab.Courses -> StudentCoursesContent(state = state, vm = vm, language = language)
+            StudentContentSubTab.Tests -> StudentCustomTestsContent(state = state, vm = vm, language = language)
         }
     }
 }
@@ -70,6 +74,7 @@ fun StudentCoursesTab(
 private fun StudentCoursesContent(
     state: StudentUiState,
     vm: StudentViewModel,
+    language: AppLanguage,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         // Assigned course (from psychologist)
@@ -77,16 +82,18 @@ private fun StudentCoursesContent(
             AssignedCourseCard(
                 courseName   = state.profile.assignedCourseName,
                 courseId     = state.profile.assignedCourseId,
+                language = language,
                 progressList = state.courseProgress
             )
         }
 
-        Text("КАТАЛОГ КУРСОВ", color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+        Text(language.pick("КАТАЛОГ КУРСОВ", "COURSE CATALOG", "КУРС КАТАЛОГЫ"), color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
 
         AppCourseCatalog.baseCourses.forEach { item ->
             val progress = state.courseProgress.find { it.courseId == item.id }?.progress ?: 0f
             PlatformCourseCard(
                 course = item,
+                language = language,
                 progress = progress,
                 onClick = { vm.onEvent(StudentEvent.OpenBaseCourse(item)) }
             )
@@ -94,6 +101,7 @@ private fun StudentCoursesContent(
 
         // ── Added courses button ──────────────────────────────────────────────
         AddedCoursesButton(
+            language = language,
             count   = state.addedCourses.size,
             onClick = { vm.onEvent(StudentEvent.OpenAddedCourses) }
         )
@@ -101,6 +109,7 @@ private fun StudentCoursesContent(
         // ── Added courses inline viewer ───────────────────────────────────────
         if (state.showAddedCoursesViewer) {
             AddedCoursesSection(
+                language = language,
                 courses  = state.addedCourses,
                 onCourse = { vm.onEvent(StudentEvent.OpenAddedCourse(it)) },
                 onClose  = { vm.onEvent(StudentEvent.CloseAddedCourses) }
@@ -113,11 +122,12 @@ private fun StudentCoursesContent(
 private fun StudentCustomTestsContent(
     state: StudentUiState,
     vm: StudentViewModel,
+    language: AppLanguage,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("ТЕСТЫ ОТ ПСИХОЛОГА", color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
-            Text("Проходите опубликованные тесты вашей организации", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            Text(language.pick("ТЕСТЫ ОТ ПСИХОЛОГА", "TESTS FROM THE PSYCHOLOGIST", "ПСИХОЛОГТАН ТЕСТТЕР"), color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+            Text(language.pick("Проходите опубликованные тесты вашей организации", "Take the published tests from your organization", "Ұйымыңыз жариялаған тесттерден өтіңіз"), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
 
         if (state.isLoadingCustomTests) {
@@ -141,18 +151,23 @@ private fun StudentCustomTestsContent(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("🧪", fontSize = 34.sp)
-                    Text("Психолог пока не опубликовал тесты", color = TextSecondary, fontSize = 14.sp)
+                    Text(language.pick("Психолог пока не опубликовал тесты", "The psychologist has not published tests yet", "Психолог әлі тест жариялаған жоқ"), color = TextSecondary, fontSize = 14.sp)
                 }
             }
         } else {
             state.customTests.forEachIndexed { index, test ->
                 OrganizationCustomTestCard(
                     test = test,
+                    language = language,
                     onClick = { vm.onEvent(StudentEvent.OpenOrganizationCustomTest(test)) },
                     accentColor = Color(0xFF9D5FF5),
-                    badgeText = "${test.questions.size} вопрос(ов)",
-                    metaText = "3 варианта ответа на каждый вопрос",
-                    ctaText = "Пройти"
+                    badgeText = language.pick(
+                        ru = "${test.questions.size} вопрос(ов)",
+                        en = "${test.questions.size} question(s)",
+                        kz = "${test.questions.size} сұрақ"
+                    ),
+                    metaText = language.pick("3 варианта ответа на каждый вопрос", "3 answer options for each question", "Әр сұраққа 3 жауап нұсқасы"),
+                    ctaText = language.pick("Пройти", "Start", "Өту")
                 )
                 if (index != state.customTests.lastIndex) {
                     Spacer(Modifier.height(12.dp))
@@ -164,6 +179,7 @@ private fun StudentCustomTestsContent(
 
 @Composable
 private fun ContentSubTabSwitcher(
+    language: AppLanguage,
     selectedTab: StudentContentSubTab,
     onSelected: (StudentContentSubTab) -> Unit,
 ) {
@@ -176,7 +192,10 @@ private fun ContentSubTabSwitcher(
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        listOf(StudentContentSubTab.Courses to "Курсы", StudentContentSubTab.Tests to "Тесты").forEach { (tab, label) ->
+        listOf(
+            StudentContentSubTab.Courses to language.pick("Курсы", "Courses", "Курстар"),
+            StudentContentSubTab.Tests to language.pick("Тесты", "Tests", "Тесттер")
+        ).forEach { (tab, label) ->
             val selected = selectedTab == tab
             Box(
                 modifier = Modifier
@@ -207,6 +226,7 @@ private fun ContentSubTabSwitcher(
 private fun AssignedCourseCard(
     courseName: String,
     courseId: String,
+    language: AppLanguage,
     progressList: List<CourseProgress>,
 ) {
     val progress = progressList.find { it.courseId == courseId }?.progress ?: 0f
@@ -227,13 +247,13 @@ private fun AssignedCourseCard(
                 contentAlignment = Alignment.Center
             ) { Text("🎯", fontSize = 18.sp) }
             Column(Modifier.weight(1f)) {
-                Text("НАЗНАЧЕН ПСИХОЛОГОМ", color = PsychTeal.copy(0.7f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+                Text(language.pick("НАЗНАЧЕН ПСИХОЛОГОМ", "ASSIGNED BY PSYCHOLOGIST", "ПСИХОЛОГ ТАҒАЙЫНДАҒАН"), color = PsychTeal.copy(0.7f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
                 Text(courseName, color = TextPrimary, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Прогресс", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text(language.pick("Прогресс", "Progress", "Прогресс"), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Text("${(progress * 100).toInt()}%", color = PsychTeal, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
             }
             Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(PsychTeal.copy(0.15f))) {
@@ -249,7 +269,7 @@ private fun AssignedCourseCard(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                if (progress > 0f) "Продолжить курс →" else "Начать курс →",
+                if (progress > 0f) language.pick("Продолжить курс →", "Continue course →", "Курсты жалғастыру →") else language.pick("Начать курс →", "Start course →", "Курсты бастау →"),
                 color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold
             )
         }
@@ -319,7 +339,7 @@ private fun CourseCatalogCard(
 // ── "Added courses" action button ─────────────────────────────────────────────
 
 @Composable
-private fun AddedCoursesButton(count: Int, onClick: () -> Unit) {
+private fun AddedCoursesButton(language: AppLanguage, count: Int, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -346,9 +366,9 @@ private fun AddedCoursesButton(count: Int, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) { Text("➕", fontSize = 20.sp) }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Добавленные курсы", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                Text(language.pick("Добавленные курсы", "Added courses", "Қосылған курстар"), color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 Text(
-                    if (count > 0) "$count курс(ов) от психолога" else "Нажмите, чтобы посмотреть",
+                    if (count > 0) language.pick("$count курс(ов) от психолога", "$count course(s) from the psychologist", "Психологтан $count курс") else language.pick("Нажмите, чтобы посмотреть", "Tap to view", "Көру үшін басыңыз"),
                     color = TextSecondary, fontSize = 12.sp
                 )
             }
@@ -371,6 +391,7 @@ private fun AddedCoursesButton(count: Int, onClick: () -> Unit) {
 
 @Composable
 private fun AddedCoursesSection(
+    language: AppLanguage,
     courses: List<OrganizationCourse>,
     onCourse: (OrganizationCourse) -> Unit,
     onClose: () -> Unit,
@@ -385,14 +406,14 @@ private fun AddedCoursesSection(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("ДОБАВЛЕННЫЕ КУРСЫ", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+            Text(language.pick("ДОБАВЛЕННЫЕ КУРСЫ", "ADDED COURSES", "ҚОСЫЛҒАН КУРСТАР"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
             Box(
                 Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color.White.copy(0.06f))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)
                     .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) { Text("✕ Свернуть", color = TextHint, fontSize = 11.sp) }
+            ) { Text(language.pick("✕ Свернуть", "✕ Collapse", "✕ Жинау"), color = TextHint, fontSize = 11.sp) }
         }
 
         if (courses.isEmpty()) {
@@ -402,12 +423,12 @@ private fun AddedCoursesSection(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("📭", fontSize = 36.sp)
-                    Text("Новых курсов добавлено не было", color = TextSecondary, fontSize = 14.sp)
+                    Text(language.pick("Новых курсов добавлено не было", "No new courses have been added", "Жаңа курстар қосылған жоқ"), color = TextSecondary, fontSize = 14.sp)
                 }
             }
         } else {
             courses.forEach { course ->
-                OrganizationCourseCard(course = course, onClick = { onCourse(course) })
+                OrganizationCourseCard(course = course, language = language, onClick = { onCourse(course) })
             }
         }
     }

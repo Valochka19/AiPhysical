@@ -1,5 +1,7 @@
 package com.example.aiphysical.data.model
 
+import com.example.aiphysical.presentation.auth.AppLanguage
+
 // ── Course content type ───────────────────────────────────────────────────────
 
 enum class CourseContentType { TEXT, VIDEO }
@@ -101,5 +103,67 @@ object AppCourseCatalog {
             .toFloat() * 100f)
             .coerceIn(0f, 100f)
     }
+}
+
+fun BaseCourseCatalogItem.displayTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> title
+    AppLanguage.EN -> when (id) {
+        "base_stress_management" -> "Stress Management"
+        "base_burnout_prevention" -> "Burnout Prevention"
+        "base_emotional_intelligence" -> "Emotional Intelligence"
+        "base_motivation_boost" -> "Motivation Boost"
+        "base_team_communication" -> "Team Communication"
+        else -> title
+    }
+    AppLanguage.KZ -> when (id) {
+        "base_stress_management" -> "Стрессті басқару"
+        "base_burnout_prevention" -> "Күйіп кетудің алдын алу"
+        "base_emotional_intelligence" -> "Эмоциялық интеллект"
+        "base_motivation_boost" -> "Мотивацияны күшейту"
+        "base_team_communication" -> "Ұжымдағы коммуникация"
+        else -> title
+    }
+}
+
+fun BaseCourseCatalogItem.displayDescription(language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> description
+    AppLanguage.EN -> when (id) {
+        "base_stress_management" -> "Relaxation techniques and anxiety reduction"
+        "base_burnout_prevention" -> "Diagnosing and preventing professional burnout"
+        "base_emotional_intelligence" -> "Manage your emotions and reactions"
+        "base_motivation_boost" -> "How to restore energy and find inner purpose"
+        "base_team_communication" -> "Improve teamwork and communication"
+        else -> description
+    }
+    AppLanguage.KZ -> when (id) {
+        "base_stress_management" -> "Босаңсу және мазасыздықты азайту техникалары"
+        "base_burnout_prevention" -> "Кәсіби күйіп кетуді анықтау және алдын алу"
+        "base_emotional_intelligence" -> "Эмоцияларың мен реакцияларыңды басқар"
+        "base_motivation_boost" -> "Ресурсты қалпына келтіріп, ішкі мақсатты табу"
+        "base_team_communication" -> "Командалық өзара әрекет пен қарым-қатынасты жақсарту"
+        else -> description
+    }
+}
+
+fun BaseCourseCatalogItem.displayDurationLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> durationLabel
+    AppLanguage.EN -> when (id) {
+        "base_emotional_intelligence" -> "7 lessons"
+        "base_stress_management", "base_burnout_prevention" -> "6 lessons"
+        "base_motivation_boost", "base_team_communication" -> "5 lessons"
+        else -> durationLabel
+    }
+    AppLanguage.KZ -> when (id) {
+        "base_emotional_intelligence" -> "7 сабақ"
+        "base_stress_management", "base_burnout_prevention" -> "6 сабақ"
+        "base_motivation_boost", "base_team_communication" -> "5 сабақ"
+        else -> durationLabel
+    }
+}
+
+fun CourseContentType.displayLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> if (this == CourseContentType.VIDEO) "Видео" else "Текстовый"
+    AppLanguage.EN -> if (this == CourseContentType.VIDEO) "Video" else "Text"
+    AppLanguage.KZ -> if (this == CourseContentType.VIDEO) "Видео" else "Мәтіндік"
 }
 

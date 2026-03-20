@@ -2,6 +2,8 @@ package com.example.aiphysical.data.service
 
 import com.example.aiphysical.BuildConfig
 import com.example.aiphysical.data.model.ChatMessage
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -14,55 +16,30 @@ class GeminiServiceImpl : GeminiService {
     companion object {
         private const val BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
-        private const val DEFAULT_SYSTEM_PROMPT =
-            "Ты — Уми, эмпатичный и теплый ИИ-помощник. Твоя миссия — анализировать психологические тесты и поддерживать пользователей. Твой тон: уютный, неформальный, поддерживающий. Ты не врач, но ты рядом."
-        private const val TEST_ANALYSIS_MARKER = "Ты анализируешь результат мини-теста студента в приложении AiPhysical."
-        private val TEST_SYSTEM_PROMPT = """
-            Ты — Енот, внимательный AI-психолог в приложении AiPhysical.
-
-            Твоя задача — дать студенту короткий, тёплый и понятный разбор его состояния по результатам теста.
-
-            Твой стиль:
-            спокойный, человечный, точный, поддерживающий.
-            Не пиши высокопарно, не используй тяжёлые метафоры, книжные сравнения, пафосные формулировки и «умничание».
-            Текст должен звучать как честное и бережное наблюдение, а не как литературный монолог.
-
-            Формат ответа:
-            - ровно 3 коротких абзаца;
-            - абзацы разделяй одной пустой строкой;
-            - в каждом абзаце 1–2 коротких предложения;
-            - без нумерации, без подзаголовков, без списков;
-            - без markdown-разметки.
-
-            Смысл абзацев:
-            1) коротко и по-человечески обозначь текущее состояние;
-            2) объясни, как это состояние может проявляться в ощущениях, мыслях или поведении;
-            3) дай один точный вывод о человеке и один очень конкретный шаг на ближайшее время.
-
-            Ограничения:
-            - только русский язык;
-            - максимум 5 коротких предложений суммарно;
-            - никаких сухих цифр;
-            - никаких диагнозов и запугивания;
-            - не пересказывай результаты теста формально;
-            - не используй фразы вроде «картина вырисовывается», «редкая точка баланса», «нервная система как швейцарские часы»;
-            - не пиши как коуч, мотиватор или литературный narrator;
-            - лучше проще, короче и живее, чем красивее и тяжелее.
-
-            Финальный текст должен быть лёгким для чтения на экране телефона и ощущаться как личный, живой отклик.
-            """.trimIndent()
+        private val TEST_ANALYSIS_MARKERS = listOf(
+            "Ты анализируешь результат мини-теста студента в приложении AiPhysical.",
+            "You are analyzing a student's mini-test result in AiPhysical.",
+            "Сен AiPhysical қолданбасындағы студенттің шағын тест нәтижесін талдап отырсың."
+        )
     }
 
     override suspend fun sendMessage(
         history: List<ChatMessage>,
-        systemInstruction: String?
+        systemInstruction: String?,
+        language: AppLanguage
     ): Result<String> =
         withContext(Dispatchers.IO) {
             try {
                 val apiKey = BuildConfig.GEMINI_API_KEY
                 if (apiKey.isBlank()) {
                     return@withContext Result.failure(
-                        Exception("Gemini API key не настроен. Добавь geminiApiKey в local.properties.")
+                        Exception(
+                            language.pick(
+                                ru = "Gemini API key не настроен. Добавь geminiApiKey в local.properties.",
+                                en = "Gemini API key is not configured. Add geminiApiKey to local.properties.",
+                                kz = "Gemini API key бапталмаған. local.properties файлына geminiApiKey қосыңыз."
+                            )
+                        )
                     )
                 }
 
@@ -85,14 +62,16 @@ class GeminiServiceImpl : GeminiService {
                     contentsArray.put(contentObj)
                 }
                 val bodyJson = JSONObject().put("contents", contentsArray)
-                val isTestAnalysis = history.firstOrNull()?.text?.contains(TEST_ANALYSIS_MARKER) == true
+                val isTestAnalysis = history.firstOrNull()?.text?.let(::isTestAnalysisPrompt) == true
                 val contextualInstruction = when {
                     !systemInstruction.isNullOrBlank() -> systemInstruction
-                    isTestAnalysis -> TEST_SYSTEM_PROMPT
+                    isTestAnalysis -> testSystemPrompt(language)
                     else -> null
                 }
                 val resolvedSystemInstruction = buildString {
-                    append(DEFAULT_SYSTEM_PROMPT)
+                    append(defaultSystemPrompt(language))
+                    append("\n\n")
+                    append(languageInstruction(language))
                     if (!contextualInstruction.isNullOrBlank()) {
                         append("\n\n")
                         append(contextualInstruction)
@@ -147,7 +126,13 @@ class GeminiServiceImpl : GeminiService {
 
                 if (responseCode != 200) {
                     return@withContext Result.failure(
-                        Exception("Ошибка API ($responseCode): $responseText")
+                        Exception(
+                            language.pick(
+                                ru = "Ошибка API ($responseCode): $responseText",
+                                en = "API error ($responseCode): $responseText",
+                                kz = "API қатесі ($responseCode): $responseText"
+                            )
+                        )
                     )
                 }
 
@@ -155,14 +140,14 @@ class GeminiServiceImpl : GeminiService {
                 val json       = JSONObject(responseText)
                 val candidates = json.getJSONArray("candidates")
                 if (candidates.length() == 0) {
-                    return@withContext Result.failure(Exception("Модель не вернула ответ"))
+                    return@withContext Result.failure(Exception(language.pick("Модель не вернула ответ", "The model returned no response", "Модель жауап қайтармады")))
                 }
                 val candidate = candidates.getJSONObject(0)
                 val finishReason = candidate.optString("finishReason")
                 val content = candidate.optJSONObject("content")
-                    ?: return@withContext Result.failure(Exception("Модель вернула пустой ответ"))
+                    ?: return@withContext Result.failure(Exception(language.pick("Модель вернула пустой ответ", "The model returned an empty response", "Модель бос жауап қайтарды")))
                 val parts = content.optJSONArray("parts")
-                    ?: return@withContext Result.failure(Exception("Модель вернула ответ без текста"))
+                    ?: return@withContext Result.failure(Exception(language.pick("Модель вернула ответ без текста", "The model returned a response without text", "Модель мәтінсіз жауап қайтарды")))
                 val text = buildString {
                     for (index in 0 until parts.length()) {
                         val partText = parts.optJSONObject(index)?.optString("text").orEmpty()
@@ -174,11 +159,11 @@ class GeminiServiceImpl : GeminiService {
                 }.trim()
 
                 if (text.isBlank()) {
-                    return@withContext Result.failure(Exception("Модель не вернула текстовый ответ"))
+                    return@withContext Result.failure(Exception(language.pick("Модель не вернула текстовый ответ", "The model returned no text answer", "Модель мәтіндік жауап қайтармады")))
                 }
 
                 if (finishReason == "SAFETY") {
-                    return@withContext Result.failure(Exception("Ответ был остановлен настройками безопасности"))
+                    return@withContext Result.failure(Exception(language.pick("Ответ был остановлен настройками безопасности", "The response was stopped by safety settings", "Жауап қауіпсіздік баптаулары арқылы тоқтатылды")))
                 }
 
                 Result.success(text)
@@ -186,4 +171,46 @@ class GeminiServiceImpl : GeminiService {
                 Result.failure(e)
             }
         }
+
+    private fun defaultSystemPrompt(language: AppLanguage): String = language.pick(
+        ru = "Ты — Уми, эмпатичный и теплый ИИ-помощник. Твоя миссия — анализировать психологические тесты и поддерживать пользователей. Твой тон: уютный, неформальный, поддерживающий. Ты не врач, но ты рядом.",
+        en = "You are Umi, an empathetic and warm AI assistant. Your mission is to analyze psychological tests and support users. Your tone is cozy, informal, and supportive. You are not a doctor, but you stay close.",
+        kz = "Сен — Уми, эмпатиясы жоғары әрі жылы AI-көмекшісің. Сенің миссияң — психологиялық тесттерді талдау және пайдаланушыларға қолдау көрсету. Тон: жайлы, бейресми, қолдаушы. Сен дәрігер емессің, бірақ жанындасың."
+    )
+
+    private fun languageInstruction(language: AppLanguage): String = language.pick(
+        ru = "Отвечай только на русском языке. Названия разделов приложения пиши на русском.",
+        en = "Reply only in English. Use English names for app sections.",
+        kz = "Тек қазақ тілінде жауап бер. Қолданба бөлімдерінің атауын қазақша қолдан."
+    )
+
+    private fun testSystemPrompt(language: AppLanguage): String = language.pick(
+        ru = """
+            Ты — Уми, внимательный AI-помощник в приложении AiPhysical.
+            Дай студенту короткий, тёплый и понятный разбор состояния по результатам теста.
+            Пиши спокойно, человечно, точно и поддерживающе.
+            Формат: ровно 3 коротких абзаца, без markdown, без списков, максимум 5 коротких предложений суммарно.
+            Сначала коротко обозначь состояние, потом объясни, как оно может проявляться, и в конце дай один конкретный шаг на ближайшее время.
+            Без диагнозов, запугивания и сухих цифр.
+        """.trimIndent(),
+        en = """
+            You are Umi, a careful AI helper in AiPhysical.
+            Give the student a short, warm, and clear reflection on their current state based on the test result.
+            Write calmly, humanly, precisely, and supportively.
+            Format: exactly 3 short paragraphs, no markdown, no lists, maximum 5 short sentences in total.
+            First describe the overall state, then explain how it may show up in feelings, thoughts, or behavior, and finish with one specific next step.
+            No diagnoses, no fear-based language, and no dry statistics.
+        """.trimIndent(),
+        kz = """
+            Сен — AiPhysical қолданбасындағы мұқият AI-көмекші Умисің.
+            Тест нәтижесіне сүйеніп, студентке оның күйі туралы қысқа, жылы және түсінікті талдау бер.
+            Сабырлы, адами, нақты және қолдаушы түрде жаз.
+            Формат: дәл 3 қысқа абзац, markdown жоқ, тізім жоқ, жалпы 5 қысқа сөйлемнен аспасын.
+            Алдымен жалпы күйді айт, кейін оның сезімде, ойда не мінезде қалай көрінуі мүмкін екенін түсіндір, соңында бір нақты келесі қадам ұсын.
+            Диагноз қойма, қорқытпа және құрғақ статистика қолданба.
+        """.trimIndent()
+    )
+
+    private fun isTestAnalysisPrompt(text: String): Boolean =
+        TEST_ANALYSIS_MARKERS.any { marker -> text.contains(marker) }
 }

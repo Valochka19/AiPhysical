@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.ui.theme.*
 
@@ -29,6 +30,7 @@ fun StudentHelpTab(
     onOpenPsychologistChat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val language = state.currentLanguage
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -40,20 +42,24 @@ fun StudentHelpTab(
         // Header
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "ЦЕНТР ПОМОЩИ",
+                language.pick("ЦЕНТР ПОМОЩИ", "HELP CENTER", "КӨМЕК ОРТАЛЫҒЫ"),
                 color = TextHint,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.8.sp
             )
             Text(
-                "Обратиться к психологу",
+                language.pick("Обратиться к психологу", "Contact a psychologist", "Психологқа жүгіну"),
                 color = TextPrimary,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Ты можешь обратиться к психологу своей организации напрямую",
+                language.pick(
+                    "Ты можешь обратиться к психологу своей организации напрямую",
+                    "You can directly contact your organization's psychologist",
+                    "Ұйымыңыздың психологына тікелей жүгіне аласыз"
+                ),
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 lineHeight = 20.sp
@@ -61,13 +67,13 @@ fun StudentHelpTab(
         }
 
         // Psychologist contact card
-        PsychologistContactCard(onOpenPsychologistChat = onOpenPsychologistChat)
+        PsychologistContactCard(language = language, onOpenPsychologistChat = onOpenPsychologistChat)
 
         HorizontalDivider(color = Color.White.copy(0.08f))
 
         // Quick help options
         Text(
-            "БЫСТРАЯ ПОМОЩЬ",
+            language.pick("БЫСТРАЯ ПОМОЩЬ", "QUICK HELP", "ЖЕДЕЛ КӨМЕК"),
             color = TextHint,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.ExtraBold,
@@ -75,9 +81,9 @@ fun StudentHelpTab(
         )
 
         listOf(
-            Triple("📝", "Написать запрос",        "Опиши своё состояние психологу"),
-            Triple("📅", "Записаться на сессию",   "Онлайн или офлайн встреча"),
-            Triple("🆘", "Срочная поддержка",      "Нужна немедленная помощь"),
+            Triple("📝", language.pick("Написать запрос", "Write a request", "Сұраныс жазу"),        language.pick("Опиши своё состояние психологу", "Describe your condition to the psychologist", "Жағдайыңызды психологқа сипаттаңыз")),
+            Triple("📅", language.pick("Записаться на сессию", "Book a session", "Сессияға жазылу"),   language.pick("Онлайн или офлайн встреча", "Online or offline meeting", "Онлайн немесе офлайн кездесу")),
+            Triple("🆘", language.pick("Срочная поддержка", "Urgent support", "Шұғыл қолдау"),      language.pick("Нужна немедленная помощь", "Immediate help is needed", "Дереу көмек қажет")),
         ).forEach { (emoji, title, desc) ->
             HelpOptionCard(emoji = emoji, title = title, description = desc)
         }
@@ -85,12 +91,13 @@ fun StudentHelpTab(
         HorizontalDivider(color = Color.White.copy(0.08f))
 
         // Crisis line
-        CrisisResourceCard()
+        CrisisResourceCard(language = language)
     }
 }
 
 @Composable
 private fun PsychologistContactCard(
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     onOpenPsychologistChat: () -> Unit,
 ) {
     Column(
@@ -120,11 +127,11 @@ private fun PsychologistContactCard(
             ) { Text("🧠", fontSize = 26.sp) }
 
             Column(Modifier.weight(1f)) {
-                Text("Психолог организации", color = PsychTeal.copy(0.7f), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                Text("Специалист", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(language.pick("Психолог организации", "Organization psychologist", "Ұйым психологы"), color = PsychTeal.copy(0.7f), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                Text(language.pick("Специалист", "Specialist", "Маман"), color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box(Modifier.size(7.dp).background(PsychTeal, CircleShape))
-                    Text("Онлайн", color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(language.pick("Онлайн", "Online", "Онлайн"), color = PsychTeal, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -144,7 +151,7 @@ private fun PsychologistContactCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                "Напиши своё сообщение…",
+                language.pick("Напиши своё сообщение…", "Write your message…", "Хабарламаңызды жазыңыз…"),
                 color = TextHint,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
@@ -158,7 +165,7 @@ private fun PsychologistContactCard(
         }
 
         Text(
-            "💬 Открыть личный чат с психологом",
+            language.pick("💬 Открыть личный чат с психологом", "💬 Open a private chat with the psychologist", "💬 Психологпен жеке чатты ашу"),
             color = PsychTeal.copy(0.9f),
             fontSize = 11.sp,
             textAlign = TextAlign.Center,
@@ -196,7 +203,7 @@ private fun HelpOptionCard(emoji: String, title: String, description: String) {
 }
 
 @Composable
-private fun CrisisResourceCard() {
+private fun CrisisResourceCard(language: com.example.aiphysical.presentation.auth.AppLanguage) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -208,10 +215,14 @@ private fun CrisisResourceCard() {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("🆘", fontSize = 20.sp)
-            Text("Экстренная психологическая помощь", color = PsychCritical, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text(language.pick("Экстренная психологическая помощь", "Emergency psychological support", "Шұғыл психологиялық көмек"), color = PsychCritical, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         }
         Text(
-            "Если тебе нужна срочная помощь — позвони на телефон доверия: 150 (бесплатно)",
+            language.pick(
+                "Если тебе нужна срочная помощь — позвони на телефон доверия: 150 (бесплатно)",
+                "If you need urgent help, call the helpline: 150 (free)",
+                "Шұғыл көмек керек болса, сенім телефонына қоңырау шал: 150 (тегін)"
+            ),
             color = TextSecondary,
             style = MaterialTheme.typography.bodySmall,
             lineHeight = 18.sp

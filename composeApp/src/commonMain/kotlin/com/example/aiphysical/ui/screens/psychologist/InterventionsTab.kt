@@ -24,6 +24,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.aiphysical.data.model.AppCourseCatalog
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.data.model.displayTitle
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistViewModel
@@ -38,6 +40,7 @@ fun InterventionsTab(
     vm: PsychologistViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val language = state.currentLanguage
     Column(modifier = modifier.fillMaxSize()) {
         // Header
         Column(
@@ -48,13 +51,13 @@ fun InterventionsTab(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                "Рекомендации",
+                language.pick("Рекомендации", "Recommendations", "Ұсынымдар"),
                 color = TextPrimary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Студенты, ожидающие обратной связи",
+                language.pick("Студенты, ожидающие обратной связи", "Students waiting for feedback", "Кері байланыс күтіп тұрған студенттер"),
                 color = TextSecondary,
                 fontSize = 13.sp
             )
@@ -74,7 +77,7 @@ fun InterventionsTab(
                 if (state.pendingRecommendations.isNotEmpty()) {
                     item {
                         InterventionSectionHeader(
-                            title = "ТРЕБУЮТ ВНИМАНИЯ",
+                            title = language.pick("ТРЕБУЮТ ВНИМАНИЯ", "NEED ATTENTION", "НАЗАРДЫ ҚАЖЕТ ЕТЕДІ"),
                             count = state.pendingRecommendations.size,
                             color = PsychWarning
                         )
@@ -82,6 +85,7 @@ fun InterventionsTab(
                     items(state.pendingRecommendations) { student ->
                         ActionItemCard(
                             student = student,
+                            language = language,
                             hasRecommendation = false,
                             onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(student)) }
                         )
@@ -94,7 +98,7 @@ fun InterventionsTab(
                 if (withRecommendation.isNotEmpty()) {
                     item {
                         InterventionSectionHeader(
-                            title = "С РЕКОМЕНДАЦИЕЙ",
+                            title = language.pick("С РЕКОМЕНДАЦИЕЙ", "WITH RECOMMENDATION", "ҰСЫНЫММЕН"),
                             count = withRecommendation.size,
                             color = PsychTeal
                         )
@@ -102,6 +106,7 @@ fun InterventionsTab(
                     items(withRecommendation) { student ->
                         ActionItemCard(
                             student = student,
+                            language = language,
                             hasRecommendation = true,
                             onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(student)) }
                         )
@@ -123,7 +128,7 @@ fun InterventionsTab(
                             ) {
                                 Text("✅", fontSize = 48.sp)
                                 Text(
-                                    "Все студенты получили рекомендации",
+                                    language.pick("Все студенты получили рекомендации", "All students have received recommendations", "Барлық студенттер ұсыныстар алды"),
                                     color = TextSecondary,
                                     fontSize = 14.sp
                                 )
@@ -158,6 +163,7 @@ private fun InterventionSectionHeader(title: String, count: Int, color: Color) {
 @Composable
 private fun ActionItemCard(
     student: UserProfile,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     hasRecommendation: Boolean,
     onRecommend: () -> Unit,
 ) {
@@ -168,10 +174,10 @@ private fun ActionItemCard(
         else       -> TextHint
     }
     val statusLabel = when (student.latestAiStatus) {
-        "critical" -> "Критично"
-        "stress"   -> "Стресс"
-        "normal"   -> "Норма"
-        else       -> "Неизвестно"
+        "critical" -> language.pick("Критично", "Critical", "Критикалық")
+        "stress"   -> language.pick("Стресс", "Stress", "Стресс")
+        "normal"   -> language.pick("Норма", "Normal", "Қалыпты")
+        else       -> language.pick("Неизвестно", "Unknown", "Белгісіз")
     }
 
     Row(
@@ -223,7 +229,7 @@ private fun ActionItemCard(
                     Text(statusLabel, color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
                 if (hasRecommendation) {
-                    Text("✓ Есть рекомендация", color = PsychTeal, fontSize = 10.sp)
+                    Text(language.pick("✓ Есть рекомендация", "✓ Recommendation added", "✓ Ұсыным бар"), color = PsychTeal, fontSize = 10.sp)
                 }
             }
             if (student.psychComment.isNotBlank()) {
@@ -256,7 +262,7 @@ private fun ActionItemCard(
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text(
-                if (!hasRecommendation) "Написать" else "Изменить",
+                if (!hasRecommendation) language.pick("Написать", "Write", "Жазу") else language.pick("Изменить", "Edit", "Өзгерту"),
                 color = if (!hasRecommendation) PsychWarning else TextSecondary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold
@@ -274,6 +280,7 @@ internal fun RecommendationSheet(
     vm: PsychologistViewModel,
 ) {
     val student = state.recommendationTarget ?: return
+    val language = state.currentLanguage
 
     Dialog(
         onDismissRequest = { vm.onEvent(PsychologistEvent.DismissRecommendationSheet) },
@@ -320,7 +327,7 @@ internal fun RecommendationSheet(
                 // Title
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        "Рекомендация для",
+                        language.pick("Рекомендация для", "Recommendation for", "Кімге арналған ұсыным"),
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -337,7 +344,7 @@ internal fun RecommendationSheet(
                 // Comment field
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "ПРОФЕССИОНАЛЬНЫЙ КОММЕНТАРИЙ",
+                        language.pick("ПРОФЕССИОНАЛЬНЫЙ КОММЕНТАРИЙ", "PROFESSIONAL COMMENT", "КӘСІБИ ПІКІР"),
                         color = TextHint,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -367,7 +374,7 @@ internal fun RecommendationSheet(
                             decorationBox = { inner ->
                                 if (state.recommendationComment.isEmpty()) {
                                     Text(
-                                        "Введите профессиональный комментарий и рекомендации для студента...",
+                                        language.pick("Введите профессиональный комментарий и рекомендации для студента...", "Enter a professional comment and recommendations for the student...", "Студентке арналған кәсіби пікір мен ұсыныстарды енгізіңіз..."),
                                         color = TextHint,
                                         fontSize = 14.sp,
                                         lineHeight = 20.sp
@@ -382,7 +389,7 @@ internal fun RecommendationSheet(
                 // Course selection
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "НАЗНАЧИТЬ КУРС",
+                        language.pick("НАЗНАЧИТЬ КУРС", "ASSIGN COURSE", "КУРС ТАҒАЙЫНДАУ"),
                         color = TextHint,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -418,7 +425,7 @@ internal fun RecommendationSheet(
                         ) {
                             Text(if (isSelected) "✓" else "○", color = if (isSelected) PsychTeal else TextHint, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                courseName,
+                                AppCourseCatalog.baseCourses.firstOrNull { it.id == courseId }?.displayTitle(language) ?: courseName,
                                 color = if (isSelected) PsychTeal else TextPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -430,7 +437,7 @@ internal fun RecommendationSheet(
                 // Priority selection
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "ПРИОРИТЕТ",
+                        language.pick("ПРИОРИТЕТ", "PRIORITY", "БАСЫМДЫҚ"),
                         color = TextHint,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -440,7 +447,11 @@ internal fun RecommendationSheet(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        listOf("LOW" to "Низкий", "MEDIUM" to "Средний", "HIGH" to "Высокий").forEach { (key, label) ->
+                        listOf(
+                            "LOW" to language.pick("Низкий", "Low", "Төмен"),
+                            "MEDIUM" to language.pick("Средний", "Medium", "Орташа"),
+                            "HIGH" to language.pick("Высокий", "High", "Жоғары")
+                        ).forEach { (key, label) ->
                             val color = when (key) {
                                 "LOW"    -> PsychPriorityLow
                                 "MEDIUM" -> PsychPriorityMedium
@@ -505,7 +516,7 @@ internal fun RecommendationSheet(
                         )
                     } else {
                         Text(
-                            "Отправить рекомендацию",
+                            language.pick("Отправить рекомендацию", "Send recommendation", "Ұсынымды жіберу"),
                             color = if (state.recommendationComment.isNotBlank()) Color.White else TextHint,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold

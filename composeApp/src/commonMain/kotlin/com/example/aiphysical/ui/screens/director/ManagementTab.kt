@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.Organization
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.director.*
 import com.example.aiphysical.ui.components.*
 import com.example.aiphysical.ui.theme.*
@@ -70,6 +71,7 @@ fun ManagementTab(
             // ── Invite User Button ────────────────────────────────────────────
             item {
                 InviteUserHighEndButton(
+                    language = state.currentLanguage,
                     label = strings.inviteUser,
                     onClick = { vm.onEvent(DirectorEvent.OpenInviteSheet) }
                 )
@@ -91,15 +93,15 @@ fun ManagementTab(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     MiniStatChip(
-                        label = "Всего", value = "${state.members.size}",
+                        label = state.currentLanguage.pick("Всего", "Total", "Барлығы"), value = "${state.members.size}",
                         color = CyanAccent, modifier = Modifier.weight(1f)
                     )
                     MiniStatChip(
-                        label = "Критично", value = "${state.criticalMembers.size}",
+                        label = state.currentLanguage.pick("Критично", "Critical", "Критикалық"), value = "${state.criticalMembers.size}",
                         color = StatusCritical, modifier = Modifier.weight(1f)
                     )
                     MiniStatChip(
-                        label = "Психологов", value = "${state.psychologists.size}",
+                        label = state.currentLanguage.pick("Психологов", "Psychologists", "Психологтар"), value = "${state.psychologists.size}",
                         color = NeonViolet, modifier = Modifier.weight(1f)
                     )
                 }
@@ -156,12 +158,14 @@ fun ManagementTab(
     }
 
     // ── Role Change Bottom Sheet ──────────────────────────────────────────────
-    if (state.showRoleChangeSheet && state.roleChangeTarget != null) {
+    val roleChangeTarget = state.roleChangeTarget
+    if (state.showRoleChangeSheet && roleChangeTarget != null) {
         RoleChangeBottomSheet(
-            member = state.roleChangeTarget!!,
+            member = roleChangeTarget,
+            currentLanguage = state.currentLanguage,
             strings = strings,
             onDismiss = { vm.onEvent(DirectorEvent.DismissRoleChangeSheet) },
-            onChangeRole = { role -> vm.onEvent(DirectorEvent.ChangeUserRole(state.roleChangeTarget!!.uid, role)) }
+            onChangeRole = { role -> vm.onEvent(DirectorEvent.ChangeUserRole(roleChangeTarget.uid, role)) }
         )
     }
 }
@@ -169,7 +173,11 @@ fun ManagementTab(
 // ─── Invite User High-End Button ──────────────────────────────────────────────
 
 @Composable
-private fun InviteUserHighEndButton(label: String, onClick: () -> Unit) {
+private fun InviteUserHighEndButton(
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+    label: String,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,7 +201,15 @@ private fun InviteUserHighEndButton(label: String, onClick: () -> Unit) {
             ) { Text("+", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
             Column {
                 Text(label, style = TextStyle(brush = Brush.horizontalGradient(listOf(Color.White, CyanAccent.copy(0.9f))), fontSize = 15.sp, fontWeight = FontWeight.Bold))
-                Text("Психолог, студент или преподаватель", color = Color.White.copy(0.4f), fontSize = 11.sp)
+                Text(
+                    language.pick(
+                        ru = "Психолог, студент или преподаватель",
+                        en = "Psychologist, student, or teacher",
+                        kz = "Психолог, студент немесе мұғалім"
+                    ),
+                    color = Color.White.copy(0.4f),
+                    fontSize = 11.sp
+                )
             }
         }
     }
@@ -488,6 +504,7 @@ private fun CodeButton(emoji: String, label: String, color: Color, onClick: () -
 @Composable
 private fun RoleChangeBottomSheet(
     member: UserProfile,
+    currentLanguage: com.example.aiphysical.presentation.auth.AppLanguage,
     strings: Strings,
     onDismiss: () -> Unit,
     onChangeRole: (String) -> Unit,
@@ -557,7 +574,17 @@ private fun RoleChangeBottomSheet(
                         ) { Text(roleEmoji, fontSize = 18.sp) }
                         Column {
                             Text(roleLabel, color = if (isCurrentRole) NeonViolet else TextPrimary, fontSize = 14.sp, fontWeight = if (isCurrentRole) FontWeight.Bold else FontWeight.Medium)
-                            if (isCurrentRole) Text("Текущая роль", color = NeonViolet.copy(0.6f), fontSize = 11.sp)
+                            if (isCurrentRole) {
+                                Text(
+                                    currentLanguage.pick(
+                                        ru = "Текущая роль",
+                                        en = "Current role",
+                                        kz = "Ағымдағы рөл"
+                                    ),
+                                    color = NeonViolet.copy(0.6f),
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                     }
                     if (isCurrentRole) {

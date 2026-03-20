@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.KpiData
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.director.*
 import com.example.aiphysical.ui.components.*
 import com.example.aiphysical.ui.theme.*
@@ -79,6 +80,7 @@ fun DashboardTab(
                 CleanAiInsightCard(
                     insightText = state.aiInsightText,
                     isLoading = state.isAiLoading,
+                    currentLanguage = state.currentLanguage,
                     onRefresh = { vm.onEvent(DirectorEvent.LoadAiInsight) }
                 )
 
@@ -93,6 +95,7 @@ fun DashboardTab(
                 AverageMetricsCard(
                     kpiData = state.kpiData,
                     strings = strings,
+                    currentLanguage = state.currentLanguage,
                     expanded = !isCompact,
                     modifier = if (!isCompact) Modifier.weight(1f) else Modifier
                 )
@@ -199,12 +202,19 @@ private fun FloatingActionBtn(label: String, onClick: () -> Unit) {
 fun AiAnalysisCard(
     insightText: String, isLoading: Boolean, title: String, orgTitle: String,
     loadingText: String, emptyText: String, onRefresh: () -> Unit, modifier: Modifier = Modifier,
-) = CleanAiInsightCard(insightText, isLoading, onRefresh, modifier)
+) = CleanAiInsightCard(
+    insightText = insightText,
+    isLoading = isLoading,
+    currentLanguage = com.example.aiphysical.presentation.auth.AppLanguage.RU,
+    onRefresh = onRefresh,
+    modifier = modifier
+)
 
 @Composable
 private fun CleanAiInsightCard(
     insightText: String,
     isLoading: Boolean,
+    currentLanguage: com.example.aiphysical.presentation.auth.AppLanguage,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -224,7 +234,11 @@ private fun CleanAiInsightCard(
     ) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.Top) {
             Text(
-                text = "AI-Аналитик подготовил для вас общий анализ персонала и студентов",
+                text = currentLanguage.pick(
+                    ru = "AI-аналитик подготовил для вас общий анализ персонала и студентов",
+                    en = "The AI analyst prepared an overview of staff and student well-being for you",
+                    kz = "AI талдаушысы сізге қызметкерлер мен студенттердің жалпы ахуалы бойынша талдау дайындады"
+                ),
                 color = Color.White.copy(0.50f),
                 fontSize = 11.sp,
                 lineHeight = 17.sp,
@@ -258,7 +272,15 @@ private fun CleanAiInsightCard(
         // Content
         if (isLoading) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Анализируем данные...", color = Color.White.copy(0.22f), fontSize = 11.sp)
+                Text(
+                    currentLanguage.pick(
+                        ru = "Анализируем данные...",
+                        en = "Analyzing data...",
+                        kz = "Деректер талданып жатыр..."
+                    ),
+                    color = Color.White.copy(0.22f),
+                    fontSize = 11.sp
+                )
                 repeat(3) { i ->
                     Box(
                         Modifier
@@ -271,7 +293,13 @@ private fun CleanAiInsightCard(
             }
         } else {
             Text(
-                text = insightText.ifBlank { "Нет данных для анализа." },
+                text = insightText.ifBlank {
+                    currentLanguage.pick(
+                        ru = "Нет данных для анализа.",
+                        en = "No data available for analysis.",
+                        kz = "Талдауға арналған деректер жоқ."
+                    )
+                },
                 color = Color.White.copy(0.80f),
                 fontSize = 13.sp,
                 lineHeight = 21.sp
@@ -380,6 +408,7 @@ fun CircularGaugeWidget(
 private fun AverageMetricsCard(
     kpiData: KpiData,
     strings: Strings,
+    currentLanguage: com.example.aiphysical.presentation.auth.AppLanguage,
     expanded: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -410,7 +439,11 @@ private fun AverageMetricsCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Средние показатели",
+                text = currentLanguage.pick(
+                    ru = "Средние показатели",
+                    en = "Average metrics",
+                    kz = "Орташа көрсеткіштер"
+                ),
                 color = Color.White.copy(0.65f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -425,7 +458,11 @@ private fun AverageMetricsCard(
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = "5 метрик",
+                    text = currentLanguage.pick(
+                        ru = "5 метрик",
+                        en = "5 metrics",
+                        kz = "5 көрсеткіш"
+                    ),
                     color = CyanAccent.copy(0.75f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium

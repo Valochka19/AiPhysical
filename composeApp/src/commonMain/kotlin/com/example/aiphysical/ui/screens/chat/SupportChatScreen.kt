@@ -58,6 +58,8 @@ import com.example.aiphysical.data.model.ChatContactPreview
 import com.example.aiphysical.data.model.PointsLedgerEntry
 import com.example.aiphysical.data.model.PsychChatMessage
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.chat.SupportChatUiState
 import com.example.aiphysical.ui.theme.AlertOrange
 import com.example.aiphysical.ui.theme.GlassBorder
@@ -73,6 +75,7 @@ enum class DashboardOverlayDestination { None, Points, Chat }
 
 @Composable
 fun DashboardDrawerSheet(
+    language: AppLanguage = AppLanguage.RU,
     onProfileClick: () -> Unit,
     onPointsClick: () -> Unit,
     onChatClick: () -> Unit,
@@ -89,17 +92,42 @@ fun DashboardDrawerSheet(
                 .padding(horizontal = 18.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text("Меню", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
             Text(
-                "Быстрый переход к профилю, баллам и мессенджеру поддержки",
+                language.pick("Меню", "Menu", "Мәзір"),
+                color = TextPrimary,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                language.pick(
+                    "Быстрый переход к профилю, баллам и мессенджеру поддержки",
+                    "Quick access to profile, points, and support chat",
+                    "Профильге, ұпайларға және қолдау чатына жылдам өту"
+                ),
                 color = TextSecondary,
                 fontSize = 13.sp,
                 lineHeight = 18.sp
             )
             HorizontalDivider(color = Color.White.copy(0.08f))
-            DrawerSheetItem("👤", "Личный кабинет", "Открыть профиль", onProfileClick)
-            DrawerSheetItem("⭐", "Баллы", "Раздел в разработке", onPointsClick)
-            DrawerSheetItem("💬", "Чат", "Диалоги с психологом", onChatClick, accent = PsychTeal)
+            DrawerSheetItem(
+                emoji = "👤",
+                title = language.pick("Личный кабинет", "Profile", "Жеке кабинет"),
+                subtitle = language.pick("Открыть профиль", "Open profile", "Профильді ашу"),
+                onClick = onProfileClick
+            )
+            DrawerSheetItem(
+                emoji = "⭐",
+                title = language.pick("Баллы", "Points", "Ұпайлар"),
+                subtitle = language.pick("Раздел в разработке", "Section in progress", "Бөлім әзірленуде"),
+                onClick = onPointsClick
+            )
+            DrawerSheetItem(
+                emoji = "💬",
+                title = language.pick("Чат", "Chat", "Чат"),
+                subtitle = language.pick("Диалоги с психологом", "Conversations with psychologists", "Психологпен диалогтар"),
+                onClick = onChatClick,
+                accent = PsychTeal
+            )
         }
     }
 }
@@ -133,15 +161,21 @@ fun PointsPlaceholderScreen(
     currentPoints: Int = 0,
     pointsHistory: List<PointsLedgerEntry> = emptyList(),
     leaderboard: List<UserProfile> = emptyList(),
-    introText: String = "Баллы начисляются за полностью пройденные тесты.",
+    language: AppLanguage = AppLanguage.RU,
+    introText: String? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val resolvedIntroText = introText ?: language.pick(
+        "Баллы начисляются за полностью пройденные тесты.",
+        "Points are awarded for fully completed tests.",
+        "Ұпайлар толық аяқталған тесттер үшін беріледі."
+    )
     val levelTitle = when {
-        currentPoints >= 200 -> "Мастер устойчивости"
-        currentPoints >= 100 -> "Уверенный участник"
-        currentPoints >= 40 -> "Активный старт"
-        else -> "Новый уровень"
+        currentPoints >= 200 -> language.pick("Мастер устойчивости", "Resilience master", "Тұрақтылық шебері")
+        currentPoints >= 100 -> language.pick("Уверенный участник", "Confident participant", "Сенімді қатысушы")
+        currentPoints >= 40 -> language.pick("Активный старт", "Active start", "Белсенді бастау")
+        else -> language.pick("Новый уровень", "New level", "Жаңа деңгей")
     }
     val nextMilestone = listOf(40, 100, 200, 350).firstOrNull { it > currentPoints }
     val leaderboardStudents = leaderboard.filter { it.role == "user" }.sortedWith(
@@ -160,7 +194,7 @@ fun PointsPlaceholderScreen(
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        OverlayHeader(title = title, subtitle = introText, onBack = onBack)
+        OverlayHeader(title = title, subtitle = resolvedIntroText, language = language, onBack = onBack)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,7 +204,7 @@ fun PointsPlaceholderScreen(
                 .padding(22.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Баллы", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                Text(language.pick("Баллы", "Points", "Ұпайлар"), color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                 if (currentUserName.isNotBlank()) {
                     Text(currentUserName, color = TextSecondary, fontSize = 13.sp)
                 }
@@ -183,21 +217,35 @@ fun PointsPlaceholderScreen(
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Column {
-                            Text("Всего", color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                                    Text(language.pick("Всего", "Total", "Барлығы"), color = TextHint, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                             Text("$currentPoints", color = AlertOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(levelTitle, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            nextMilestone?.let { "До следующего рубежа: ${it - currentPoints} баллов" } ?: "Максимальный текущий рубеж достигнут",
+                                    nextMilestone?.let {
+                                        language.pick(
+                                            "До следующего рубежа: ${it - currentPoints} баллов",
+                                            "To the next milestone: ${it - currentPoints} points",
+                                            "Келесі межеге дейін: ${it - currentPoints} ұпай"
+                                        )
+                                    } ?: language.pick(
+                                        "Максимальный текущий рубеж достигнут",
+                                        "The current maximum milestone has been reached",
+                                        "Қазіргі ең жоғары межеге жеттіңіз"
+                                    ),
                             color = TextSecondary,
                             fontSize = 12.sp
                         )
                     }
                 }
                 Text(
-                    "За каждый полностью завершённый тест начисляются баллы. История и рейтинг обновляются без влияния на текущую логику тестов.",
+                            language.pick(
+                                "За каждый полностью завершённый тест начисляются баллы. История и рейтинг обновляются без влияния на текущую логику тестов.",
+                                "Each fully completed test awards points. History and ranking update without affecting the current test logic.",
+                                "Әр толық аяқталған тест үшін ұпай беріледі. Тарих пен рейтинг тесттердің ағымдағы логикасына әсер етпей жаңарып отырады."
+                            ),
                     color = TextSecondary,
                     fontSize = 14.sp,
                     lineHeight = 21.sp
@@ -215,7 +263,7 @@ fun PointsPlaceholderScreen(
                     .padding(18.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Последние начисления", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("Последние начисления", "Recent awards", "Соңғы есептелген ұпайлар"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                     pointsHistory.take(5).forEachIndexed { index, entry ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -223,8 +271,25 @@ fun PointsPlaceholderScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(entry.title.ifBlank { "Тест завершён" }, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                Text(entry.description.ifBlank { "Начисление за прохождение теста" }, color = TextSecondary, fontSize = 12.sp)
+                                Text(
+                                    entry.title.ifBlank {
+                                        language.pick("Тест завершён", "Test completed", "Тест аяқталды")
+                                    },
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    entry.description.ifBlank {
+                                        language.pick(
+                                            "Начисление за прохождение теста",
+                                            "Points awarded for completing a test",
+                                            "Тесттен өткені үшін ұпай берілді"
+                                        )
+                                    },
+                                    color = TextSecondary,
+                                    fontSize = 12.sp
+                                )
                             }
                             Text("+${entry.points}", color = PsychTeal, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                         }
@@ -246,7 +311,7 @@ fun PointsPlaceholderScreen(
                     .padding(18.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Рейтинг студентов", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(language.pick("Рейтинг студентов", "Student ranking", "Студенттер рейтингі"), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                     leaderboardStudents.take(8).forEachIndexed { index, profile ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -279,6 +344,7 @@ fun PointsPlaceholderScreen(
 @Composable
 fun SupportChatScreen(
     state: SupportChatUiState,
+    language: AppLanguage = state.currentLanguage,
     onBack: () -> Unit,
     onContactSelected: (ChatContactPreview) -> Unit,
     onConversationBack: () -> Unit,
@@ -303,14 +369,25 @@ fun SupportChatScreen(
                     listOf(PsychBackground, Color(0xFF141220), Color(0xFF0A0912))
                 )
             )
-            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         OverlayHeader(
-            title = "Чат с психологом",
+            title = language.pick(
+                ru = "Чат с психологом",
+                en = "Chat with psychologist",
+                kz = "Психологпен чат"
+            ),
             subtitle = when {
-                state.currentUserRole == "psychologist" -> "Выберите студента или преподавателя и продолжайте диалог в реальном времени"
-                else -> "Выберите психолога своей организации и начните личный диалог"
+                state.currentUserRole == "psychologist" -> language.pick(
+                    ru = "Выберите студента или преподавателя и продолжайте диалог в реальном времени",
+                    en = "Choose a student or teacher and continue the conversation in real time",
+                    kz = "Студентті не мұғалімді таңдап, диалогты нақты уақытта жалғастырыңыз"
+                )
+                else -> language.pick(
+                    ru = "Выберите психолога своей организации и начните личный диалог",
+                    en = "Choose a psychologist from your organization and start a private conversation",
+                    kz = "Ұйымыңыздың психологын таңдап, жеке диалогты бастаңыз"
+                )
             },
             onBack = onBack
         )
@@ -326,11 +403,13 @@ fun SupportChatScreen(
                 ) {
                     SupportContactsPane(
                         state = state,
+                        language = language,
                         onContactSelected = onContactSelected,
                         modifier = Modifier.width(320.dp)
                     )
                     SupportConversationPane(
                         state = state,
+                        language = language,
                         listStateKey = listState,
                         onConversationBack = onConversationBack,
                         onInputChange = onInputChange,
@@ -344,12 +423,14 @@ fun SupportChatScreen(
                 if (state.selectedContact == null) {
                     SupportContactsPane(
                         state = state,
+                        language = language,
                         onContactSelected = onContactSelected,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     SupportConversationPane(
                         state = state,
+                        language = language,
                         listStateKey = listState,
                         onConversationBack = onConversationBack,
                         onInputChange = onInputChange,
@@ -368,6 +449,7 @@ fun SupportChatScreen(
 private fun OverlayHeader(
     title: String,
     subtitle: String,
+    language: AppLanguage = AppLanguage.RU,
     onBack: () -> Unit,
 ) {
     Row(
@@ -391,7 +473,7 @@ private fun OverlayHeader(
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            Text("Назад", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(language.pick("Назад", "Back", "Артқа"), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -439,6 +521,7 @@ private fun DrawerSheetItem(
 @Composable
 private fun SupportContactsPane(
     state: SupportChatUiState,
+    language: AppLanguage,
     onContactSelected: (ChatContactPreview) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -457,11 +540,23 @@ private fun SupportContactsPane(
             state.contacts.isEmpty() -> {
                 Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                     EmptyStateMessage(
-                        title = if (state.currentUserRole == "psychologist") "Пока нет доступных диалогов" else "Психологов пока нет",
-                        message = if (state.currentUserRole == "psychologist") {
-                            "Когда в организации появятся студенты или преподаватели, они отобразятся в этом списке."
+                        title = if (state.currentUserRole == "psychologist") {
+                            language.pick("Пока нет доступных диалогов", "No conversations available yet", "Әзірге қолжетімді диалогтар жоқ")
                         } else {
-                            "В вашей организации пока нет доступных психологов. Попробуйте позже или обратитесь к администратору."
+                            language.pick("Психологов пока нет", "No psychologists yet", "Әзірге психологтар жоқ")
+                        },
+                        message = if (state.currentUserRole == "psychologist") {
+                            language.pick(
+                                "Когда в организации появятся студенты или преподаватели, они отобразятся в этом списке.",
+                                "When students or teachers appear in the organization, they will be shown in this list.",
+                                "Ұйымда студенттер немесе мұғалімдер пайда болғанда, олар осы тізімде көрсетіледі."
+                            )
+                        } else {
+                            language.pick(
+                                "В вашей организации пока нет доступных психологов. Попробуйте позже или обратитесь к администратору.",
+                                "There are no available psychologists in your organization yet. Try again later or contact an administrator.",
+                                "Ұйымыңызда әзірге қолжетімді психологтар жоқ. Кейінірек қайталап көріңіз немесе әкімшіге хабарласыңыз."
+                            )
                         }
                     )
                 }
@@ -475,6 +570,7 @@ private fun SupportContactsPane(
                     items(state.contacts, key = { it.uid }) { contact ->
                         ContactRow(
                             contact = contact,
+                            language = language,
                             isSelected = state.selectedContact?.uid == contact.uid,
                             onClick = { onContactSelected(contact) }
                         )
@@ -488,6 +584,7 @@ private fun SupportContactsPane(
 @Composable
 private fun ContactRow(
     contact: ChatContactPreview,
+    language: AppLanguage,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -533,22 +630,20 @@ private fun ContactRow(
                             .background(accent.copy(0.18f))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text("диалог", color = accent, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(language.pick("диалог", "chat", "чат"), color = accent, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
                     }
                 }
             }
             Text(
-                text = when (contact.role.lowercase()) {
-                    "psychologist" -> "Психолог"
-                    "teacher" -> "Преподаватель"
-                    else -> "Студент"
-                },
+                text = localizedRoleLabel(contact.role, language),
                 color = accent,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = contact.lastMessageText.ifBlank { "Открыть диалог" },
+                text = contact.lastMessageText.ifBlank {
+                    language.pick("Открыть диалог", "Open chat", "Чатты ашу")
+                },
                 color = TextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -561,6 +656,7 @@ private fun ContactRow(
 @Composable
 private fun SupportConversationPane(
     state: SupportChatUiState,
+    language: AppLanguage,
     listStateKey: androidx.compose.foundation.lazy.LazyListState,
     onConversationBack: () -> Unit,
     onInputChange: (String) -> Unit,
@@ -579,8 +675,12 @@ private fun SupportConversationPane(
         if (selectedContact == null) {
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 EmptyStateMessage(
-                    title = "Выберите контакт",
-                    message = "Слева отображаются доступные собеседники. Выберите психолога, студента или преподавателя, чтобы открыть историю сообщений."
+                    title = language.pick("Выберите контакт", "Choose a contact", "Контактіні таңдаңыз"),
+                    message = language.pick(
+                        "Слева отображаются доступные собеседники. Выберите психолога, студента или преподавателя, чтобы открыть историю сообщений.",
+                        "Available contacts are shown on the left. Choose a psychologist, student, or teacher to open the message history.",
+                        "Сол жақта қолжетімді сұхбаттасушылар көрсетіледі. Хабарламалар тарихын ашу үшін психологты, студентті немесе мұғалімді таңдаңыз."
+                    )
                 )
             }
             return
@@ -588,6 +688,7 @@ private fun SupportConversationPane(
 
         ConversationHeader(
             contact = selectedContact,
+            language = language,
             showBackToContacts = showBackToContacts,
             onConversationBack = onConversationBack
         )
@@ -602,8 +703,12 @@ private fun SupportConversationPane(
                 state.messages.isEmpty() -> {
                     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                         EmptyStateMessage(
-                            title = "Сообщений пока нет",
-                            message = "Напишите первое сообщение — диалог создастся автоматически и сразу синхронизируется у обеих сторон."
+                            title = language.pick("Сообщений пока нет", "No messages yet", "Әзірге хабарламалар жоқ"),
+                            message = language.pick(
+                                "Напишите первое сообщение — диалог создастся автоматически и сразу синхронизируется у обеих сторон.",
+                                "Write the first message — the chat will be created automatically and synced for both participants right away.",
+                                "Алғашқы хабарламаны жазыңыз — чат автоматты түрде құрылып, екі тарапқа да бірден синхрондалады."
+                            )
                         )
                     }
                 }
@@ -630,6 +735,7 @@ private fun SupportConversationPane(
         }
 
         SupportMessageInput(
+            language = language,
             value = state.input,
             isSending = state.isSending,
             onValueChange = onInputChange,
@@ -641,6 +747,7 @@ private fun SupportConversationPane(
 @Composable
 private fun ConversationHeader(
     contact: ChatContactPreview,
+    language: AppLanguage,
     showBackToContacts: Boolean,
     onConversationBack: () -> Unit,
 ) {
@@ -675,11 +782,7 @@ private fun ConversationHeader(
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(contact.fullName.ifBlank { contact.email }, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(
-                when (contact.role.lowercase()) {
-                    "psychologist" -> "Психолог организации"
-                    "teacher" -> "Преподаватель"
-                    else -> "Студент"
-                },
+                localizedRoleLabel(contact.role, language, orgScopedPsychologist = true),
                 color = accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
@@ -720,6 +823,7 @@ private fun MessageBubble(
 
 @Composable
 private fun SupportMessageInput(
+    language: AppLanguage,
     value: String,
     isSending: Boolean,
     onValueChange: (String) -> Unit,
@@ -741,7 +845,13 @@ private fun SupportMessageInput(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Введите сообщение...", color = Color.White.copy(0.35f), fontSize = 14.sp) },
+                placeholder = {
+                    Text(
+                        language.pick("Введите сообщение...", "Enter a message...", "Хабарламаны енгізіңіз..."),
+                        color = Color.White.copy(0.35f),
+                        fontSize = 14.sp
+                    )
+                },
                 maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
@@ -780,7 +890,11 @@ private fun SupportMessageInput(
             }
         }
         Text(
-            "Сообщения синхронизируются в реальном времени. Диалог видят только его участники.",
+            language.pick(
+                "Сообщения синхронизируются в реальном времени. Диалог видят только его участники.",
+                "Messages sync in real time. Only the participants can see this conversation.",
+                "Хабарламалар нақты уақытта синхрондалады. Бұл диалогты тек қатысушылары ғана көреді."
+            ),
             color = TextHint,
             fontSize = 11.sp
         )
@@ -852,5 +966,27 @@ private fun AvatarBubble(name: String, accent: Color) {
             fontWeight = FontWeight.ExtraBold
         )
     }
+}
+
+private fun localizedRoleLabel(
+    role: String,
+    language: AppLanguage,
+    orgScopedPsychologist: Boolean = false,
+): String = when (role.lowercase()) {
+    "psychologist" -> if (orgScopedPsychologist) {
+        language.pick("Психолог организации", "Organization psychologist", "Ұйым психологы")
+    } else {
+        language.pick("Психолог", "Psychologist", "Психолог")
+    }
+    "teacher" -> language.pick("Преподаватель", "Teacher", "Мұғалім")
+    else -> language.pick("Студент", "Student", "Студент")
+}
+
+private fun localizedAiStatus(status: String, language: AppLanguage): String = when (status.lowercase()) {
+    "normal" -> language.pick("Норма", "Normal", "Қалыпты")
+    "stress" -> language.pick("Стресс", "Stress", "Стресс")
+    "critical" -> language.pick("Критично", "Critical", "Критикалық")
+    "unknown", "" -> language.pick("Нет данных", "No data", "Дерек жоқ")
+    else -> status.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 }
 

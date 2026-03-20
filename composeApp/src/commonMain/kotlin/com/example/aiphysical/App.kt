@@ -36,6 +36,7 @@ fun App() {
             )
         }
         val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+        val strings = getStrings(uiState.currentLanguage)
 
         if (uiState.isRestoringSession) {
             AnimatedBackground(animate = false) {
@@ -47,7 +48,11 @@ fun App() {
                     CircularProgressIndicator(color = VioletGlow)
                     Spacer(Modifier.height(20.dp))
                     Text(
-                        text = "Восстанавливаем сессию...",
+                        text = uiState.currentLanguage.pick(
+                            ru = "Восстанавливаем сессию...",
+                            en = "Restoring session...",
+                            kz = "Сессия қалпына келтірілуде..."
+                        ),
                         color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
@@ -75,6 +80,7 @@ fun App() {
                     orgId = screen.orgId,
                     uid = screen.uid,
                     initialLanguage = uiState.currentLanguage,
+                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 
@@ -83,6 +89,8 @@ fun App() {
                     uid = screen.uid,
                     orgId = screen.orgId,
                     fullName = screen.fullName,
+                    currentLanguage = uiState.currentLanguage,
+                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 
@@ -90,6 +98,8 @@ fun App() {
                 is AuthScreen.StudentDashboard -> StudentDashboardScreen(
                     uid = screen.uid,
                     orgId = screen.orgId,
+                    currentLanguage = uiState.currentLanguage,
+                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 
@@ -97,6 +107,8 @@ fun App() {
                 is AuthScreen.TeacherDashboard -> TeacherDashboardScreen(
                     uid = screen.uid,
                     orgId = screen.orgId,
+                    currentLanguage = uiState.currentLanguage,
+                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
                     onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
                 )
 

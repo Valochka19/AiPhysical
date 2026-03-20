@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.aiphysical.data.model.OrganizationCourse
+import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.chat.SupportChatEvent
 import com.example.aiphysical.presentation.chat.SupportChatViewModel
 import com.example.aiphysical.presentation.student.*
@@ -63,6 +64,8 @@ import kotlinx.coroutines.launch
 fun StudentDashboardScreen(
     uid: String,
     orgId: String,
+    currentLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
     val firestoreService = remember { createFirestoreService() }
@@ -100,9 +103,28 @@ fun StudentDashboardScreen(
                 is StudentEffect.NavigateToTest   -> { /* Student tests open as in-screen fullscreen overlay */ }
                 is StudentEffect.OpenUrl          -> {
                     try { uriHandler.openUri(effect.url) }
-                    catch (_: Exception) { snackbarHostState.showSnackbar("Не удалось открыть ссылку") }
+                    catch (_: Exception) {
+                        snackbarHostState.showSnackbar(
+                            when (state.currentLanguage) {
+                                AppLanguage.RU -> "Не удалось открыть ссылку"
+                                AppLanguage.EN -> "Failed to open the link"
+                                AppLanguage.KZ -> "Сілтемені ашу мүмкін болмады"
+                            }
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    LaunchedEffect(currentLanguage) {
+        vm.onEvent(StudentEvent.ChangeLanguage(currentLanguage))
+        supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
+    }
+
+    LaunchedEffect(state.currentLanguage) {
+        if (state.currentLanguage != currentLanguage) {
+            onLanguageChange(state.currentLanguage)
         }
     }
 
@@ -110,6 +132,7 @@ fun StudentDashboardScreen(
         drawerState = drawerState,
         drawerContent = {
             DashboardDrawerSheet(
+                language = state.currentLanguage,
                 onProfileClick = {
                     vm.onEvent(StudentEvent.NavigateToTab(StudentTab.Profile))
                     drawerOverlay = DashboardOverlayDestination.None
@@ -203,7 +226,10 @@ fun StudentDashboardScreen(
                         StudentTab.Profile -> StudentProfileTab(
                             state = state,
                             onLogout = onLogout,
-                            onLanguageChange = { vm.onEvent(StudentEvent.ChangeLanguage(it)) },
+                            onLanguageChange = {
+                                vm.onEvent(StudentEvent.ChangeLanguage(it))
+                                onLanguageChange(it)
+                            },
                             modifier = Modifier.padding(innerPadding)
                         )
                     }
@@ -213,6 +239,7 @@ fun StudentDashboardScreen(
                 if (state.showTextCourseViewer && state.selectedAddedCourse != null) {
                     TextCourseViewerDialog(
                         course = state.selectedAddedCourse!!,
+                        language = state.currentLanguage,
                         onDismiss = { vm.onEvent(StudentEvent.CloseTextCourse) }
                     )
                 }
@@ -221,6 +248,7 @@ fun StudentDashboardScreen(
                 if (activeTestState != null) {
                     StudentTestScreen(
                         testState = activeTestState,
+                        language = state.currentLanguage,
                         vm = vm
                     )
                 }
@@ -228,6 +256,7 @@ fun StudentDashboardScreen(
                 if (activeCustomTestState != null) {
                     StudentOrganizationCustomTestScreen(
                         session = activeCustomTestState,
+                        language = state.currentLanguage,
                         onClose = { vm.onEvent(StudentEvent.CloseOrganizationCustomTest) },
                         onOptionSelected = { vm.onEvent(StudentEvent.AnswerOrganizationCustomTestQuestion(it)) },
                         onNext = { vm.onEvent(StudentEvent.NextOrganizationCustomTestQuestion) },
@@ -238,6 +267,7 @@ fun StudentDashboardScreen(
                 // ── Floating AI Chat Button ────────────────────────────────────────
                 if (activeTestState == null && activeCustomTestState == null && drawerOverlay == DashboardOverlayDestination.None) {
                     AiChatFab(
+                        currentLanguage = state.currentLanguage,
                         hasMessages = state.chatMessages.isNotEmpty(),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -275,6 +305,7 @@ fun StudentDashboardScreen(
                 when (drawerOverlay) {
                     DashboardOverlayDestination.Chat -> SupportChatScreen(
                         state = supportState,
+                        state.currentLanguage,
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         onContactSelected = { supportVm.onEvent(SupportChatEvent.SelectContact(it)) },
                         onConversationBack = { supportVm.onEvent(SupportChatEvent.ClearSelection) },
@@ -284,11 +315,20 @@ fun StudentDashboardScreen(
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     )
                     DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
-                        title = "Баллы студента",
+                        title = state.currentLanguage.pick(
+                            ru = "Баллы студента",
+                            en = "Student points",
+                            kz = "Студент ұпайлары"
+                        ),
+                        language = state.currentLanguage,
                         currentUserName = state.profile.fullName.ifBlank { state.profile.email },
                         currentPoints = state.profile.pointsTotal,
                         pointsHistory = state.pointsHistory,
-                        introText = "Баллы начисляются после полного завершения тестов в интерфейсе студента.",
+                        introText = state.currentLanguage.pick(
+                            ru = "Баллы начисляются после полного завершения тестов в интерфейсе студента.",
+                            en = "Points are awarded after fully completing tests in the student interface.",
+                            kz = "Ұпайлар студент интерфейсіндегі тесттер толық аяқталғаннан кейін беріледі."
+                        ),
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     )
@@ -443,6 +483,7 @@ private fun StudentNavItem(
 @Composable
 internal fun TextCourseViewerDialog(
     course: OrganizationCourse,
+    language: AppLanguage = AppLanguage.RU,
     onDismiss: () -> Unit,
 ) {
     androidx.compose.ui.window.Dialog(
@@ -497,7 +538,7 @@ internal fun TextCourseViewerDialog(
                             .border(1.dp, PsychTeal.copy(0.4f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Text("📝 Текстовый курс", color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                        Text(language.pick("📝 Текстовый курс", "📝 Text course", "📝 Мәтіндік курс"), color = PsychTeal, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
                     }
                 }
 
@@ -526,7 +567,11 @@ internal fun TextCourseViewerDialog(
                     ) {
                         Text("👤", fontSize = 14.sp)
                         Text(
-                            "Автор: ${course.createdByName}",
+                            language.pick(
+                                "Автор: ${course.createdByName}",
+                                "Author: ${course.createdByName}",
+                                "Авторы: ${course.createdByName}"
+                            ),
                             color = Color.White.copy(0.45f),
                             fontSize = 12.sp
                         )
@@ -553,7 +598,7 @@ internal fun TextCourseViewerDialog(
                             .padding(20.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Текст курса отсутствует", color = Color.White.copy(0.35f), fontSize = 14.sp)
+                        Text(language.pick("Текст курса отсутствует", "Course text is missing", "Курс мәтіні жоқ"), color = Color.White.copy(0.35f), fontSize = 14.sp)
                     }
                 }
 
@@ -568,7 +613,7 @@ internal fun TextCourseViewerDialog(
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Закрыть", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(language.pick("Закрыть", "Close", "Жабу"), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -581,6 +626,7 @@ internal fun TextCourseViewerDialog(
 
 @Composable
 private fun AiChatFab(
+    currentLanguage: AppLanguage,
     hasMessages: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -626,7 +672,7 @@ private fun AiChatFab(
                 modifier = Modifier.fillMaxSize(),
                 backgroundBrush = Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
                 imagePadding = 0.dp,
-                contentDescription = "Открыть чат с Уми"
+                contentDescription = currentLanguage.pick("Открыть чат с Уми", "Open chat with Umi", "Умимен чатты ашу")
             )
         }
 
@@ -715,12 +761,25 @@ private fun AiChatOverlay(
                         borderBrush = Brush.linearGradient(listOf(Color(0xFF9D5FF5), PsychTeal)),
                         borderWidth = 1.5.dp,
                         imagePadding = 0.dp,
-                        contentDescription = "Аватар Уми"
+                        contentDescription = when (state.currentLanguage) {
+                            AppLanguage.RU -> "Аватар Уми"
+                            AppLanguage.EN -> "Umi avatar"
+                            AppLanguage.KZ -> "Уми аватары"
+                        }
                     )
                 }
 
                 Column(Modifier.weight(1f)) {
-                    Text("Уми", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        when (state.currentLanguage) {
+                            AppLanguage.RU -> "Уми"
+                            AppLanguage.EN -> "Umi"
+                            AppLanguage.KZ -> "Уми"
+                        },
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -731,7 +790,11 @@ private fun AiChatOverlay(
                                 .background(Color(0xFF00E676).copy(pulseAlpha), CircleShape)
                         )
                         Text(
-                            "Ваш помощник • ${state.chatMessages.size} сообщ.",
+                            when (state.currentLanguage) {
+                                AppLanguage.RU -> "Ваш помощник • ${state.chatMessages.size} сообщ."
+                                AppLanguage.EN -> "Your assistant • ${state.chatMessages.size} msgs"
+                                AppLanguage.KZ -> "Көмекшіңіз • ${state.chatMessages.size} хабарлама"
+                            },
                             color = PsychTeal.copy(0.85f),
                             fontSize = 12.sp
                         )
@@ -752,7 +815,15 @@ private fun AiChatOverlay(
                             )
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("🗑 Очистить", color = Color.White.copy(0.55f), fontSize = 12.sp)
+                        Text(
+                            when (state.currentLanguage) {
+                                AppLanguage.RU -> "🗑 Очистить"
+                                AppLanguage.EN -> "🗑 Clear"
+                                AppLanguage.KZ -> "🗑 Тазарту"
+                            },
+                            color = Color.White.copy(0.55f),
+                            fontSize = 12.sp
+                        )
                     }
                 }
 
@@ -820,6 +891,7 @@ private fun AiChatOverlay(
                 if (state.chatMessages.isEmpty()) {
                     item {
                         AiChatOverlayEmptyState(
+                            currentLanguage = state.currentLanguage,
                             onSuggestionClick = { suggestion ->
                                 if (!state.isChatLoading) {
                                     vm.onEvent(StudentEvent.SendChatMessage(suggestion))
@@ -832,10 +904,10 @@ private fun AiChatOverlay(
                     items = state.chatMessages,
                     key = { index, msg -> "${index}_${msg.role}_${msg.isError}_${msg.text.hashCode()}" }
                 ) { _, msg ->
-                    ChatBubble(message = msg)
+                    ChatBubble(message = msg, language = state.currentLanguage)
                 }
                 if (state.isChatLoading) {
-                    item { TypingIndicatorOverlay() }
+                    item { TypingIndicatorOverlay(currentLanguage = state.currentLanguage) }
                 }
             }
         }
@@ -877,6 +949,7 @@ private fun AiChatOverlay(
 
         // ── Input bar ─────────────────────────────────────────────────────────
         AiChatInputBar(
+            currentLanguage = state.currentLanguage,
             value         = state.chatInput,
             isLoading     = state.isChatLoading,
             onValueChange = { vm.onEvent(StudentEvent.UpdateChatInput(it)) },
@@ -891,6 +964,7 @@ private fun AiChatOverlay(
 
 @Composable
 private fun AiChatOverlayEmptyState(
+    currentLanguage: AppLanguage,
     onSuggestionClick: (String) -> Unit,
 ) {
     val pulseAlpha = 0.42f
@@ -928,19 +1002,31 @@ private fun AiChatOverlayEmptyState(
                 borderBrush = Brush.sweepGradient(listOf(Color(0xFF9D5FF5), PsychTeal, Color(0xFF9D5FF5))),
                 borderWidth = 2.5.dp,
                 imagePadding = 0.dp,
-                contentDescription = "Уми"
+                contentDescription = when (currentLanguage) {
+                    AppLanguage.RU -> "Уми"
+                    AppLanguage.EN -> "Umi"
+                    AppLanguage.KZ -> "Уми"
+                }
             )
         }
 
         Text(
-            "Уми готова помочь",
+            when (currentLanguage) {
+                AppLanguage.RU -> "Уми готова помочь"
+                AppLanguage.EN -> "Umi is ready to help"
+                AppLanguage.KZ -> "Уми көмектесуге дайын"
+            },
             color = Color.White,
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
         Text(
-            "Задайте любой вопрос о здоровье,\nучёбе или психологическом благополучии",
+            when (currentLanguage) {
+                AppLanguage.RU -> "Задайте любой вопрос о здоровье,\nучёбе или психологическом благополучии"
+                AppLanguage.EN -> "Ask anything about health,\nstudy, or mental well-being"
+                AppLanguage.KZ -> "Денсаулық,\nоқу немесе психологиялық әл-ауқат туралы кез келген сұрақты қойыңыз"
+            },
             color = Color.White.copy(0.45f),
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
@@ -950,12 +1036,26 @@ private fun AiChatOverlayEmptyState(
         Spacer(Modifier.height(4.dp))
 
         // Suggestion chips
-        val suggestions = listOf(
-            "💡 Как снизить стресс?",
-            "📚 Советы по учёбе",
-            "😴 Улучшить сон",
-            "🧘 Как расслабиться?"
-        )
+        val suggestions = when (currentLanguage) {
+            AppLanguage.RU -> listOf(
+                "💡 Как снизить стресс?",
+                "📚 Советы по учёбе",
+                "😴 Улучшить сон",
+                "🧘 Как расслабиться?"
+            )
+            AppLanguage.EN -> listOf(
+                "💡 How can I reduce stress?",
+                "📚 Study tips",
+                "😴 Improve sleep",
+                "🧘 How to relax?"
+            )
+            AppLanguage.KZ -> listOf(
+                "💡 Стресті қалай азайтамын?",
+                "📚 Оқу бойынша кеңестер",
+                "😴 Ұйқыны жақсарту",
+                "🧘 Қалай босаңсуға болады?"
+            )
+        }
         suggestions.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { hint ->
@@ -980,7 +1080,7 @@ private fun AiChatOverlayEmptyState(
 }
 
 @Composable
-private fun TypingIndicatorOverlay() {
+private fun TypingIndicatorOverlay(currentLanguage: AppLanguage) {
     val infiniteTransition = rememberInfiniteTransition(label = "typing_overlay")
     Row(horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
         Box(
@@ -994,7 +1094,7 @@ private fun TypingIndicatorOverlay() {
                 borderColor = PsychTeal.copy(0.4f),
                 borderWidth = 1.dp,
                 imagePadding = 0.dp,
-                contentDescription = "Уми печатает"
+                contentDescription = currentLanguage.pick("Уми печатает", "Umi is typing", "Уми теріп жатыр")
             )
         }
 
@@ -1032,6 +1132,7 @@ private fun TypingIndicatorOverlay() {
 
 @Composable
 private fun AiChatInputBar(
+    currentLanguage: AppLanguage,
     value: String,
     isLoading: Boolean,
     onValueChange: (String) -> Unit,
@@ -1064,7 +1165,17 @@ private fun AiChatInputBar(
                 value         = value,
                 onValueChange = onValueChange,
                 modifier      = Modifier.weight(1f),
-                placeholder   = { Text("Задайте вопрос Уми...", color = Color.White.copy(0.35f), fontSize = 14.sp) },
+                placeholder   = {
+                    Text(
+                        when (currentLanguage) {
+                            AppLanguage.RU -> "Задайте вопрос Уми..."
+                            AppLanguage.EN -> "Ask Umi anything..."
+                            AppLanguage.KZ -> "Умиге сұрақ қойыңыз..."
+                        },
+                        color = Color.White.copy(0.35f),
+                        fontSize = 14.sp
+                    )
+                },
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     imeAction      = ImeAction.Send

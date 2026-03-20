@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.presentation.director.*
 import com.example.aiphysical.ui.components.*
@@ -113,7 +114,7 @@ fun AnalyticsTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(Modifier.size(6.dp).background(CyanAccent, CircleShape))
-                    Text("Показано: ${displayedMembers.size}", color = CyanAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${strings.dbShown} ${displayedMembers.size}", color = CyanAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -132,7 +133,11 @@ fun AnalyticsTab(
                 GlassEmptyState(
                     emoji = "🔍",
                     title = strings.noMembers,
-                    subtitle = "Измените фильтр для просмотра участников"
+                    subtitle = state.currentLanguage.pick(
+                        ru = "Измените фильтр для просмотра участников",
+                        en = "Change the filter to view members",
+                        kz = "Қатысушыларды көру үшін сүзгіні өзгертіңіз"
+                    )
                 )
             }
         } else {

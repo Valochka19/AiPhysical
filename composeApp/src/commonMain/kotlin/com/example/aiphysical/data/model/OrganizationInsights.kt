@@ -1,5 +1,6 @@
 package com.example.aiphysical.data.model
 
+import com.example.aiphysical.presentation.auth.AppLanguage
 import com.example.aiphysical.presentation.student.StudentTestType
 
 data class OrganizationTestStats(
@@ -33,10 +34,26 @@ data class BaseCourseCompletionDetails(
     val notStartedMembers: List<CourseCompletionMember> = emptyList()
 )
 
-fun assessmentLabel(assessment: String): String = when (assessment) {
-    "normal" -> "Норма"
-    "stress" -> "Стресс"
-    "critical" -> "Критично"
-    else -> "Нет данных"
+fun assessmentLabel(assessment: String, language: AppLanguage = AppLanguage.RU): String = when (assessment) {
+    "normal" -> when (language) {
+        AppLanguage.RU -> "Норма"
+        AppLanguage.EN -> "Normal"
+        AppLanguage.KZ -> "Қалыпты"
+    }
+    "stress" -> when (language) {
+        AppLanguage.RU -> "Стресс"
+        AppLanguage.EN -> "Stress"
+        AppLanguage.KZ -> "Стресс"
+    }
+    "critical" -> when (language) {
+        AppLanguage.RU -> "Критично"
+        AppLanguage.EN -> "Critical"
+        AppLanguage.KZ -> "Критикалық"
+    }
+    else -> when (language) {
+        AppLanguage.RU -> "Нет данных"
+        AppLanguage.EN -> "No data"
+        AppLanguage.KZ -> "Дерек жоқ"
+    }
 }
 

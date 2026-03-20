@@ -50,6 +50,8 @@ fun PsychologistDashboardScreen(
     uid: String,
     orgId: String,
     fullName: String,
+    currentLanguage: com.example.aiphysical.presentation.auth.AppLanguage,
+    onLanguageChange: (com.example.aiphysical.presentation.auth.AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
     val firestoreService = remember { createFirestoreService() }
@@ -90,9 +92,28 @@ fun PsychologistDashboardScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 is PsychologistEffect.OpenUrl -> {
                     try { uriHandler.openUri(effect.url) }
-                    catch (_: Exception) { snackbarHostState.showSnackbar("Не удалось открыть ссылку") }
+                    catch (_: Exception) {
+                        snackbarHostState.showSnackbar(
+                            when (currentLanguage) {
+                                com.example.aiphysical.presentation.auth.AppLanguage.RU -> "Не удалось открыть ссылку"
+                                com.example.aiphysical.presentation.auth.AppLanguage.EN -> "Failed to open the link"
+                                com.example.aiphysical.presentation.auth.AppLanguage.KZ -> "Сілтемені ашу мүмкін болмады"
+                            }
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    LaunchedEffect(currentLanguage) {
+        vm.onEvent(PsychologistEvent.ChangeLanguage(currentLanguage))
+        supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
+    }
+
+    LaunchedEffect(state.currentLanguage) {
+        if (state.currentLanguage != currentLanguage) {
+            onLanguageChange(state.currentLanguage)
         }
     }
 
@@ -112,6 +133,7 @@ fun PsychologistDashboardScreen(
         drawerState = drawerState,
         drawerContent = {
             DashboardDrawerSheet(
+                language = state.currentLanguage,
                 onProfileClick = {
                     drawerOverlay = DashboardOverlayDestination.None
                     vm.onEvent(PsychologistEvent.NavigateToTab(PsychologistTab.Library))
@@ -231,6 +253,7 @@ fun PsychologistDashboardScreen(
                 if (state.showTestResultSheet && feedItem != null) {
                     TestResultReportSheet(
                         item = feedItem,
+                        language = state.currentLanguage,
                         onDismiss = { vm.onEvent(PsychologistEvent.DismissTestResultSheet) }
                     )
                 }
@@ -248,6 +271,7 @@ fun PsychologistDashboardScreen(
                 when (drawerOverlay) {
                     DashboardOverlayDestination.Chat -> SupportChatScreen(
                         state = supportState,
+                        state.currentLanguage,
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         onContactSelected = { supportVm.onEvent(SupportChatEvent.SelectContact(it)) },
                         onConversationBack = { supportVm.onEvent(SupportChatEvent.ClearSelection) },
@@ -259,11 +283,20 @@ fun PsychologistDashboardScreen(
                             .padding(innerPadding)
                     )
                     DashboardOverlayDestination.Points -> PointsPlaceholderScreen(
-                        title = "Баллы психолога",
+                        title = when (state.currentLanguage) {
+                            com.example.aiphysical.presentation.auth.AppLanguage.RU -> "Баллы психолога"
+                            com.example.aiphysical.presentation.auth.AppLanguage.EN -> "Psychologist points"
+                            com.example.aiphysical.presentation.auth.AppLanguage.KZ -> "Психолог ұпайлары"
+                        },
+                        language = state.currentLanguage,
                         currentUserName = state.psychologistName,
                         currentPoints = state.students.sumOf { it.pointsTotal },
                         leaderboard = state.students,
-                        introText = "Здесь видно суммарную активность и рейтинг студентов вашей организации по заработанным баллам.",
+                        introText = when (state.currentLanguage) {
+                            com.example.aiphysical.presentation.auth.AppLanguage.RU -> "Здесь видно суммарную активность и рейтинг студентов вашей организации по заработанным баллам."
+                            com.example.aiphysical.presentation.auth.AppLanguage.EN -> "Here you can see the total activity and student ranking in your organization by earned points."
+                            com.example.aiphysical.presentation.auth.AppLanguage.KZ -> "Мұнда ұйымыңыздағы студенттердің жалпы белсенділігі мен жиналған ұпайлар бойынша рейтингі көрінеді."
+                        },
                         onBack = { drawerOverlay = DashboardOverlayDestination.None },
                         modifier = Modifier
                             .fillMaxSize()
