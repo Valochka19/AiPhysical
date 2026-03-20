@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.CourseProgress
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.data.model.displayTitle
+import com.example.aiphysical.presentation.auth.displayAgeGroup
 import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.director.DirectorDashboardState
 import com.example.aiphysical.presentation.director.DirectorEvent
@@ -67,7 +69,7 @@ fun MemberDetailScreen(
             }
 
             // ── Member header card ────────────────────────────────────────────
-            item { PremiumMemberHeaderCard(member = member, strings = strings) }
+            item { PremiumMemberHeaderCard(member = member, strings = strings, language = state.currentLanguage) }
 
             // ── 5 Metrics ─────────────────────────────────────────────────────
             item { MemberMetricsCard(member = member, strings = strings, language = state.currentLanguage) }
@@ -90,7 +92,7 @@ fun MemberDetailScreen(
                 item { GlassDetailEmpty(strings.noTestHistory, "🧪") }
             } else {
                 items(state.selectedMemberTestHistory, key = { "${it.testId}_${it.dateMillis}" }) { test ->
-                    PremiumTestResultCard(test = test, strings = strings)
+                    PremiumTestResultCard(test = test, strings = strings, language = state.currentLanguage)
                 }
             }
 
@@ -114,7 +116,11 @@ fun MemberDetailScreen(
 // ─── Premium Member Header Card ───────────────────────────────────────────────
 
 @Composable
-private fun PremiumMemberHeaderCard(member: UserProfile, strings: Strings) {
+private fun PremiumMemberHeaderCard(
+    member: UserProfile,
+    strings: Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+) {
     val statusColor = when (member.latestAiStatus) { "normal" -> StatusNormal; "stress" -> StatusStress; "critical" -> StatusCritical; else -> TextHint }
 
     Column(
@@ -167,7 +173,7 @@ private fun PremiumMemberHeaderCard(member: UserProfile, strings: Strings) {
                 },
                 NeonViolet
             )
-            if (member.ageGroup.isNotBlank()) MetaInfoChip("📅", strings.memberAge, member.ageGroup, CyanAccent)
+            if (member.ageGroup.isNotBlank()) MetaInfoChip("📅", strings.memberAge, member.ageGroup.displayAgeGroup(language), CyanAccent)
             MetaInfoChip("⚡", strings.kpiStress, "${member.stressScore.toInt()}%", MetricStress)
             MetaInfoChip("📚", strings.kpiEngagement, "${member.courseProgressPercent.toInt()}%", MetricMotivation)
         }
@@ -260,7 +266,11 @@ private fun GlassDetailEmpty(message: String, emoji: String) {
 // ─── Premium Test Result Card ─────────────────────────────────────────────────
 
 @Composable
-private fun PremiumTestResultCard(test: TestResult, strings: Strings) {
+ private fun PremiumTestResultCard(
+    test: TestResult,
+    strings: Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+ ) {
     val statusColor = when (test.aiAssessment) { "critical" -> StatusCritical; "stress" -> StatusStress; else -> StatusNormal }
     Row(
         modifier = Modifier
@@ -280,7 +290,7 @@ private fun PremiumTestResultCard(test: TestResult, strings: Strings) {
                 Text(when (test.aiAssessment) { "critical" -> "🔴"; "stress" -> "⚠️"; else -> "✅" }, fontSize = 16.sp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(test.testName, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(test.displayTitle(language), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Text("${strings.testDate}: ${formatDate(test.dateMillis)}", color = TextHint, fontSize = 11.sp)
             }
         }
@@ -288,7 +298,7 @@ private fun PremiumTestResultCard(test: TestResult, strings: Strings) {
             Text("${strings.testScore}: ${test.score.toInt()}", color = statusColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Box(
                 Modifier.background(statusColor.copy(0.15f), RoundedCornerShape(6.dp)).border(1.dp, statusColor.copy(0.3f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
-            ) { Text(test.aiAssessment.replaceFirstChar { it.uppercase() }, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+            ) { Text(statusLabel(test.aiAssessment, strings), color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
         }
     }
 }

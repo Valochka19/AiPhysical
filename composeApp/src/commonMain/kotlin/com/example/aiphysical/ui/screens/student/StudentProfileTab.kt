@@ -16,7 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.aiphysical.data.model.displayTitle
 import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.displayAgeGroup
 import com.example.aiphysical.presentation.student.StudentUiState
 import com.example.aiphysical.ui.theme.*
 import com.example.aiphysical.ui.theme.getStrings
@@ -117,11 +119,15 @@ fun StudentProfileTab(
         }
 
         // ── Info cards ─────────────────────────────────────────────────────────
-        ProfileInfoSection(profile = profile, testCount = state.testHistory.size, strings = strings)
+        ProfileInfoSection(profile = profile, testCount = state.testHistory.size, strings = strings, language = state.currentLanguage)
 
         // ── Test history preview ──────────────────────────────────────────────
         if (state.testHistory.isNotEmpty()) {
-            TestHistorySection(history = state.testHistory.sortedByDescending { it.dateMillis }.take(5), strings = strings)
+            TestHistorySection(
+                history = state.testHistory.sortedByDescending { it.dateMillis }.take(5),
+                strings = strings,
+                language = state.currentLanguage
+            )
         }
 
         HorizontalDivider(color = Color.White.copy(0.08f))
@@ -153,6 +159,7 @@ private fun ProfileInfoSection(
     profile: com.example.aiphysical.data.model.UserProfile,
     testCount: Int,
     strings: Strings,
+    language: AppLanguage,
 ) {
     Column(
         modifier = Modifier
@@ -166,7 +173,7 @@ private fun ProfileInfoSection(
         Text(strings.profileInfoTitle, color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
         listOf(
             Triple("👤", strings.profileRole,           strings.roleStudentShort),
-            Triple("🏫", strings.profileGroup,          profile.ageGroup.ifBlank { strings.profileNotSpecified }),
+            Triple("🏫", strings.profileGroup,          profile.ageGroup.displayAgeGroup(language).ifBlank { strings.profileNotSpecified }),
             Triple("📊", strings.profileTestsDone,      "$testCount"),
             Triple("📈", strings.profileCourseProgress, "${profile.courseProgressPercent.toInt()}%"),
         ).forEach { (emoji, label, value) ->
@@ -182,7 +189,11 @@ private fun ProfileInfoSection(
 }
 
 @Composable
-private fun TestHistorySection(history: List<com.example.aiphysical.data.model.TestResult>, strings: Strings) {
+ private fun TestHistorySection(
+    history: List<com.example.aiphysical.data.model.TestResult>,
+    strings: Strings,
+    language: AppLanguage,
+ ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(strings.sectionTestHistory.uppercase(), color = TextHint, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
         history.forEach { result ->
@@ -200,7 +211,7 @@ private fun TestHistorySection(history: List<com.example.aiphysical.data.model.T
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(result.testName.ifBlank { result.testId }, color = TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(result.displayTitle(language), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     Text(formatDate(result.dateMillis), color = TextHint, style = MaterialTheme.typography.bodySmall)
                 }
                 Box(

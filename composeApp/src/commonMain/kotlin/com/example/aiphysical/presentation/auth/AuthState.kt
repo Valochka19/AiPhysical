@@ -45,6 +45,9 @@ fun AppLanguage.pick(ru: String, en: String, kz: String): String = when (this) {
     AppLanguage.KZ -> kz
 }
 
+fun String.displayAgeGroup(language: AppLanguage): String =
+    AgeGroup.entries.firstOrNull { it.name.equals(this, ignoreCase = true) }?.display(language) ?: this
+
 fun AppLanguage.replyLanguageName(): String = pick(
     ru = "русском",
     en = "English",

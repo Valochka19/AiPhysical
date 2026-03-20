@@ -2,12 +2,14 @@ package com.example.aiphysical
 
 import com.example.aiphysical.data.model.AnswerType
 import com.example.aiphysical.data.model.StudentTestAnswer
+import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.displayDescription
 import com.example.aiphysical.data.model.displayLabel
 import com.example.aiphysical.data.model.displayTitle
 import com.example.aiphysical.data.model.studentTestDefinitionFor
 import com.example.aiphysical.data.model.AppStudentTestCatalog
 import com.example.aiphysical.presentation.auth.AppLanguage
+import com.example.aiphysical.presentation.auth.displayAgeGroup
 import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentTestType
 import kotlin.test.Test
@@ -61,6 +63,20 @@ class LocalizationBehaviorTest {
         assertContains(englishPrompt, "Test name:")
         assertContains(kazakhPrompt, "Сен AiPhysical қолданбасындағы студенттің шағын тест нәтижесін талдап отырсың.")
         assertContains(kazakhPrompt, "Тест атауы:")
+    }
+
+    @Test
+    fun persisted_test_results_display_titles_in_selected_language() {
+        val result = TestResult(testId = "burnout", testName = "Выгорание")
+
+        assertEquals("Burnout", result.displayTitle(AppLanguage.EN))
+        assertEquals("Күйіп кету", result.displayTitle(AppLanguage.KZ))
+    }
+
+    @Test
+    fun persisted_age_group_values_display_in_selected_language() {
+        assertEquals("Senior High School", "SENIOR".displayAgeGroup(AppLanguage.EN))
+        assertEquals("Жоғары мектеп", "SENIOR".displayAgeGroup(AppLanguage.KZ))
     }
 }
 

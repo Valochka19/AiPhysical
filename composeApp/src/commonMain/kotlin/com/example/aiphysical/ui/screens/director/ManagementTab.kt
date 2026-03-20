@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aiphysical.data.model.Organization
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.displayAgeGroup
 import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.director.*
 import com.example.aiphysical.ui.components.*
@@ -133,7 +134,9 @@ fun ManagementTab(
             } else {
                 items(state.filteredMembers, key = { it.uid }) { member ->
                     ManagementMemberCard(
-                        member = member, strings = strings,
+                        member = member,
+                        strings = strings,
+                        language = state.currentLanguage,
                         onViewDetails = { vm.onEvent(DirectorEvent.SelectMember(member)) },
                         onChangeRole = { vm.onEvent(DirectorEvent.OpenRoleChangeSheet(member)) },
                         onToggleBlock = { vm.onEvent(DirectorEvent.ToggleUserBlock(member.uid)) }
@@ -239,6 +242,7 @@ private fun MiniStatChip(label: String, value: String, color: Color, modifier: M
 private fun ManagementMemberCard(
     member: UserProfile,
     strings: Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     onViewDetails: () -> Unit,
     onChangeRole: () -> Unit,
     onToggleBlock: () -> Unit,
@@ -298,7 +302,9 @@ private fun ManagementMemberCard(
                 ) {
                     Text(roleLabel(member.role, strings), color = roleColor, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
-                if (member.ageGroup.isNotBlank()) Text("· ${member.ageGroup}", color = TextHint, fontSize = 10.sp)
+                if (member.ageGroup.isNotBlank()) {
+                    Text("· ${member.ageGroup.displayAgeGroup(language)}", color = TextHint, fontSize = 10.sp)
+                }
             }
         }
 

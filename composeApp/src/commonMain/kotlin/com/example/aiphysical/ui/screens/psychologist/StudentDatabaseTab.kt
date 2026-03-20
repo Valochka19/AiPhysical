@@ -28,8 +28,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.aiphysical.data.model.displayTitle
 import com.example.aiphysical.data.model.TestResult
 import com.example.aiphysical.data.model.UserProfile
+import com.example.aiphysical.presentation.auth.displayAgeGroup
 import com.example.aiphysical.presentation.psychologist.PsychologistEvent
 import com.example.aiphysical.presentation.psychologist.PsychologistHomeState
 import com.example.aiphysical.presentation.psychologist.PsychologistScreen
@@ -54,6 +56,7 @@ fun StudentDatabaseTab(
             testHistory = state.selectedStudentTestHistory,
             isLoading = state.isLoadingDetail,
             strings = getStrings(state.currentLanguage),
+            language = state.currentLanguage,
             onBack = { vm.onEvent(PsychologistEvent.BackToDashboard) },
             onRecommend = { vm.onEvent(PsychologistEvent.OpenRecommendationSheet(state.selectedStudent)) }
         )
@@ -194,6 +197,7 @@ private fun PsychAnalyticsListView(
                 PsychExpandableMemberCard(
                     member = student,
                     strings = strings,
+                    language = state.currentLanguage,
                     onViewDetails = { vm.onEvent(PsychologistEvent.SelectStudent(student)) }
                 )
             }
@@ -284,6 +288,7 @@ private fun PsychGlassEmptyState(emoji: String, title: String, subtitle: String)
 private fun PsychExpandableMemberCard(
     member: UserProfile,
     strings: com.example.aiphysical.ui.theme.Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     onViewDetails: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -378,7 +383,7 @@ private fun PsychExpandableMemberCard(
                 )
                 if (member.ageGroup.isNotBlank()) {
                     Text(
-                        member.ageGroup,
+                        member.ageGroup.displayAgeGroup(language),
                         color = PsychTeal.copy(0.75f),
                         fontSize = 10.sp
                     )
@@ -554,6 +559,7 @@ private fun StudentDetailView(
     testHistory: List<TestResult>,
     isLoading: Boolean,
     strings: com.example.aiphysical.ui.theme.Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
     onBack: () -> Unit,
     onRecommend: () -> Unit,
 ) {
@@ -583,9 +589,9 @@ private fun StudentDetailView(
             Text(strings.dbStudentProfile, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
         }
 
-        StudentIdentityCard(student = student, strings = strings)
+        StudentIdentityCard(student = student, strings = strings, language = language)
         PsychRadarCard(student = student, strings = strings)
-        TestHistoryCard(testHistory = testHistory, isLoading = isLoading, strings = strings)
+        TestHistoryCard(testHistory = testHistory, isLoading = isLoading, strings = strings, language = language)
 
         if (student.psychComment.isNotBlank()) {
             ExistingRecommendationCard(student = student, strings = strings)
@@ -613,7 +619,11 @@ private fun StudentDetailView(
 }
 
 @Composable
-private fun StudentIdentityCard(student: UserProfile, strings: com.example.aiphysical.ui.theme.Strings) {
+ private fun StudentIdentityCard(
+    student: UserProfile,
+    strings: com.example.aiphysical.ui.theme.Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+ ) {
     val (statusColor, statusEmoji) = statusColorAndEmoji(student.latestAiStatus)
     val statusLabel = when (student.latestAiStatus) {
         "critical" -> strings.statusCritical
@@ -658,7 +668,7 @@ private fun StudentIdentityCard(student: UserProfile, strings: com.example.aiphy
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(student.fullName, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             if (student.ageGroup.isNotBlank()) {
-                Text(student.ageGroup, color = TextSecondary, fontSize = 12.sp)
+                Text(student.ageGroup.displayAgeGroup(language), color = TextSecondary, fontSize = 12.sp)
             }
             Text(student.email, color = TextHint, fontSize = 11.sp)
             Spacer(Modifier.height(4.dp))
@@ -794,7 +804,12 @@ private fun PsychRadarCard(student: UserProfile, strings: com.example.aiphysical
 // ── Test History Timeline ─────────────────────────────────────────────────────
 
 @Composable
-private fun TestHistoryCard(testHistory: List<TestResult>, isLoading: Boolean, strings: com.example.aiphysical.ui.theme.Strings) {
+ private fun TestHistoryCard(
+    testHistory: List<TestResult>,
+    isLoading: Boolean,
+    strings: com.example.aiphysical.ui.theme.Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+ ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -822,14 +837,19 @@ private fun TestHistoryCard(testHistory: List<TestResult>, isLoading: Boolean, s
             }
         } else {
             testHistory.forEachIndexed { index, result ->
-                TestTimelineItem(result = result, isLast = index == testHistory.lastIndex, strings = strings)
+                TestTimelineItem(result = result, isLast = index == testHistory.lastIndex, strings = strings, language = language)
             }
         }
     }
 }
 
 @Composable
-private fun TestTimelineItem(result: TestResult, isLast: Boolean, strings: com.example.aiphysical.ui.theme.Strings) {
+private fun TestTimelineItem(
+    result: TestResult,
+    isLast: Boolean,
+    strings: com.example.aiphysical.ui.theme.Strings,
+    language: com.example.aiphysical.presentation.auth.AppLanguage,
+) {
     val (color, emoji) = when (result.aiAssessment) {
         "critical" -> PsychCritical to "🔴"
         "stress"   -> PsychWarning  to "⚠️"
@@ -864,7 +884,7 @@ private fun TestTimelineItem(result: TestResult, isLast: Boolean, strings: com.e
                 .weight(1f)
                 .padding(bottom = if (isLast) 0.dp else 12.dp)
         ) {
-            Text(result.testName, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(result.displayTitle(language), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     Modifier
