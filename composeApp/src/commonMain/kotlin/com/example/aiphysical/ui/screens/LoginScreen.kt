@@ -163,7 +163,7 @@ fun LoginScreen(
 
             // ── Decorative bottom text ──────────────────────────────────────
             Text(
-                text = "© AI Physical 2025",
+                text = "© AI Physical 2026",
                 color = TextHint,
                 fontSize = 11.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)

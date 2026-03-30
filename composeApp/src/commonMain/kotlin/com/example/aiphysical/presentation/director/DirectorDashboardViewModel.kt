@@ -20,10 +20,11 @@ import kotlin.reflect.KClass
 class DirectorDashboardViewModel(
     val orgId: String,
     val uid: String,
-    private val firestoreService: FirestoreService
+    private val firestoreService: FirestoreService,
+    initialLanguage: AppLanguage = AppLanguage.RU,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(DirectorDashboardState())
+    private val _state = MutableStateFlow(DirectorDashboardState(currentLanguage = initialLanguage))
     val state: StateFlow<DirectorDashboardState> = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<DirectorEffect>()
@@ -558,11 +559,11 @@ class DirectorDashboardViewModel(
     // ─── Factory ──────────────────────────────────────────────────────────────
 
     companion object {
-        fun factory(orgId: String, uid: String, firestoreService: FirestoreService): ViewModelProvider.Factory {
+        fun factory(orgId: String, uid: String, firestoreService: FirestoreService, initialLanguage: AppLanguage = AppLanguage.RU): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
-                    DirectorDashboardViewModel(orgId, uid, firestoreService) as T
+                    DirectorDashboardViewModel(orgId, uid, firestoreService, initialLanguage) as T
             }
         }
     }

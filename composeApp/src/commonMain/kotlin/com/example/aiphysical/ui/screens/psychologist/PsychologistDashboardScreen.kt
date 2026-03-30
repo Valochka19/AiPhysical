@@ -61,7 +61,8 @@ fun PsychologistDashboardScreen(
             orgId = orgId,
             uid = uid,
             psychologistName = fullName,
-            firestoreService = firestoreService
+            firestoreService = firestoreService,
+            initialLanguage = currentLanguage,
         )
     )
     val supportVm: SupportChatViewModel = viewModel(
@@ -69,7 +70,8 @@ fun PsychologistDashboardScreen(
         factory = SupportChatViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = firestoreService
+            firestoreService = firestoreService,
+            initialLanguage = currentLanguage,
         )
     )
 
@@ -106,6 +108,7 @@ fun PsychologistDashboardScreen(
         }
     }
 
+    // One-way sync: when parent language changes (e.g. restored after re-login) push it down.
     LaunchedEffect(currentLanguage) {
         vm.onEvent(PsychologistEvent.ChangeLanguage(currentLanguage))
         supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
@@ -115,8 +118,11 @@ fun PsychologistDashboardScreen(
         supportVm.setActive(drawerOverlay == DashboardOverlayDestination.Chat)
     }
 
+    // Propagate user-initiated language changes (via LanguageSwitcher in tabs) back to Auth.
+    // Guard with rememberUpdatedState to avoid the initial echo that causes the oscillation loop.
+    val latestParentLanguage by rememberUpdatedState(currentLanguage)
     LaunchedEffect(state.currentLanguage) {
-        if (state.currentLanguage != currentLanguage) {
+        if (state.currentLanguage != latestParentLanguage) {
             onLanguageChange(state.currentLanguage)
         }
     }

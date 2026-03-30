@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -75,22 +76,25 @@ fun AnimatedBackground(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val infiniteTransition = if (animate) rememberInfiniteTransition(label = "bg_anim") else null
-    val pulse1 = if (animate) {
+    // Keep State<Float> references — do NOT call .value here in composition phase.
+    // Reading .value here would cause a full recomposition every animation frame (~60fps),
+    // making text appear blurry / doubled on mid-range Android devices.
+    val pulse1State = if (animate) {
         infiniteTransition!!.animateFloat(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
             label = "pulse1"
-        ).value
-    } else 0.35f
-    val pulse2 = if (animate) {
+        )
+    } else null
+    val pulse2State = if (animate) {
         infiniteTransition!!.animateFloat(
             initialValue = 1f,
             targetValue = 0f,
             animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
             label = "pulse2"
-        ).value
-    } else 0.55f
+        )
+    } else null
 
     Box(
         modifier = Modifier
@@ -102,10 +106,16 @@ fun AnimatedBackground(
             )
     ) {
         // Violet orb — top-left
+        // graphicsLayer reads State.value during the DRAW phase, not composition phase,
+        // so the orb moves without recomposing the whole tree.
         Box(
             modifier = Modifier
                 .size(340.dp)
-                .offset(x = (-90 + pulse1 * 50).dp, y = (-80 + pulse1 * 40).dp)
+                .graphicsLayer {
+                    val p = pulse1State?.value ?: 0.35f
+                    translationX = (-90 + p * 50).dp.toPx()
+                    translationY = (-80 + p * 40).dp.toPx()
+                }
                 .background(
                     Brush.radialGradient(listOf(VioletPrimary.copy(alpha = 0.28f), Color.Transparent)),
                     CircleShape
@@ -116,7 +126,11 @@ fun AnimatedBackground(
             modifier = Modifier
                 .size(280.dp)
                 .align(Alignment.BottomEnd)
-                .offset(x = (70 - pulse2 * 50).dp, y = (70 - pulse2 * 40).dp)
+                .graphicsLayer {
+                    val p = pulse2State?.value ?: 0.55f
+                    translationX = (70 - p * 50).dp.toPx()
+                    translationY = (70 - p * 40).dp.toPx()
+                }
                 .background(
                     Brush.radialGradient(listOf(AccentPink.copy(alpha = 0.20f), Color.Transparent)),
                     CircleShape
@@ -127,7 +141,11 @@ fun AnimatedBackground(
             modifier = Modifier
                 .size(200.dp)
                 .align(Alignment.CenterEnd)
-                .offset(x = 90.dp, y = (pulse1 * 60 - 30).dp)
+                .graphicsLayer {
+                    val p = pulse1State?.value ?: 0.35f
+                    translationX = 90.dp.toPx()
+                    translationY = (p * 60 - 30).dp.toPx()
+                }
                 .background(
                     Brush.radialGradient(listOf(AccentCyan.copy(alpha = 0.12f), Color.Transparent)),
                     CircleShape
@@ -387,7 +405,10 @@ fun OrDivider(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun Modifier.shimmerEffect(): Modifier {
     val transition = rememberInfiniteTransition(label = "shimmer")
-    val shimmerX by transition.animateFloat(
+    // Keep State<Float> — do NOT use 'by' delegate here.
+    // 'by' calls .value in the composition phase which triggers recomposition every frame.
+    // Reading shimmerXState.value inside drawWithContent runs in the draw phase only.
+    val shimmerXState = transition.animateFloat(
         initialValue = -600f, targetValue = 1800f,
         animationSpec = infiniteRepeatable(
             animation = tween(1600, easing = LinearEasing),
@@ -396,6 +417,7 @@ fun Modifier.shimmerEffect(): Modifier {
     )
     return this.drawWithContent {
         drawContent()
+        val shimmerX = shimmerXState.value  // read in draw phase — no recomposition triggered
         drawRect(
             brush = Brush.linearGradient(
                 colors = listOf(
@@ -417,12 +439,14 @@ fun Modifier.shimmerEffect(): Modifier {
 @Composable
 fun DirectorBackground(content: @Composable BoxScope.() -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "dir_bg")
-    val pulse1 by infiniteTransition.animateFloat(
+    // Keep State<Float> references — read .value only in graphicsLayer (draw phase)
+    // to avoid triggering full tree recomposition at 60fps.
+    val pulse1State = infiniteTransition.animateFloat(
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing), RepeatMode.Reverse),
         label = "dp1"
     )
-    val pulse2 by infiniteTransition.animateFloat(
+    val pulse2State = infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 0f,
         animationSpec = infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Reverse),
         label = "dp2"
@@ -440,7 +464,11 @@ fun DirectorBackground(content: @Composable BoxScope.() -> Unit) {
         Box(
             modifier = Modifier
                 .size(380.dp)
-                .offset(x = (-100 + pulse1 * 60).dp, y = (-100 + pulse1 * 50).dp)
+                .graphicsLayer {
+                    val p = pulse1State.value
+                    translationX = (-100 + p * 60).dp.toPx()
+                    translationY = (-100 + p * 50).dp.toPx()
+                }
                 .background(
                     Brush.radialGradient(listOf(NeonViolet.copy(alpha = 0.22f), Color.Transparent)),
                     CircleShape
@@ -451,7 +479,11 @@ fun DirectorBackground(content: @Composable BoxScope.() -> Unit) {
             modifier = Modifier
                 .size(300.dp)
                 .align(Alignment.BottomEnd)
-                .offset(x = (60 - pulse2 * 40).dp, y = (60 - pulse2 * 30).dp)
+                .graphicsLayer {
+                    val p = pulse2State.value
+                    translationX = (60 - p * 40).dp.toPx()
+                    translationY = (60 - p * 30).dp.toPx()
+                }
                 .background(
                     Brush.radialGradient(listOf(CyanAccent.copy(alpha = 0.18f), Color.Transparent)),
                     CircleShape
@@ -462,7 +494,11 @@ fun DirectorBackground(content: @Composable BoxScope.() -> Unit) {
             modifier = Modifier
                 .size(220.dp)
                 .align(Alignment.CenterStart)
-                .offset(x = (-100).dp, y = (pulse1 * 60 - 30).dp)
+                .graphicsLayer {
+                    val p = pulse1State.value
+                    translationX = (-100).dp.toPx()
+                    translationY = (p * 60 - 30).dp.toPx()
+                }
                 .background(
                     Brush.radialGradient(listOf(AlertOrange.copy(alpha = 0.08f), Color.Transparent)),
                     CircleShape

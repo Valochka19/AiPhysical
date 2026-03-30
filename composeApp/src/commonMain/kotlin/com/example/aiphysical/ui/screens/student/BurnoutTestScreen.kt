@@ -324,13 +324,15 @@ private fun LoadingResultContent(testName: String, language: AppLanguage) {
         verticalArrangement = Arrangement.Center
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "loading_pulse")
-        val scale by infiniteTransition.animateFloat(
+        // Use State<Float> reference — read .value inside graphicsLayer (draw phase) to avoid
+        // recomposing the entire LoadingResultContent every animation frame.
+        val scaleState = infiniteTransition.animateFloat(
             initialValue = 0.90f,
             targetValue = 1.10f,
             animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
             label = "pulse_scale"
         )
-        Box(modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }) {
+        Box(modifier = Modifier.graphicsLayer { scaleX = scaleState.value; scaleY = scaleState.value }) {
             MascotComponent(catState = CatState.IDLE, size = 120.dp, language = language)
         }
         Spacer(Modifier.height(28.dp))

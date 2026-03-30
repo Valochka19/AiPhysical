@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.ui.Alignment
@@ -108,7 +109,8 @@ fun TeacherDashboardScreen(
         factory = StudentViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = firestoreService
+            firestoreService = firestoreService,
+            initialLanguage = currentLanguage,
         )
     )
     val supportVm: SupportChatViewModel = viewModel(
@@ -116,7 +118,8 @@ fun TeacherDashboardScreen(
         factory = SupportChatViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = firestoreService
+            firestoreService = firestoreService,
+            initialLanguage = currentLanguage,
         )
     )
     val state by vm.state.collectAsStateWithLifecycle()
@@ -161,6 +164,7 @@ fun TeacherDashboardScreen(
         }
     }
 
+    // One-way sync: push parent language changes down.
     LaunchedEffect(currentLanguage) {
         vm.onEvent(StudentEvent.ChangeLanguage(currentLanguage))
         supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
@@ -170,8 +174,10 @@ fun TeacherDashboardScreen(
         supportVm.setActive(drawerOverlay == DashboardOverlayDestination.Chat)
     }
 
+    // Propagate user-initiated language changes back to Auth without initial oscillation.
+    val latestParentLanguage by rememberUpdatedState(currentLanguage)
     LaunchedEffect(state.currentLanguage) {
-        if (state.currentLanguage != currentLanguage) {
+        if (state.currentLanguage != latestParentLanguage) {
             onLanguageChange(state.currentLanguage)
         }
     }

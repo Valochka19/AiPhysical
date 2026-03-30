@@ -54,7 +54,23 @@ fun MemberDetailScreen(
         ) {
             // ── Top navigation bar ────────────────────────────────────────────
             item {
-                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                // LanguageSwitcher is the leftmost element so it is protected from
+                // the display cutout / camera notch on the right edge of Chinese phones.
+                // Both controls are grouped on the left in a single Row.
+                // Status-bar padding is already applied by the Scaffold's contentWindowInsets
+                // (via modifier.padding(innerPadding) passed to this screen) — no extra
+                // statusBarsPadding() is added here to avoid double-padding.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // ① Language switcher — top-left corner, clear of camera cutout
+                    LanguageSwitcher(
+                        currentLanguage = state.currentLanguage,
+                        onLanguageChange = { onEvent(DirectorEvent.ChangeLanguage(it)) }
+                    )
+                    // ② Back button — harmoniously placed right next to the switcher
                     TextButton(
                         onClick = { onEvent(DirectorEvent.BackToDashboard) },
                         modifier = Modifier
@@ -62,9 +78,13 @@ fun MemberDetailScreen(
                             .background(Color.White.copy(0.06f))
                             .border(1.dp, Color.White.copy(0.14f), RoundedCornerShape(12.dp))
                     ) {
-                        Text("← ${strings.back}", color = Color.White.copy(0.7f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            "← ${strings.back}",
+                            color = Color.White.copy(0.7f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
-                    LanguageSwitcher(currentLanguage = state.currentLanguage, onLanguageChange = { onEvent(DirectorEvent.ChangeLanguage(it)) })
                 }
             }
 

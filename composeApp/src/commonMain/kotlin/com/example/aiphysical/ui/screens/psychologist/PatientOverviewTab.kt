@@ -264,8 +264,15 @@ private fun GlassAiOrbHeader(
         }
 
         // ── Language switcher + Logout ────────────────────────────────────────
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.End) {
-            // Language cycle button: RU → EN → KZ → RU
+        // Previously these were stacked in a Column (RU on top, Выйти below), but
+        // DashboardMenuButton (☰) is an absolute overlay at TopEnd which covered the
+        // RU button. Placing them side-by-side in a Row moves RU to the LEFT of Выйти,
+        // so it is no longer hidden under the ☰ overlay. Language logic is unchanged.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // ① Language cycle button: RU → EN → KZ → RU  (now to the LEFT of Выйти)
             val nextLang = when (currentLanguage) {
                 com.example.aiphysical.presentation.auth.AppLanguage.RU -> com.example.aiphysical.presentation.auth.AppLanguage.EN
                 com.example.aiphysical.presentation.auth.AppLanguage.EN -> com.example.aiphysical.presentation.auth.AppLanguage.KZ
@@ -281,6 +288,7 @@ private fun GlassAiOrbHeader(
             ) {
                 Text(currentLanguage.code.uppercase(), color = PsychTeal, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
             }
+            // ② Logout button — rightmost element in the Row
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))

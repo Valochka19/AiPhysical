@@ -18,9 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -92,7 +92,9 @@ fun MascotComponent(
 
     // Gentle breathing animation for the container
     val infiniteTransition = rememberInfiniteTransition(label = "mascot_idle")
-    val breathScale by infiniteTransition.animateFloat(
+    // Keep State<Float> reference — do NOT use 'by' delegate (would read .value in composition).
+    // Reading in graphicsLayer lambda runs in draw phase only.
+    val breathScaleState = infiniteTransition.animateFloat(
         initialValue = 0.97f,
         targetValue  = 1.03f,
         animationSpec = infiniteRepeatable(
@@ -111,7 +113,11 @@ fun MascotComponent(
         Box(
             modifier = Modifier
                 .size(size)
-                .scale(breathScale)
+                .graphicsLayer {
+                    val s = breathScaleState.value
+                    scaleX = s
+                    scaleY = s
+                }
                 .background(
                     Brush.radialGradient(
                         listOf(glowColor.copy(0.30f), glowColor.copy(0.08f), Color.Transparent)

@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -124,53 +123,30 @@ private fun FloatingDirectorHeader(
     onLanguageChange: (com.example.aiphysical.presentation.auth.AppLanguage) -> Unit,
     onLogout: () -> Unit,
 ) {
-    val glowRadius = 118f
-    val glowAlpha = 0.24f
-
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Action row — Language + Logout
+        // Action row — LanguageSwitcher is intentionally the FIRST (leftmost) element
+        // so it is always in the top-left corner, away from camera notches/cutouts.
+        // Status-bar / display-cutout padding is already applied by the parent Scaffold
+        // via Modifier.padding(innerPadding) — no additional statusBarsPadding() here
+        // to avoid double-padding.
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+            // ① Language switcher — top-left, protected from cutout
             LanguageSwitcher(currentLanguage = currentLanguage, onLanguageChange = onLanguageChange)
+            // ② Right cluster — optional loading indicator + logout button
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (isLoading) CircularProgressIndicator(Modifier.size(13.dp), color = CyanAccent, strokeWidth = 2.dp)
                 FloatingActionBtn(label = strings.logoutBtn, onClick = onLogout)
             }
         }
 
-        // KACY title — no card, floating on background
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = "KACY",
-                modifier = Modifier.drawBehind {
-                    val cx = size.width * 0.3f
-                    val cy = size.height * 0.5f
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(CyanAccent.copy(alpha = glowAlpha), Color.Transparent),
-                            center = Offset(cx, cy),
-                            radius = glowRadius
-                        ),
-                        radius = glowRadius,
-                        center = Offset(cx, cy)
-                    )
-                },
-                style = TextStyle(
-                    brush = Brush.horizontalGradient(
-                        listOf(Color.White, CyanAccent.copy(0.9f), Color.White.copy(0.8f))
-                    ),
-                    fontSize = 56.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-1).sp
-                )
-            )
-            Text(
-                text = strings.directorPanelSubtitle,
-                color = Color.White.copy(0.38f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 1.sp
-            )
-        }
+        // Header subtitle — floating on background
+        Text(
+            text = strings.directorPanelSubtitle,
+            color = Color.White.copy(0.38f),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 1.sp
+        )
     }
 }
 

@@ -15,6 +15,7 @@ import com.example.aiphysical.data.model.UserProfile
 import com.example.aiphysical.data.model.studentTestDefinitionFor
 import com.example.aiphysical.data.service.FirestoreResult
 import com.example.aiphysical.data.service.FirestoreService
+import com.example.aiphysical.presentation.auth.AppLanguage
 import com.example.aiphysical.presentation.auth.pick
 import com.example.aiphysical.presentation.student.StudentTestType
 import com.example.aiphysical.util.currentTimeMillis
@@ -27,14 +28,16 @@ class PsychologistViewModel(
     private val orgId: String,
     private val uid: String,
     private val psychologistName: String,
-    private val firestoreService: FirestoreService
+    private val firestoreService: FirestoreService,
+    initialLanguage: AppLanguage = AppLanguage.RU,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
         PsychologistHomeState(
             orgId = orgId,
             psychologistId = uid,
-            psychologistName = psychologistName
+            psychologistName = psychologistName,
+            currentLanguage = initialLanguage,
         )
     )
     val state: StateFlow<PsychologistHomeState> = _state.asStateFlow()
@@ -783,11 +786,12 @@ class PsychologistViewModel(
             orgId: String,
             uid: String,
             psychologistName: String,
-            firestoreService: FirestoreService
+            firestoreService: FirestoreService,
+            initialLanguage: AppLanguage = AppLanguage.RU,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
-                PsychologistViewModel(orgId, uid, psychologistName, firestoreService) as T
+                PsychologistViewModel(orgId, uid, psychologistName, firestoreService, initialLanguage) as T
         }
     }
 }

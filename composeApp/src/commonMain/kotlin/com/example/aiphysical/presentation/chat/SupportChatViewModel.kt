@@ -28,9 +28,10 @@ class SupportChatViewModel(
     private val uid: String,
     private val orgId: String,
     private val firestoreService: FirestoreService,
+    initialLanguage: AppLanguage = AppLanguage.RU,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(SupportChatUiState())
+    private val _state = MutableStateFlow(SupportChatUiState(currentLanguage = initialLanguage))
     val state: StateFlow<SupportChatUiState> = _state.asStateFlow()
 
     private var currentRole: String = ""
@@ -324,10 +325,11 @@ class SupportChatViewModel(
             uid: String,
             orgId: String,
             firestoreService: FirestoreService,
+            initialLanguage: AppLanguage = AppLanguage.RU,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
-                SupportChatViewModel(uid, orgId, firestoreService) as T
+                SupportChatViewModel(uid, orgId, firestoreService, initialLanguage) as T
         }
     }
 

@@ -57,10 +57,11 @@ class StudentViewModel(
     private val uid: String,
     private val orgId: String,
     private val firestoreService: FirestoreService,
-    private val geminiService: GeminiService = createGeminiService()
+    private val geminiService: GeminiService = createGeminiService(),
+    initialLanguage: AppLanguage = AppLanguage.RU,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(StudentUiState())
+    private val _state = MutableStateFlow(StudentUiState(currentLanguage = initialLanguage))
     val state: StateFlow<StudentUiState> = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<StudentEffect>()
@@ -956,11 +957,12 @@ class StudentViewModel(
         fun factory(
             uid: String,
             orgId: String,
-            firestoreService: FirestoreService
+            firestoreService: FirestoreService,
+            initialLanguage: AppLanguage = AppLanguage.RU,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
-                StudentViewModel(uid, orgId, firestoreService) as T
+                StudentViewModel(uid, orgId, firestoreService, initialLanguage = initialLanguage) as T
         }
     }
 }

@@ -12,8 +12,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -49,7 +48,7 @@ fun DirectorDashboardScreen(
 ) {
     val vm: DirectorDashboardViewModel = viewModel(
         key = "director:$uid:$orgId",
-        factory = DirectorDashboardViewModel.factory(orgId, uid, createFirestoreService())
+        factory = DirectorDashboardViewModel.factory(orgId, uid, createFirestoreService(), initialLanguage)
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -57,10 +56,14 @@ fun DirectorDashboardScreen(
     val uriHandler = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
 
-    // Sync initial language
-    LaunchedEffect(initialLanguage) { vm.onEvent(DirectorEvent.ChangeLanguage(initialLanguage)) }
+    // Keep Auth in sync when user changes language via LanguageSwitcher inside the dashboard.
+    // We use rememberUpdatedState so the check compares against the LATEST parent value,
+    // and we guard with != to avoid the initial echo (ViewModel was already initialised with
+    // initialLanguage, so on first composition state.currentLanguage == initialLanguage and
+    // the effect does NOT fire onLanguageChange — no oscillation).
+    val latestParentLanguage by rememberUpdatedState(initialLanguage)
     LaunchedEffect(state.currentLanguage) {
-        if (state.currentLanguage != initialLanguage) {
+        if (state.currentLanguage != latestParentLanguage) {
             onLanguageChange(state.currentLanguage)
         }
     }
@@ -137,11 +140,6 @@ fun DirectorDashboardScreen(
                     )
                 }
             }
-        }
-
-        // Logout relay
-        if (state.currentScreen == DirectorPanelScreen.Dashboard) {
-            LaunchedEffect(state.currentLanguage) { /* force recompose on language change */ }
         }
     }
 }

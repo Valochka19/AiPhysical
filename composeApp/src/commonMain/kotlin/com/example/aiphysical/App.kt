@@ -36,90 +36,121 @@ fun App() {
             )
         }
         val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
-        val strings = getStrings(uiState.currentLanguage)
 
-        if (uiState.isRestoringSession) {
-            AnimatedBackground(animate = false) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator(color = VioletGlow)
-                    Spacer(Modifier.height(20.dp))
-                    Text(
-                        text = uiState.currentLanguage.pick(
-                            ru = "Восстанавливаем сессию...",
-                            en = "Restoring session...",
-                            kz = "Сессия қалпына келтірілуде..."
-                        ),
-                        color = TextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+        // ── Root safe-area wrapper ────────────────────────────────────────────
+        // Two-layer design:
+        //   Outer Box  — fills the ENTIRE physical screen (backgrounds bleed to edges,
+        //                including under the notch / camera cutout).
+        //   Inner Box  — consumes WindowInsets.displayCutout so every screen's
+        //                interactive content (text, buttons, cards) is guaranteed
+        //                to stay clear of camera notches and punch-holes on
+        //                Chinese phones (MIUI, EMUI, ColorOS, OriginOS…).
+        //
+        // We intentionally use ONLY displayCutout and NOT the full safeDrawing
+        // insets here, for two reasons:
+        //   1. System bars (status / navigation) are already hidden in immersive
+        //      mode; each Scaffold handles them via its own contentWindowInsets.
+        //   2. IME (keyboard) insets are already handled per-screen with
+        //      Modifier.imePadding() where needed (e.g. LoginScreen).
+        // Keeping responsibilities separate prevents any accidental double-padding.
+        Box(modifier = Modifier.fillMaxSize()) {                       // ← full bleed
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.displayCutout)       // ← notch guard
+            ) {
+                // A single AnimatedContent wraps BOTH the loading splash and the
+                // main navigation so that the loading→content switch is animated
+                // rather than abrupt (prevents the 1-frame "doubled text" artefact
+                // on some Android GPU drivers).
+                AnimatedContent(
+                    targetState = uiState,
+                    transitionSpec = {
+                        fadeIn(tween(220)) togetherWith fadeOut(tween(180))
+                    },
+                    contentKey = { state ->
+                        // Key changes only when the meaningful screen changes,
+                        // not on every minor state update — avoids spurious transitions.
+                        if (state.isRestoringSession) "loading"
+                        else state.currentScreen::class.simpleName
+                    },
+                    label = "app_root_nav"
+                ) { state ->
+                    if (state.isRestoringSession) {
+                        AnimatedBackground(animate = false) {
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(color = VioletGlow)
+                                Spacer(Modifier.height(20.dp))
+                                Text(
+                                    text = state.currentLanguage.pick(
+                                        ru = "Восстанавливаем сессию...",
+                                        en = "Restoring session...",
+                                        kz = "Сессия қалпына келтірілуде..."
+                                    ),
+                                    color = TextPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        return@AnimatedContent
+                    }
+
+                    when (val screen = state.currentScreen) {
+                        is AuthScreen.Login -> LoginScreen(uiState = state, onEvent = authViewModel::onEvent)
+                        is AuthScreen.RoleSelection -> RoleSelectionScreen(uiState = state, onEvent = authViewModel::onEvent)
+                        is AuthScreen.Registration -> RegistrationScreen(role = screen.role, uiState = state, onEvent = authViewModel::onEvent)
+
+                        // ── Director Dashboard ─────────────────────────────────────
+                        is AuthScreen.DirectorDashboard -> DirectorDashboardScreen(
+                            orgId = screen.orgId,
+                            uid = screen.uid,
+                            initialLanguage = state.currentLanguage,
+                            onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
+                            onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                        )
+
+                        // ── Psychologist Dashboard ─────────────────────────────────
+                        is AuthScreen.PsychologistDashboard -> PsychologistDashboardScreen(
+                            uid = screen.uid,
+                            orgId = screen.orgId,
+                            fullName = screen.fullName,
+                            currentLanguage = state.currentLanguage,
+                            onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
+                            onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                        )
+
+                        // ── Student Dashboard ──────────────────────────────────────
+                        is AuthScreen.StudentDashboard -> StudentDashboardScreen(
+                            uid = screen.uid,
+                            orgId = screen.orgId,
+                            currentLanguage = state.currentLanguage,
+                            onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
+                            onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                        )
+
+                        // ── Teacher Dashboard ──────────────────────────────────────
+                        is AuthScreen.TeacherDashboard -> TeacherDashboardScreen(
+                            uid = screen.uid,
+                            orgId = screen.orgId,
+                            currentLanguage = state.currentLanguage,
+                            onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
+                            onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                        )
+
+                        // ── Generic Home (fallback for unknown roles) ──────────────
+                        is AuthScreen.GenericHome -> GenericHomeScreen(
+                            uid = screen.uid,
+                            role = screen.role,
+                            language = state.currentLanguage,
+                            onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
+                            onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
+                        )
+                    }
                 }
-            }
-            return@AIPhysicalTheme
-        }
-
-        AnimatedContent(
-            targetState = uiState.currentScreen,
-            transitionSpec = {
-                fadeIn(tween(180)) togetherWith fadeOut(tween(140))
-            },
-            label = "auth_nav"
-        ) { screen ->
-            when (screen) {
-                is AuthScreen.Login -> LoginScreen(uiState = uiState, onEvent = authViewModel::onEvent)
-                is AuthScreen.RoleSelection -> RoleSelectionScreen(uiState = uiState, onEvent = authViewModel::onEvent)
-                is AuthScreen.Registration -> RegistrationScreen(role = screen.role, uiState = uiState, onEvent = authViewModel::onEvent)
-
-                // ── Director Dashboard ─────────────────────────────────────────────────
-                // Back button is disabled here — cannot navigate back to registration
-                is AuthScreen.DirectorDashboard -> DirectorDashboardScreen(
-                    orgId = screen.orgId,
-                    uid = screen.uid,
-                    initialLanguage = uiState.currentLanguage,
-                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
-                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
-                )
-
-                // ── Psychologist Dashboard ─────────────────────────────────────────────
-                is AuthScreen.PsychologistDashboard -> PsychologistDashboardScreen(
-                    uid = screen.uid,
-                    orgId = screen.orgId,
-                    fullName = screen.fullName,
-                    currentLanguage = uiState.currentLanguage,
-                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
-                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
-                )
-
-                // ── Student Dashboard ─────────────────────────────────────────────────
-                is AuthScreen.StudentDashboard -> StudentDashboardScreen(
-                    uid = screen.uid,
-                    orgId = screen.orgId,
-                    currentLanguage = uiState.currentLanguage,
-                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
-                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
-                )
-
-                // ── Teacher Dashboard ─────────────────────────────────────────────────
-                is AuthScreen.TeacherDashboard -> TeacherDashboardScreen(
-                    uid = screen.uid,
-                    orgId = screen.orgId,
-                    currentLanguage = uiState.currentLanguage,
-                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
-                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
-                )
-
-                // ── Generic Home (fallback for unknown roles) ─────────────────────────
-                is AuthScreen.GenericHome -> GenericHomeScreen(
-                    uid = screen.uid,
-                    role = screen.role,
-                    language = uiState.currentLanguage,
-                    onLanguageChange = { authViewModel.onEvent(AuthEvent.ChangeLanguage(it)) },
-                    onLogout = { authViewModel.onEvent(AuthEvent.Logout) }
-                )
             }
         }
     }

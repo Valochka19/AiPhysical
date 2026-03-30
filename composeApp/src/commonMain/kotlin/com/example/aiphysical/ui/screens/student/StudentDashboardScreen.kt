@@ -74,7 +74,8 @@ fun StudentDashboardScreen(
         factory = StudentViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = firestoreService
+            firestoreService = firestoreService,
+            initialLanguage = currentLanguage,
         )
     )
     val supportVm: SupportChatViewModel = viewModel(
@@ -82,7 +83,8 @@ fun StudentDashboardScreen(
         factory = SupportChatViewModel.factory(
             uid = uid,
             orgId = orgId,
-            firestoreService = firestoreService
+            firestoreService = firestoreService,
+            initialLanguage = currentLanguage,
         )
     )
     val state by vm.state.collectAsStateWithLifecycle()
@@ -117,6 +119,7 @@ fun StudentDashboardScreen(
         }
     }
 
+    // One-way sync: push parent language changes down to child VMs.
     LaunchedEffect(currentLanguage) {
         vm.onEvent(StudentEvent.ChangeLanguage(currentLanguage))
         supportVm.onEvent(SupportChatEvent.ChangeLanguage(currentLanguage))
@@ -126,8 +129,12 @@ fun StudentDashboardScreen(
         supportVm.setActive(drawerOverlay == DashboardOverlayDestination.Chat)
     }
 
+    // Propagate user-initiated language changes (from ProfileTab LanguageSwitcher) back to Auth.
+    // Guard avoids the initial oscillation: VM started with currentLanguage so on first
+    // composition state.currentLanguage == latestParentLanguage → no spurious callback.
+    val latestParentLanguage by rememberUpdatedState(currentLanguage)
     LaunchedEffect(state.currentLanguage) {
-        if (state.currentLanguage != currentLanguage) {
+        if (state.currentLanguage != latestParentLanguage) {
             onLanguageChange(state.currentLanguage)
         }
     }
