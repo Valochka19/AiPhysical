@@ -1,35 +1,78 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+# AIPhysical 🧠
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
+**AIPhysical** — кроссплатформенное мобильное приложение (Android + iOS) для мониторинга ментального здоровья в учебных организациях. Студенты проходят психологические тесты, психологи анализируют результаты и ведут поддержку, а руководство видит агрегированную аналитику по всей организации с AI-инсайтами.
 
-* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+## ✨ Возможности
 
-### Build and Run Android Application
+### 👤 Роли пользователей
+- **Студент** — прохождение обязательных и кастомных тестов, курсы, AI-чат, чат поддержки с психологом, геймификация с маскотом, профиль с личной статистикой
+- **Психолог** — обзор пациентов, база студентов, интервенции, библиотека материалов, конструктор собственных тестов, отчёты по результатам тестирования
+- **Директор** — панель с 4 вкладками: дашборд (AI-ассистент, круговые KPI-виджеты, тренд-чарт за 30 дней, критические оповещения), аналитика с фильтрами и метриками участников, управление (инвайт-коды, смена ролей, блокировка), контент
+- **Преподаватель** — собственная панель
 
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
+### 📊 Метрики ментального здоровья
+Отслеживаются 5 показателей каждого участника: **выгорание, стресс, эмоциональное состояние, мотивация, тревожность** — с цветовой индикацией уровня риска и агрегацией по организации.
 
-### Build and Run iOS Application
+### 🌐 Прочее
+- Мультиязычность: казахский, русский, английский
+- Приглашение в организацию по инвайт-кодам (отдельные коды для психологов и студентов)
+- Синхронизация всех тестов через Firestore
+- Оптимизация под слабые/старые устройства
 
-To build and run the development version of the iOS app, use the run configuration from the run widget
-in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+## 🎨 Дизайн
 
----
+Тёмная неоновая тема в стиле **glassmorphism**: полупрозрачные карточки с градиентными рамками (фиолетовый `#8A2BE2` → циан `#00CED1`), shimmer-эффекты, анимированные Canvas-виджеты (круговой прогресс, графики трендов), haptic feedback.
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+## 🛠️ Стек технологий
+
+| Технология | Назначение |
+|------------|------------|
+| Kotlin Multiplatform 2.3 | Общая бизнес-логика для Android и iOS |
+| Compose Multiplatform 1.10 | Единый UI на обеих платформах |
+| Material 3 | Дизайн-система |
+| Firebase Auth | Аутентификация |
+| Cloud Firestore | База данных и синхронизация |
+| kotlinx-coroutines | Асинхронность |
+| AndroidX Lifecycle ViewModel | MVVM / MVI |
+
+**Архитектура:** MVI — `State` через `StateFlow`, одноразовые side-effects (снекбары, копирование в буфер, открытие ссылок, вибрация) через `SharedFlow<Effect>`.
+
+## 📁 Структура проекта
+
+```
+composeApp/src/
+├── commonMain/          # Общий код: модели, сервисы, ViewModel'и, все экраны UI
+│   └── kotlin/com/example/aiphysical/
+│       ├── data/        # Модели (UserProfile, TestResult, KpiData...) и интерфейсы сервисов
+│       ├── presentation/# MVI: State / Event / Effect / ViewModel по ролям
+│       ├── ui/          # Тема, компоненты (glassmorphism), экраны по ролям
+│       └── util/        # ServiceFactory, BackPressHandler
+├── androidMain/         # Реализации Firebase-сервисов для Android
+└── iosMain/             # iOS-реализации сервисов
+iosApp/                  # Точка входа iOS-приложения (Xcode-проект)
+```
+
+## 🚀 Сборка и запуск
+
+### Требования
+- JDK 17+, Android Studio (или IntelliJ IDEA) с плагином Kotlin Multiplatform
+- Xcode — для сборки под iOS (только macOS)
+- Файл `google-services.json` от вашего Firebase-проекта в `composeApp/`
+
+### Android
+```shell
+# macOS/Linux
+./gradlew :composeApp:assembleDebug
+
+# Windows
+.\gradlew.bat :composeApp:assembleDebug
+```
+Или через run-конфигурацию в Android Studio.
+
+### iOS
+Открыть папку [`iosApp`](./iosApp) в Xcode и запустить, либо использовать run-конфигурацию IDE.
+
+## 📄 Дополнительная документация
+
+- [IMPLEMENTATION.md](./IMPLEMENTATION.md) — подробная документация реализации (дизайн-система, архитектура, описание всех экранов)
+- [FIRESTORE_RULES_PSYCH_CHAT.md](./FIRESTORE_RULES_PSYCH_CHAT.md) — правила безопасности Firestore для чата с психологом
